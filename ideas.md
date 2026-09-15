@@ -61,7 +61,10 @@ RCEP
 
 用户交互：
 最主要是一个咨询页面，
-用户输入
+初始描述：一句话描述 + 基础信息。（需要提示词,提醒用户输入产业、生产链、销售地、痛点）
+e.g.我们是一家新能源汽车电池企业，目前70%的生产在越南，主要出口美国。由于美国政策变化以及越南供应链不足，我们考虑是否扩大中国生产比例。
+
+用户输入表单：
 1、公司名
 2、产业（进行选择，例如Electronics、Semiconductor，不要自由输入）
 3、product/main business（What products are you producing?
@@ -163,14 +166,226 @@ Do you face:
 □ None
 
 
-包括当前信息总结、主要风险识别、各决策scenario推演，并给出一个最终评估建议，最后问用户更多信息提供邀请对话。接下来交给LLM模型，在和用户的对话中继续完善。当用户最后做出决策后，LLM进行一个总结并生成可以给用户用的PDF报告。
+包括当前信息总结、主要风险识别、各决策scenario推演（并给出各种情景风险评估百分比），并给出一个最终评估建议，每条信息需要能够溯源。最好加上置信度confidency，并且给出不确定性，以解决边界问题。
+最后问用户更多信息提供邀请对话。接下来交给LLM模型，在和用户的对话中继续完善。当用户最后做出决策后，LLM进行一个总结并生成可以给用户用的PDF报告。
+下方页面可以包括相关新闻报告推荐，方便企业查询和辅助决策。（这个功能可选可不选，视情况而定）
+新增功能考虑：Decision Preference Slider，根据用户调整重新决策。考虑到技术复杂度，先进行保留。
+
+内置工作流程：
+1、理解用户信息，形成company profile。并且将profile作为核心信息在后续保持实时更新
+2、数据搜集。RAG + Web Search + Structured Data
+来源包括rag和网络中报告、调查等等，内容包括公司母国、出口国、生产国相关政策，贸易数据，该公司产业布局，地缘政治风险相关新闻
+3、evidence layer
+数据来源
+↓
+Evidence Extraction
+↓
+Risk Factors
+↓
+Reasoning
+↓
+Recommendation
+形成evidence database。更新profile
+4、agent信息推理
+（一个核心agen功能：
+理解用户问题
+调度工具
+综合分析
+和用户对话
+生成报告）
+risk map+scenario mock
+最后形成初步报告
+5、LLM对话
+更新并重新计算
+6、PDF生成
 
 
-内置工作程序：数据搜集，包括
-爬虫抓取相关公司目前信息和产业布局
-agent信息推理
+AI生成流程图一览：
+                User Input
+                    |
+                    ↓
+          Decision Understanding
+                    |
+                    ↓
+          Company Profile Builder
+                    |
+                    ↓
+        Knowledge Acquisition Layer
+     ┌──────────┼───────────┐
+     ↓          ↓           ↓
+ Documents   Web Search   Data Sources
+                    |
+                    ↓
+            Evidence Database
+                    |
+                    ↓
+          Risk Analysis Engine
+                    |
+                    ↓
+        Scenario Simulation Engine
+                    |
+                    ↓
+          AI Consultant Chat Loop
+                    |
+                    ↓
+           Final Decision Report
+                    |
+                    ↓
+                  PDF
 
 竞品分析：
 
 三、技术支持
-数据来源支持
+总体架构（AI总结）：
+Frontend
+(用户输入 / Chat / Report展示)
+        |
+        |
+Backend API
+        |
+        |
+LLM Orchestration Layer
+        |
+ ┌──────┼────────┐
+ ↓      ↓        ↓
+RAG   Search   Analysis
+        |
+        ↓
+Knowledge Base
+        |
+        ↓
+PDF Generator
+
+
+技术栈建议
+1、前端
+推荐：
+Next.js
+React
+Tailwind CSS
+作用：
+输入页面
+Chat界面
+Report展示
+文件上传
+
+2、后端
+推荐：
+Python
+Framework:
+FastAPI
+作用：
+接收用户输入
+调用LLM
+管理workflow
+生成报告
+
+3、LLM
+调用API即可
+
+4、agent workflow
+推荐：
+LangChain
+LangGraph
+
+5、vector database
+推荐：
+简单：
+ChromaDB
+或者：
+FAISS
+作用：
+RAG知识库。
+
+6、数据库
+推荐：
+PostgreSQL
+存储：
+用户信息
+Company Profile
+Analysis结果
+
+系统分部：
+1、用户输入系统
+frontend
+设计Input Form。
+需要：
+Text input
+Dropdown
+File upload
+Submit button
+
+Backend
+建立API：
+例如：
+POST /company/create
+接收：
+JSON:
+
+文件处理
+支持：
+PDF
+DOCX
+TXT
+
+2、company profile生成
+User Input
+
+↓
+
+LLM
+
+↓
+
+Structured JSON Output
+
+3、rag搭建
+功能目标
+让AI读取：
+用户上传文件。
+例如：
+年报
+供应链报告
+公司资料
+
+技术工作：
+文档切片
+Embedding
+存储
+Retrieval
+
+4、外部search
+Search API。
+
+5、evidence
+让LLM输出结构化格式
+
+6、Risk Analysis Engine
+Prompt + structured reasoning
+即LLM推理
+
+7、Scenario Simulation
+
+8、chat and renewal
+工具：
+LangChain Memory
+或者：
+数据库保存chat history
+
+9、PDF
+markdown
+
+10、部署
+Frontend
+推荐：
+Vercel
+
+Backend
+推荐：
+Railway
+Render
+AWS
+
+Database
+推荐：
+Supabase PostgreSQL

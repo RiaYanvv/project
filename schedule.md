@@ -75,3 +75,4 @@ Architecture
 
 星期三则进行：最终筛选，写成一个完整的PRD0.1version。一起完善git。写初版README。
 
+接下来：PRD撰写。User Journey Map + Agent Architecture Diagram
