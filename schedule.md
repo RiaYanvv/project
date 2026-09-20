@@ -82,7 +82,7 @@ ywx：
 product
 PRD
 汇报demo
-workflowxiet
+workflow协调
 
 zyy：
 数据源
@@ -93,3 +93,71 @@ ydq：
 rag
 前后端
 部署
+
+
+9.20-9.27
+数据整理：
+1、数据源标准化，把现在的 Excel / 表格变成统一的数据结构。
+至少有
+source_id
+title
+source_type
+publisher
+country/region
+publication_date
+url
+authority_level
+topic
+document_path
+
+e.g.
+WTO_001
+US Tariff Measure on EV Batteries
+WTO
+Trade Policy
+2026-xx-xx
+Authority: S
+
+
+建议第一版：
+10–20份高质量政策/报告
+10个左右案例
+一小部分贸易数据
+
+2、搭建rag（这部分可能需要你重点学习一下，我也可以一起帮助。rag非常非常重要）
+Original documents
+↓
+Text extraction
+↓
+Chunking
+↓
+Embedding
+↓
+Vector DB
+↓
+Retrieval
+
+最终目标是要交给ydq一个稳定的 Retrieval Interface
+
+
+agent搭建
+不要等数据了，先搭建起来。现在Company Profile
+↓
+Retrieve Evidence
+↓
+Risk Assessment
+↓
+Scenario Simulation
+↓
+Initial Assessment这些功能应该都可以尝试做了
+
+重点：把workflow跑通！！！不要求很聪明的agent
+最终返回一个固定 JSON！！！
+
+
+网页制作
+Frontend Shell + Mock Data
+
+evaluation
+制定评估计划
+建立evaluation dataset

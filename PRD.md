@@ -8,7 +8,7 @@ PRD
     降低中美贸易摩擦风险；
     建立“China + 1”供应链。
     然而很多企业逐渐意识到，离开中国没有那么容易。中国制造优势并不只是低成本，而是一整套成熟生态，包括：完整供应商网络；熟练产业工人；高效物流；稳定能源供应；大规模生产经验等等。离开中国仅降低关税，却不一定降低生产成本。
-    由此，部分企业出现“回流”，重新把订单放回中国，例如Dawang Metals、Target、Shein。而更多企业面临评估回华风险、需要进行供应链布局调整，但信息分散，分析成本高。
+    由此，部分企业部分企业开始重新评估此前的供应链迁移决策，并根据成本、供应链韧性、政策环境等因素调整生产布局。，例如Dawang Metals、Target、Shein。而更多企业面临评估回华风险、需要进行供应链布局调整，但信息分散，分析成本高。
 
    1.2 Product Vision
    一个帮助制造企业在地缘政治不确定环境下进行供应链迁移和布局决策的 AI 咨询助手。
@@ -25,8 +25,7 @@ PRD
    2.1 Target Users
    idustries
       Battery / EV Supply Chain
-      Electronics / Semiconductor-related Manufacturing
-      Solar / Renewable Energy Equipment
+    These industries are selected because they have significant global supply chain exposure, strong China+1 trends, and abundant public data availability.
    Primary User:
      供应链/战略经理
      企业：
@@ -127,105 +126,20 @@ User Input
 e.g.我们是一家新能源汽车电池企业，目前70%的生产在越南，主要出口美国。由于美国政策变化以及越南供应链不足，我们考虑是否扩大中国生产比例。
 
 用户输入表单（示例）：
-1、公司名
-2、产业（进行选择，例如Electronics、Semiconductor，不要自由输入）
-3、product/main business（What products are you producing?
+Required Information
 
-Example answers:
-EV battery cells
-Lithium-ion battery modules
-Solar panels
-Consumer electronics）
-4、主要产地
-Country（选择）
-China
-Vietnam
-Indonesia
-India
-Mexico
-Other
+Company
+Industry
+Production location
+Market
+Decision question
 
 
-Percentage of production（填空）
+Optional Information
 
-China:
-40%
-
-Vietnam:
-60%
-5、其他选填信息
-例如，具体生产地址、capacity、成立时间
-
-6、此外可以发送相关excel等文档
-
-7、目标
-What decision do you want AI to help with?
-
-
-○ Should we expand Vietnam production?
-
-○ Should we move production back to China?
-
-○ Should we diversify into multiple countries?
-
-○ Should we build a new factory?
-
-○ Other
-
-8、时间期限
-When do you need this decision?
-
-○ Within 6 months
-○ 6-18 months
-○ 2-5 years
-
-9、priority
-排序题
-What matters most?
-
-
-Cost reduction
-★★★★★
-
-Supply chain resilience
-★★★★★
-
-Market access
-★★★★★
-
-Political stability
-★★★★★
-
-Compliance
-★★★★★
-
-10、生产和受限
-Where are your products sold?
-
-USA
-EU
-China
-ASEAN
-Other
-
-Do you face:
-
-
-□ Tariff pressure
-
-□ Export controls
-
-□ Sanctions concerns
-
-□ Local regulation
-
-□ Supplier dependency
-
-□ Labor cost increase
-
-□ Logistics problems
-
-□ None
+Capacity
+Documents
+Supplier information
 
 AI Output
 Company Profile:
@@ -312,6 +226,7 @@ Updated risk assessment
 Refined scenario comparison
 Decision considerations
 Final decision
+The system supports human decision-making rather than replacing human judgment.
    5.7 Report Generation
    Purpose
 将完整的咨询过程和最终决策结果整理为可直接用于企业内部沟通与决策的正式报告。
@@ -347,10 +262,10 @@ User Input
             Evidence Database
                     |
                     ↓
-          Risk Analysis Engine
+          Risk Analysis Module
                     |
                     ↓
-        Scenario Simulation Engine
+        Scenario Simulation Module
                     |
                     ↓
           AI Consultant Chat Loop
@@ -400,6 +315,5 @@ Evidence
 评分机制：同意采取整数0-10离散评分、连续评分，评分的同时给出rationale分析；多次采样增加稳定度
 10. Future Roadmap
 后续可能加入功能：
-Decision Preference Slider，用户填写各影响因素重要性偏好，根据用户调整重新决策。
-相关新闻报告推荐页面，方便企业查询和辅助决策。
-“售后”：用户完成决策咨询后，订阅政策变更通知，当与用户决策相关的关税政策发生变化时，提供通知，并再次简要分析决策建议。
+1、相关新闻报告推荐页面，方便企业查询和辅助决策。
+2、“售后”：用户完成决策咨询后，订阅政策变更通知，当与用户决策相关的关税政策发生变化时，提供通知，并再次简要分析决策建议。
