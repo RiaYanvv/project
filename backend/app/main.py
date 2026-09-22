@@ -1,0 +1,312 @@
+from __future__ import annotations
+
+import asyncio
+import html
+import json
+
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+
+from .agent import AgentService
+from .config import PROJECT_ROOT, Settings
+from .knowledge import KnowledgeRepository
+from .llm import DeepSeekLLM, MockLLM
+from .pdf_report import build_assessment_pdf
+from .repository import AssessmentRepository
+from .retrieval import HybridRetrievalProvider, MockRetrievalProvider
+from .schemas import (
+    Assessment,
+    AssessmentRequest,
+    ChatRequest,
+    CompanyInput,
+    RetrievalQuery,
+)
+from .web_search import WebSearchTool
+
+
+settings = Settings.from_env()
+repository = AssessmentRepository(settings.database_path)
+knowledge_repository = KnowledgeRepository(settings.database_path)
+mock_retrieval = MockRetrievalProvider(settings.evidence_path)
+retrieval = HybridRetrievalProvider(
+    repository=knowledge_repository,
+    fallback=mock_retrieval,
+    web_search=WebSearchTool(enabled=settings.web_search_enabled),
+)
+
+if settings.llm_provider == "deepseek" and settings.deepseek_api_key:
+    llm = DeepSeekLLM(
+        api_key=settings.deepseek_api_key,
+        base_url=settings.deepseek_base_url,
+        model=settings.deepseek_model,
+    )
+else:
+    llm = MockLLM()
+
+agent = AgentService(retrieval=retrieval, llm=llm)
+frontend_dir = PROJECT_ROOT / "frontend"
+
+app = FastAPI(
+    title="Geopolitical Supply Chain Decision Agent",
+    version="0.1.0",
+    description="Evidence-based China+1 relocation assessment MVP.",
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
+
+
+@app.get("/", include_in_schema=False)
+def index() -> FileResponse:
+    return FileResponse(frontend_dir / "index.html")
+
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.get("/api/v1/meta")
+def meta() -> dict[str, object]:
+    knowledge_stats = knowledge_repository.stats()
+    return {
+        "app_env": settings.app_env,
+        "llm_provider": llm.mode,
+        "retrieval_provider": (
+            "hybrid+web" if settings.web_search_enabled else "hybrid"
+        )
+        if knowledge_stats["ready"]
+        else "mock",
+        "data_mode": "hybrid" if knowledge_stats["ready"] else "mock",
+        "knowledge": knowledge_stats,
+        "available_models": [
+            {
+                "id": "deepseek-flash",
+                "name": "DeepSeek Flash",
+                "description": "速度更快，适合常规分析和快速迭代。",
+            },
+            {
+                "id": "deepseek-v4-pro",
+                "name": "DeepSeek V4 Pro",
+                "description": "深度思考更强，会展示更多推理过程。",
+            },
+        ],
+        "contract_version": "1.0",
+        "deepseek_configured": bool(settings.deepseek_api_key),
+    }
+
+
+@app.get("/api/v1/evidence")
+def evidence_lookup(
+    query: str = Query(min_length=2, max_length=500),
+    industry: str = "battery_ev",
+    country: str = "CN",
+    market: str = "US",
+    limit: int = Query(default=10, ge=1, le=50),
+):
+    retrieval_query = RetrievalQuery(
+        industry=industry,
+        products=[query],
+        home_country=country,
+        production_countries=["VN"],
+        target_markets=[market],
+        decision_question=query,
+        restrictions=[],
+        limit=limit,
+    )
+    return {"items": retrieval.search(retrieval_query)}
+
+
+@app.get("/api/v1/knowledge/stats")
+def knowledge_stats() -> dict[str, int | bool]:
+    return knowledge_repository.stats()
+
+
+@app.post("/api/v1/assessments", response_model=Assessment)
+def create_assessment(request: AssessmentRequest) -> Assessment:
+    try:
+        assessment = agent.run(
+            request.company,
+            api_key=request.api_key,
+            model_name=request.llm_model,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    repository.save(assessment)
+    return assessment
+
+
+@app.post("/api/v1/assessments/stream")
+async def create_assessment_stream(request: AssessmentRequest) -> StreamingResponse:
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue[dict] = asyncio.Queue()
+
+    def event_callback(event: dict) -> None:
+        loop.call_soon_threadsafe(queue.put_nowait, event)
+
+    async def run_job() -> None:
+        try:
+            assessment = await asyncio.to_thread(
+                agent.run,
+                request.company,
+                request.api_key,
+                request.llm_model,
+                event_callback,
+            )
+            repository.save(assessment)
+            await queue.put(
+                {
+                    "type": "assessment",
+                    "assessment": assessment.model_dump(mode="json"),
+                }
+            )
+        except Exception as exc:  # noqa: BLE001
+            await queue.put(
+                {
+                    "type": "error",
+                    "message": f"{type(exc).__name__}: {exc}",
+                }
+            )
+        finally:
+            await queue.put({"type": "done"})
+
+    async def event_stream():
+        task = asyncio.create_task(run_job())
+        try:
+            while True:
+                event = await queue.get()
+                yield json.dumps(event, ensure_ascii=False) + "\n"
+                if event["type"] == "done":
+                    break
+        finally:
+            if not task.done():
+                task.cancel()
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="application/x-ndjson",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.get("/api/v1/assessments/{assessment_id}", response_model=Assessment)
+def get_assessment(assessment_id: str) -> Assessment:
+    assessment = repository.get(assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="assessment not found")
+    return assessment
+
+
+@app.post("/api/v1/assessments/{assessment_id}/chat", response_model=Assessment)
+def chat(assessment_id: str, request: ChatRequest) -> Assessment:
+    assessment = repository.get(assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="assessment not found")
+    try:
+        updated = agent.chat(assessment, request)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    repository.save(updated)
+    return updated
+
+
+@app.get("/api/v1/assessments/{assessment_id}/report")
+def report(assessment_id: str) -> StreamingResponse:
+    assessment = repository.get(assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="assessment not found")
+    pdf_bytes = build_assessment_pdf(assessment)
+    filename = f"{assessment.assessment_id}-decision-report.pdf"
+    return StreamingResponse(
+        iter([pdf_bytes]),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@app.get(
+    "/api/v1/assessments/{assessment_id}/report/html",
+    response_class=HTMLResponse,
+)
+def report_html(assessment_id: str) -> HTMLResponse:
+    assessment = repository.get(assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="assessment not found")
+    return HTMLResponse(_render_report(assessment))
+
+
+@app.get("/api/v1/schema/assessment")
+def assessment_schema() -> dict:
+    return Assessment.model_json_schema()
+
+
+def _render_report(assessment: Assessment) -> str:
+    risks = "".join(
+        f"<li><strong>{html.escape(item.name)}</strong>："
+        f"{html.escape(item.business_impact)} "
+        f"<small>({item.severity}, {item.probability}%)</small></li>"
+        for item in assessment.risks
+    )
+    scenarios = "".join(
+        f"<tr><td>{html.escape(item.name)}</td><td>{item.weighted_score}</td>"
+        f"<td>{html.escape(item.description)}</td></tr>"
+        for item in assessment.scenarios
+    )
+    evidence = "".join(
+        f"<li>[{html.escape(item.evidence_id)}] {html.escape(item.title)} - "
+        f"{html.escape(item.publisher)}"
+        f"{' (MOCK)' if item.is_mock else ''}</li>"
+        for item in assessment.evidence
+    )
+    limitations = "".join(
+        f"<li>{html.escape(item)}</li>" for item in assessment.limitations
+    )
+    company_name = html.escape(assessment.company_profile.company_name)
+    company_summary = html.escape(assessment.company_profile.summary)
+    recommendation_headline = html.escape(assessment.recommendation.headline)
+    recommendation_rationale = html.escape(assessment.recommendation.rationale)
+    return f"""<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>{company_name} - 决策报告</title>
+<style>
+body {{ font-family: Arial, "Microsoft YaHei", sans-serif; max-width: 900px;
+margin: 40px auto; color: #17212b; line-height: 1.65; }}
+h1, h2 {{ color: #102a43; }}
+table {{ width: 100%; border-collapse: collapse; margin: 18px 0; }}
+th, td {{ border: 1px solid #d9e2ec; padding: 10px; text-align: left; }}
+th {{ background: #eef4f8; }}
+small {{ color: #52606d; }}
+.print {{ margin-top: 24px; }}
+@media print {{ .print {{ display: none; }} body {{ margin: 0; }} }}
+</style>
+</head>
+<body>
+<h1>供应链迁移决策初步报告</h1>
+<p>{company_summary}</p>
+<h2>主要风险</h2>
+<ul>{risks}</ul>
+<h2>情景比较</h2>
+<table><thead><tr><th>方案</th><th>综合分</th><th>说明</th></tr></thead>
+<tbody>{scenarios}</tbody></table>
+<h2>初步建议</h2>
+<p><strong>{recommendation_headline}</strong></p>
+<p>{recommendation_rationale}</p>
+<h2>证据</h2>
+<ul>{evidence}</ul>
+<h2>边界与不确定性</h2>
+<ul>{limitations}</ul>
+<button class="print" onclick="window.print()">打印或导出 PDF</button>
+</body>
+</html>"""

@@ -1,0 +1,123 @@
+{
+  "feed": "C:\\Users\\User\\Desktop\\地缘政治竞赛\\具体代码\\backend\\test_data\\source_feed.json",
+  "attempted": 18,
+  "succeeded": [
+    {
+      "source_id": "WTO-001",
+      "title": "Global Trade Outlook and Statistics 2026",
+      "url": "https://www.wto.org/english/res_e/publications_e/gtos0326_e.htm"
+    },
+    {
+      "source_id": "BIS-001",
+      "title": "Entity List",
+      "url": "https://www.bis.gov/entity-list"
+    },
+    {
+      "source_id": "EU-001",
+      "title": "Exporting dual-use items",
+      "url": "https://policy.trade.ec.europa.eu/help-exporters-and-importers/exporting-dual-use-items_en"
+    },
+    {
+      "source_id": "EU-002",
+      "title": "Access2Markets",
+      "url": "https://trade.ec.europa.eu/access-to-markets/en/home"
+    },
+    {
+      "source_id": "ATLAS-001",
+      "title": "Atlas of Economic Complexity",
+      "url": "https://atlas.hks.harvard.edu/"
+    },
+    {
+      "source_id": "UNCTAD-001",
+      "title": "UNCTAD Data Hub",
+      "url": "https://unctadstat.unctad.org/"
+    }
+  ],
+  "failed": [
+    {
+      "source_id": "WEF-001",
+      "title": "Global Risks Report 2026",
+      "url": "https://www.weforum.org/publications/global-risks-report-2026/",
+      "error": "ConnectError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1010)"
+    },
+    {
+      "source_id": "MCK-001",
+      "title": "How companies can strengthen their geopolitical risk readiness",
+      "url": "https://www.mckinsey.com/capabilities/risk-and-resilience/our-insights/how-companies-can-strengthen-their-geopolitical-risk-readiness",
+      "error": "ReadTimeout: The read operation timed out"
+    },
+    {
+      "source_id": "KPMG-001",
+      "title": "2026 US Supply Chain Survey",
+      "url": "https://kpmg.com/us/en/articles/2026/2026-supply-chain-survey.html",
+      "error": "ConnectError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1010)"
+    },
+    {
+      "source_id": "IMF-001",
+      "title": "Geoeconomic Fragmentation and the Future of Multilateralism",
+      "url": "https://www.elibrary.imf.org/display/book/9798400224119/CH004.xml",
+      "error": "ConnectError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1010)"
+    },
+    {
+      "source_id": "USTR-001",
+      "title": "Section 301 Investigations",
+      "url": "https://ustr.gov/issue-areas/enforcement/section-301-investigations",
+      "error": "ConnectError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1010)"
+    },
+    {
+      "source_id": "OECD-001",
+      "title": "Trade in Value Added",
+      "url": "https://www.oecd.org/en/data/datasets/trade-in-value-added-tiva.html",
+      "error": "ConnectError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1010)"
+    },
+    {
+      "source_id": "COMTRADE-001",
+      "title": "UN Comtrade Database",
+      "url": "https://comtradeplus.un.org/",
+      "error": "ValueError: extracted content is too short: 10 characters"
+    },
+    {
+      "source_id": "USITC-001",
+      "title": "Harmonized Tariff Schedule",
+      "url": "https://www.usitc.gov/tata/hts/",
+      "error": "HTTPStatusError: Client error '403 Forbidden' for url 'https://www.usitc.gov/tata/hts/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"
+    },
+    {
+      "source_id": "IEA-001",
+      "title": "Global Critical Minerals Outlook 2025",
+      "url": "https://www.iea.org/reports/global-critical-minerals-outlook-2025",
+      "error": "HTTPStatusError: Client error '403 Forbidden' for url 'https://www.iea.org/reports/global-critical-minerals-outlook-2025'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"
+    },
+    {
+      "source_id": "WB-001",
+      "title": "Trade Overview",
+      "url": "https://www.worldbank.org/en/topic/trade",
+      "error": "ConnectError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1010)"
+    },
+    {
+      "source_id": "VN-001",
+      "title": "Ministry of Planning and Investment",
+      "url": "https://www.mpi.gov.vn/en/Pages/default.aspx",
+      "error": "ConnectError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1010)"
+    },
+    {
+      "source_id": "ID-001",
+      "title": "Indonesia Investment Coordinating Board",
+      "url": "https://bkpm.go.id/en",
+      "error": "HTTPStatusError: Client error '401 Unauthorized' for url 'https://bkpm.go.id/en'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401"
+    }
+  ],
+  "chunks": {
+    "WTO-001": 1,
+    "BIS-001": 310,
+    "EU-001": 11,
+    "EU-002": 2,
+    "ATLAS-001": 4,
+    "UNCTAD-001": 3
+  },
+  "stats": {
+    "document_count": 6,
+    "chunk_count": 331,
+    "ready": true
+  }
+}

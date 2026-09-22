@@ -1,0 +1,39 @@
+{
+  "feed": "backend\\test_data\\source_feed_supplement.json",
+  "attempted": 4,
+  "succeeded": [
+    {
+      "source_id": "WTO-002",
+      "title": "World Trade Report 2026",
+      "url": "https://www.wto.org/english/res_e/booksp_e/wtr26_e.pdf"
+    }
+  ],
+  "failed": [
+    {
+      "source_id": "WTO-003",
+      "title": "World Trade Report 2026 - Publication Page",
+      "url": "https://www.wto.org/english/res_e/publications_e/world-trade-report-2026_e.htm",
+      "error": "ConnectError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1010)"
+    },
+    {
+      "source_id": "UNCTAD-002",
+      "title": "Global Trade Update January 2026",
+      "url": "https://unctad.org/system/files/official-document/ditcinf2025d11_en.pdf",
+      "error": "HTTPStatusError: Client error '403 Forbidden' for url 'https://unctad.org/system/files/official-document/ditcinf2025d11_en.pdf'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"
+    },
+    {
+      "source_id": "UNCTAD-003",
+      "title": "Global Trade Update March 2026",
+      "url": "https://unctad.org/system/files/official-document/ditcinf2026d3_en.pdf",
+      "error": "HTTPStatusError: Client error '403 Forbidden' for url 'https://unctad.org/system/files/official-document/ditcinf2026d3_en.pdf'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"
+    }
+  ],
+  "chunks": {
+    "WTO-002": 301
+  },
+  "stats": {
+    "document_count": 7,
+    "chunk_count": 632,
+    "ready": true
+  }
+}
