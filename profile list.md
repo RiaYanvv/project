@@ -19,6 +19,7 @@ India
 Thailand
 Mexico
 Other（选择后输入）
+share填写拉动以10%为幅度，也支持自由填写
 4、Main Target Markets
 多选
 | Market | Share |
@@ -35,9 +36,9 @@ Other
 快捷选项
 Maintain current production structure
 Expand existing production
-Relocate production（选择则下一个问题Potential destination country/region）
+Relocate production（选择则下一个问题Potential destination country/region，如果没有点击，则这个问题不应该出现！）
 Diversify across multiple countries
-Establish a new production site（选择则下一个问题Preferred candidate countries/regions）
+Establish a new production site（选择则下一个问题Preferred candidate countries/regions，如果没有点击，则这个问题不应该出现！）
 Other
 下面保留一个自由输入框：
 What decision are you trying to make?
@@ -73,10 +74,10 @@ Within 6 months
 18 months–3 years
 More than 3 years
 
-8、一句话描述（100字以内限制）
+8、一句话描述（提醒100字以内限制）
 用户可以整体描述决策情景
 
-Advanced Assessment
+Advanced Assessment（这个按钮做的可以更显眼一点）
 “Add more information for a deeper assessment”
 已有信息自动带入
 
@@ -87,26 +88,26 @@ Country
 City / Region
 Production capacity
 Production share
-Established year
+Established year（出现年份表支持快捷选择）
 Production Type
 ·Own factory
 ·Joint venture
 ·Contract manufacturing
 ·Other
-2、Company size（可选）
+2、Company size（可选）给出范围进行选择）
 
 Revenue range
 Employee count
 Number of factories
-annual capacity
+
 
 3、Current capacity utilization（%）
 
-4、Key Supplier Dependency
+4、Key Supplier Dependency（填空题全部给出示例回答）
 Do you rely heavily on suppliers from a specific country or region?
 Which critical components, materials, or suppliers are difficult to replace?
 
-5、Supplier concentration
+5、Supplier concentration（这一句问题写出来）
 Single-source for critical inputs
 2–3 major suppliers
 Multiple diversified suppliers
@@ -143,7 +144,7 @@ Not specified
 
 <1 year / 1–3 years / 3–5 years / >5 years
 
-10、priority
+10、priority（可以进行拖拽排序）
 Rank the factors by importance to your decision
 Supply Chain Resilience
 Market Access
@@ -175,7 +176,7 @@ Balanced
 Aggressive
 Not sure
 
-11、一句话描述（无字数限制）
+11、一句话描述（无字数限制）（标注支持用户进行详细情况描述，无字数限制）
 用户可以整体描述决策情景
 
 两份表单都应该有文件拖拽上传区

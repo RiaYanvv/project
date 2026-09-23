@@ -511,3 +511,562 @@ Avoid:
 * Visual elements that imply false analytical precision
 
 
+# Scenario Simulation Page — Frontend Specification
+
+## 1. Overview
+
+Build the Scenario Simulation result page for an AI Supply Chain Relocation Decision Agent.
+
+This page is displayed after the user clicks:
+
+```
+Run Scenario Simulation →
+```
+
+The purpose of this page is to help users compare different supply-chain strategies under geopolitical uncertainty.
+
+The page should emphasize:
+
+* Scenario comparison
+* Evidence-based analysis
+* Explainability
+* Decision support rather than automatic decision making
+
+The system should present AI-generated assessments as strategic analysis, not as guaranteed predictions.
+
+---
+
+# 2. Simulation Loading State
+
+Before showing results, display a short simulation progress animation.
+
+## Requirements
+
+Duration:
+
+* Approximately 2–5 seconds
+
+Design:
+
+* Professional enterprise AI style
+* Minimal animation
+* Blue/white visual language
+
+Example:
+
+```
+Running Scenario Simulation
+
+Analyzing possible supply chain futures...
+
+[████████░░░░] 65%
+```
+
+Display progress steps:
+
+```
+✓ Reviewing company profile
+✓ Analyzing supply-chain structure
+✓ Retrieving evidence database
+✓ Evaluating geopolitical risks
+✓ Comparing relocation scenarios
+✓ Generating scenario assessment
+```
+
+The loading state should communicate that multiple analysis steps are being performed.
+
+---
+
+# 3. Result Page Layout
+
+After simulation completion, navigate to:
+
+```
+Scenario Comparison Dashboard
+```
+
+## Page Header
+
+Title:
+
+```
+Strategic Scenario Analysis
+```
+
+Subtitle:
+
+```
+AI-generated assessment based on company profile,
+evidence database, risk analysis and user constraints.
+```
+
+---
+
+# 4. Scenario Comparison Dashboard
+
+The first visible section should display three scenario cards.
+
+Default scenarios:
+
+## Scenario A
+
+```
+Maintain Current Layout
+```
+
+Meaning:
+Maintain existing production structure.
+
+Example:
+China + Vietnam current production distribution.
+
+---
+
+## Scenario B
+
+```
+Increase China Production
+```
+
+Meaning:
+Increase production capacity or operational dependency in China.
+
+Do not use "Back to China" because many companies do not fully relocate.
+
+---
+
+## Scenario C
+
+```
+Hybrid Diversification
+```
+
+Meaning:
+Maintain multiple production locations.
+
+Example:
+China + Southeast Asia + other regions.
+
+---
+
+# 5. Scenario Card Design
+
+Each scenario should be displayed as an independent card.
+
+Example:
+
+```
+--------------------------------
+Hybrid Diversification
+
+Overall Score:
+82 / 100
+
+Confidence:
+Medium
+
+Cost Impact        75
+Supply Resilience  90
+Geo Risk           85
+Market Access      80
+Feasibility        78
+
+View Analysis →
+--------------------------------
+```
+
+---
+
+# 6. Evaluation Dimensions
+
+Each scenario should be evaluated across five dimensions.
+
+## 6.1 Cost Impact
+
+Measures:
+
+* Manufacturing cost
+* Labor cost
+* Logistics cost
+* Supplier ecosystem impact
+* Required investment
+
+---
+
+## 6.2 Supply Chain Resilience
+
+Measures:
+
+* Supplier availability
+* Dependency concentration
+* Production flexibility
+* Ability to absorb disruptions
+
+---
+
+## 6.3 Geopolitical Risk Exposure
+
+Measures:
+
+* Tariff exposure
+* Export control risk
+* Political uncertainty
+* Regulatory exposure
+
+Higher score means lower exposure.
+
+---
+
+## 6.4 Market Access
+
+Measures:
+
+* Export accessibility
+* Tariff implications
+* Rules of origin
+* Customer requirements
+* Regional trade agreements
+
+---
+
+## 6.5 Implementation Feasibility
+
+Measures:
+
+* Required investment
+* Timeline
+* Existing assets
+* Supplier migration difficulty
+* Operational complexity
+
+---
+
+# 7. Overall Score
+
+The overall score should NOT be a simple average.
+
+It should consider user priorities collected during onboarding.
+
+Example:
+
+User priority:
+
+```
+Supply Chain Resilience > Cost
+```
+
+The scoring system should increase the weight of resilience.
+
+Display:
+
+```
+Overall Score:
+82 / 100
+
+Confidence:
+Medium
+
+Based on:
+- Evidence availability
+- Data completeness
+- Scenario assumptions
+```
+
+Add disclaimer:
+
+```
+Scores are AI-generated estimates based on available evidence and assumptions.
+They are not predictions of future outcomes.
+```
+
+---
+
+# 8. Scenario Detail View
+
+When users click:
+
+```
+View Analysis →
+```
+
+Open detailed scenario analysis.
+
+Each scenario should contain:
+
+---
+
+## 8.1 Scenario Overview
+
+Explain:
+
+* What this strategy means
+* Expected supply-chain configuration
+
+Example:
+
+```
+Increase China production from 30% to 60%
+while maintaining Vietnam export capacity.
+```
+
+---
+
+## 8.2 Potential Benefits
+
+Display:
+
+* Strategic advantages
+* Operational benefits
+
+Example:
+
+```
+- Stronger supplier ecosystem
+- Lower coordination complexity
+- Faster manufacturing scaling
+```
+
+---
+
+## 8.3 Potential Risks
+
+Display:
+
+* Main disadvantages
+* Risk exposure
+
+Example:
+
+```
+- Higher tariff exposure for US exports
+- Export control uncertainty
+```
+
+---
+
+## 8.4 Key Assumptions
+
+Important section.
+
+Example:
+
+```
+Assumption:
+US tariff policy remains unchanged.
+```
+
+Purpose:
+Show uncertainty behind scenario analysis.
+
+---
+
+## 8.5 Evidence Support
+
+Every important conclusion should have linked evidence.
+
+Display:
+
+```
+Conclusion:
+China provides a mature battery supply-chain ecosystem.
+
+Evidence:
+McKinsey Report 2025
+
+Source:
+[link]
+
+Confidence:
+High
+```
+
+Evidence should include:
+
+* Source name
+* Date
+* Authority level
+* Link
+* Related conclusion
+
+---
+
+# 9. Analysis Explanation
+
+Do NOT display internal AI chain-of-thought.
+
+Instead create a collapsible section:
+
+```
+Why this assessment?
+```
+
+When expanded:
+
+Display:
+
+* Main factors considered
+* Evidence used
+* Logical explanation
+* Key assumptions
+
+Example:
+
+```
+This scenario receives a higher resilience score because:
+
+1. China has a mature battery supplier ecosystem.
+2. Existing production capacity reduces relocation difficulty.
+3. However, US tariff exposure remains a concern.
+```
+
+---
+
+# 10. Initial Strategic Assessment Report
+
+After scenario comparison, generate a preliminary report section.
+
+Title:
+
+```
+Initial Strategic Assessment
+```
+
+Structure:
+
+```
+1. Executive Summary
+
+2. Company Profile
+
+3. Current Supply Chain Overview
+
+4. Key Risks Identified
+
+5. Scenario Comparison
+
+6. Evidence & Assumptions
+
+7. Questions for Further Analysis
+```
+
+---
+
+# 11. Continue AI Consultation
+
+At the bottom of the page add primary CTA:
+
+```
+Continue AI Consultation →
+```
+
+Purpose:
+
+Allow users to provide additional information and refine analysis.
+
+When clicked:
+
+Navigate to LLM chat interface.
+
+The chat session should automatically include previous context:
+
+* Company Profile
+* Evidence Database
+* Risk Assessment
+* Scenario Results
+* Initial Assessment Report
+
+User should not need to repeat previous information.
+
+---
+
+# 12. UI Style Requirements
+
+Overall style:
+
+Professional enterprise AI product.
+
+Color:
+
+Primary:
+
+* White
+* Blue
+
+Style keywords:
+
+* Reliable
+* Analytical
+* Professional
+* Data-driven
+
+Avoid:
+
+* Futuristic excessive animation
+* Gaming style
+* Overly colorful dashboards
+
+Recommended components:
+
+* Cards
+* Charts
+* Progress indicators
+* Expandable evidence sections
+* Score visualization
+
+---
+
+# 13. Data Interface Requirement
+
+Frontend should be designed around backend API response.
+
+Expected scenario object:
+
+```json
+{
+  "scenario_name": "Hybrid Diversification",
+  "overall_score": 82,
+  "confidence": "Medium",
+  "scores": {
+    "cost": 75,
+    "resilience": 90,
+    "geopolitical_risk": 85,
+    "market_access": 80,
+    "feasibility": 78
+  },
+  "summary": "",
+  "benefits": [],
+  "risks": [],
+  "assumptions": [],
+  "evidence": []
+}
+```
+
+Frontend should support rendering multiple scenarios dynamically.
+
+Do not hard-code only three scenarios.
+
+```
+```
+
+Simulation Result
+
+│
+├── Scenario Comparison Dashboard
+│
+│     Maintain
+│     Increase China Production
+│     Hybrid
+│
+├── Detailed Scenario Analysis（点击展开）
+│
+│     Benefits
+│     Risks
+│     Score explanation
+│     Evidence
+│     Assumptions
+│
+├── Initial Strategic Assessment
+│
+└── Continue AI Consultation
+
+
