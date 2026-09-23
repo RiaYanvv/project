@@ -87,8 +87,8 @@ Advanced Assessment（这个按钮做的可以更显眼一点）
 Country
 City / Region
 Production capacity
-Production share
-Established year（出现年份表支持快捷选择）
+Production share（以10%比例便捷下拉）
+Established year（出现年份表支持快捷选择，年份表必须包含更多年份，至少150年）
 Production Type
 ·Own factory
 ·Joint venture
@@ -101,7 +101,7 @@ Employee count
 Number of factories
 
 
-3、Current capacity utilization（%）
+3、Current capacity utilization（%）（百分比便捷上拉幅度更大，大概10%）
 
 4、Key Supplier Dependency（填空题全部给出示例回答）
 Do you rely heavily on suppliers from a specific country or region?
@@ -144,7 +144,7 @@ Not specified
 
 <1 year / 1–3 years / 3–5 years / >5 years
 
-10、priority（可以进行拖拽排序）
+10、priority（可以进行拖拽排序）（提醒用户可以进行拖拽排序）
 Rank the factors by importance to your decision
 Supply Chain Resilience
 Market Access
@@ -176,7 +176,7 @@ Balanced
 Aggressive
 Not sure
 
-11、一句话描述（无字数限制）（标注支持用户进行详细情况描述，无字数限制）
+11、一句话描述（无字数限制）（提醒支持用户这里可以进行详细情况描述，无字数限制）
 用户可以整体描述决策情景
 
 两份表单都应该有文件拖拽上传区
