@@ -41,7 +41,7 @@ Diversify across multiple countries
 Establish a new production site（选择则下一个问题Preferred candidate countries/regions，如果没有点击，则这个问题不应该出现！）
 Other
 下面保留一个自由输入框：
-What decision are you trying to make?
+What decision are you trying to make?（这一项不应该是必填，只是为了让用户自由输入更多信息，记得提醒用户）
 例如：
 “We are considering whether to increase China production while maintaining our Vietnam factory.”
 6、Decision Trigger / Current Concern
