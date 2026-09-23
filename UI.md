@@ -1,5 +1,5 @@
 ## 1. Product Entry Experience
-
+我希望网址点进去先有一个动画效果，类似于“hi，welcome to use locus”打印机式滚动出现，下面小字“AI-Supply-Chain-Relocation-Decision-Agent”。动画大概持续一秒，然后进入正式网页。正式网页home page主要就是功能入口了，click一个button之后展现问题表单，这里我想分为快捷表单和详细表单，适应不同填写需要。默认快捷表单，填完后会有“add more information”的按钮。然后填写信息后接入agent分析，之后网页跳转。对于UI，我希望采取蓝白色调为主，显示专业性和可靠性。
 ### 1.1 Splash Screen
 
 When users first enter the website, display a minimal branded splash animation.
@@ -290,6 +290,7 @@ Do not add unnecessary technical complexity for the future News or enterprise ac
 
 
 Initial Assessment Page
+可以先是简单企业画像目录。再往下是风险雷达，分板块列出可能风险，板块色区从高风险到低风险颜色渐变。标题简洁说明，下面小字详细说明一下风险，并列出证据，每条证据为链接，点击可以看到数据原文。AI思考过程折叠，但是点击可以看到完整rationale。接下来底部是一个“进行模拟推演”的button，点击再重新接回agent进行模拟，这样可以比较突出特色。
 ┌─────────────────────────────────────────────────┐
 │ Initial Supply Chain Assessment                 │
 │                                                 │

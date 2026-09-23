@@ -98,7 +98,7 @@ Production Type
 Revenue range
 Employee count
 Number of factories
-
+annual capacity
 
 3、Current capacity utilization（%）
 
