@@ -84,3 +84,52 @@ label>small{display:block;margin-top:6px}
 /* Author rules such as label{display:block} would otherwise override the
    browser's default styling for [hidden], keeping conditional fields visible. */
 [hidden]{display:none}
+
+/* Form page: one question per row, larger type, completion bar at the very top */
+.completion-bar{position:sticky;top:76px;z-index:15;width:100vw;margin:-32px 0 30px calc(50% - 50vw);padding:14px max(32px,calc((100vw - 1240px)/2)) 12px;background:#fff;border-bottom:1px solid var(--line);box-shadow:0 8px 18px #1028400a}
+.completion-head{display:flex;justify-content:space-between;align-items:baseline;gap:18px}
+.completion-head p{margin:0;color:#2c4b63;font:700 15px var(--sans)}
+.completion-head b{margin-left:7px;color:var(--blue);font:600 17px var(--mono)}
+.completion-saved{color:#7b8f9e;font:500 12px var(--mono)}
+.completion-track{display:block;height:5px;margin-top:10px;background:#e3eef5;border-radius:3px;overflow:hidden}
+.completion-track i{display:block;height:100%;width:0;background:linear-gradient(90deg,#125f9a,#63abd0);border-radius:3px;transition:width .25s ease}
+
+#consultation .field-grid.two-col{grid-template-columns:1fr;gap:24px}
+#consultation .field-grid{margin-top:24px;gap:24px}
+#consultation .form-group{margin-top:32px}
+#consultation .form-section{padding:34px 0}
+#consultation .workflow-head h2{font-size:36px}
+#consultation .workflow-head>p{font-size:14px;line-height:1.7}
+#consultation .eyebrow{font-size:11.5px}
+#consultation .form-steps{font-size:14px;gap:16px}
+#consultation .form-steps span{font-size:11px}
+#consultation .aside-note{font-size:13px;line-height:1.6}
+#consultation .form-intro h3{font-size:31px}
+#consultation .pill{font-size:11px;padding:6px 11px}
+#consultation .form-description{font-size:14.5px;line-height:1.7;margin:14px 0 28px}
+#consultation .section-number{font-size:11.5px}
+#consultation .optional{font-size:11px}
+#consultation label{font-size:15px}
+#consultation input,#consultation select,#consultation textarea{font-size:15px;padding:14px 15px;border-radius:4px}
+#consultation textarea{min-height:98px;line-height:1.6}
+#consultation small{font-size:12.5px}
+#consultation .group-heading h4,#consultation .form-group h4,#consultation .priority-block h4,#consultation .advanced-heading h4{font-size:17px}
+#consultation .group-heading p,#consultation .priority-block p{font-size:13.5px;line-height:1.6}
+#consultation .total{font-size:13px}
+#consultation .choice-grid span{font-size:14px;min-height:56px;padding:15px 16px;border-radius:4px}
+#consultation .chip-grid span{font-size:13px;padding:10px 14px}
+#consultation .add-row,#consultation .advanced-toggle{font-size:13.5px}
+#consultation .text-button{font-size:13.5px}
+#consultation .advanced-callout strong{font-size:15px}
+#consultation .advanced-callout small{font-size:12.5px}
+#consultation .advanced-section{padding:26px}
+#consultation .upload-zone b{font-size:15px}
+#consultation .upload-zone p{font-size:12.5px;line-height:1.6}
+#consultation .upload-button{font-size:12.5px;padding:9px 13px}
+#consultation .upload-list li{font-size:12.5px}
+#consultation .summary-count{font-size:12px}
+#consultation .location-row select,#consultation .location-row input{font-size:14.5px}
+#consultation .priority-item{font-size:14px}
+#consultation .priority-item b{font-size:12px}
+#consultation .form-footer p{font-size:12.5px}
+#consultation .form-footer .button{font-size:15px;padding:15px 24px}

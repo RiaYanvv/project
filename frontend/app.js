@@ -183,7 +183,6 @@ function readForm() {
   const text = (name) => (data.get(name) || "").toString().trim();
   return {
     company_name: text("company_name"),
-    industry: data.get("industry") || "",
     products: text("products"),
     home_country: data.get("home_country"),
     production_locations: state.production.filter(item => item.country),
@@ -203,7 +202,7 @@ function readForm() {
 }
 
 function validateDecision(profile) {
-  if (!profile.company_name || !profile.industry || !profile.products || !profile.decision_question) return "Please complete the required company and decision fields.";
+  if (!profile.company_name || !profile.products || !profile.decision_question) return "Please complete the required company and decision fields.";
   if (!profile.production_locations.length || !profile.target_markets.length) return "Please add at least one production location and target market.";
   if (!profile.restrictions.length) return "Select at least one factor driving this decision.";
   return null;
@@ -260,7 +259,9 @@ function buildBackendPayload(profile) {
   const payload = {
     company: {
       company_name: profile.company_name,
-      industry: profile.industry || "other",
+      // The Agent API requires an industry value. The form follows profile list.md
+      // and no longer asks for one, so it is reported as "other".
+      industry: "other",
       products: [profile.products],
       home_country: profile.home_country,
       production_locations: production,
@@ -455,12 +456,40 @@ function saveDraft() {
   });
   localStorage.setItem(draftKey, JSON.stringify({ values, production: state.production, markets: state.markets }));
   updateFormProgress();
+  markDraftSaved();
 }
 
 function updateFormProgress() {
   const form = $("#decision-form");
-  const completed = [form.company_name.value, form.industry.value, form.products.value, form.decision_question.value, state.production.some(item => item.country), state.markets.some(item => item.country), document.querySelectorAll("#restriction-options input:checked").length].filter(Boolean).length;
-  $("#form-progress").textContent = `${Math.round((completed / 7) * 100)}% complete`;
+  const checks = [
+    form.company_name.value,
+    form.products.value,
+    form.decision_question.value,
+    state.production.some(item => item.country),
+    state.markets.some(item => item.country),
+    document.querySelectorAll("#restriction-options input:checked").length,
+  ];
+  const percent = Math.round((checks.filter(Boolean).length / checks.length) * 100);
+  const value = $("#completion-value");
+  const fill = $("#completion-fill");
+  if (value) value.textContent = `${percent}%`;
+  if (fill) fill.style.width = `${percent}%`;
+}
+
+function markDraftSaved() {
+  const label = $("#completion-saved");
+  if (!label) return;
+  const now = new Date();
+  label.textContent = `Draft saved automatically · ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+}
+
+function buildEstablishedYears() {
+  const list = $("#established-years");
+  if (!list) return;
+  const current = new Date().getFullYear();
+  const years = [];
+  for (let year = current; year >= current - 160; year -= 1) years.push(`<option value="${year}"></option>`);
+  list.innerHTML = years.join("");
 }
 
 function restoreDraft() {
@@ -545,6 +574,7 @@ renderLocations("production");
 renderLocations("markets");
 buildPriorityControls();
 setupUploadZones();
+buildEstablishedYears();
 updateSummaryCount();
 document.querySelector('input[name="decision_type"]:checked')?.dispatchEvent(new Event("change", { bubbles: true }));
 updateFormProgress();
