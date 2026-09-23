@@ -76,3 +76,7 @@ label>small{display:block;margin-top:6px}
   .page-transition-inner{transition:none}
   .screen.active{animation:none}
 }
+
+/* Author rules such as label{display:block} would otherwise override the
+   browser's default styling for [hidden], keeping conditional fields visible. */
+[hidden]{display:none}
