@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Locus — AI Supply Chain Relocation Decision Agent" />
+    <title>Locus — Supply Chain Decisions</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="splash" id="splash" aria-hidden="true">
+      <div class="splash-inner">
+        <span class="eyebrow">LOCUS / 01</span>
+        <p class="type-line">Hi, welcome to Locus<span class="caret">|</span></p>
+        <p class="splash-subtitle">AI Supply Chain Relocation Decision Agent</p>
+      </div>
+    </div>
+
+    <main id="app" class="app-shell">
+      <header class="topbar">
+        <button class="brand" type="button" data-screen-target="home" aria-label="Go to Locus home">
+          <span class="brand-mark"><i></i><i></i><i></i></span>Locus
+        </button>
+        <nav aria-label="Primary navigation">
+          <button type="button" class="nav-link" data-screen-target="history">My decisions</button>
+          <button type="button" class="nav-link nav-cta" data-screen-target="consultation">Start new decision <span>↗</span></button>
+          <button type="button" class="nav-link" data-screen-target="news">News</button>
+        </nav>
+      </header>
+
+      <section class="screen home-screen active" id="home" aria-labelledby="home-title">
+        <div class="home-copy">
+          <p class="kicker"><span></span> Decision intelligence for global manufacturing</p>
+          <h1 id="home-title">See the next move<br />in your supply chain.</h1>
+          <p class="home-lede">Evaluate relocation and diversification options under geopolitical uncertainty—with evidence you can take to the boardroom.</p>
+          <div class="home-actions">
+            <button class="button button-primary" type="button" data-screen-target="consultation">Start consultation <span>→</span></button>
+            <button class="text-button" type="button" data-screen-target="history">View decision workspace <span>↗</span></button>
+          </div>
+          <div class="trust-row">
+            <span>Evidence-led</span><span>Scenario-based</span><span>Decision-ready</span>
+          </div>
+        </div>
+        <div class="home-art" aria-label="Illustration of connected supply chain locations">
+          <div class="art-label label-cn"><b>CN</b><span>Core supply</span></div>
+          <div class="art-label label-vn"><b>VN</b><span>Production</span></div>
+          <div class="art-label label-us"><b>US</b><span>Market access</span></div>
+          <svg viewBox="0 0 620 470" fill="none" aria-hidden="true">
+            <path class="route route-one" d="M100 269C195 100 313 118 363 233S497 301 543 123" />
+            <path class="route route-two" d="M100 269C222 356 351 347 543 123" />
+            <path class="route route-three" d="M100 269C213 236 291 245 363 233" />
+            <circle class="node node-cn" cx="100" cy="269" r="15" />
+            <circle class="node node-vn" cx="363" cy="233" r="15" />
+            <circle class="node node-us" cx="543" cy="123" r="15" />
+            <circle class="pulse pulse-cn" cx="100" cy="269" r="25" />
+            <circle class="pulse pulse-vn" cx="363" cy="233" r="25" />
+          </svg>
+          <div class="signal-card"><span class="signal-dot"></span><span>Policy signal detected</span><b>Review</b></div>
+          <div class="art-caption"><span>Live footprint</span><b>03 locations</b></div>
+        </div>
+      </section>
+
+      <section class="screen consultation-screen" id="consultation" aria-labelledby="consultation-title">
+        <div class="workflow-head">
+          <button class="back-button" type="button" data-screen-target="home">← Back</button>
+          <div><p class="eyebrow">New decision</p><h2 id="consultation-title">Tell us about your decision.</h2></div>
+          <p>Start with what you know. You can refine it with the AI consultant later.</p>
+        </div>
+
+        <div class="form-layout">
+          <aside class="form-aside">
+            <p class="eyebrow">Decision profile</p>
+            <ol class="form-steps">
+              <li class="complete"><span>01</span> Company context</li>
+              <li><span>02</span> Footprint &amp; markets</li>
+              <li><span>03</span> Decision context</li>
+              <li><span>04</span> Review assessment</li>
+            </ol>
+            <div class="aside-note"><span>⌁</span><p>Information is used only to prepare this decision assessment.</p></div>
+          </aside>
+
+          <form id="decision-form" class="decision-form">
+            <div class="form-intro"><div><p class="eyebrow">Quick assessment</p><h3>Build your decision profile</h3></div><span class="pill">5–8 min</span></div>
+            <p class="form-description">Give Locus a clear picture of your business, footprint and decision. Fields marked <b>*</b> are required.</p>
+
+            <section class="form-section">
+              <p class="section-number">01 / COMPANY CONTEXT</p>
+              <div class="field-grid two-col">
+                <label>Company name <b>*</b><input name="company_name" required placeholder="e.g. Aurora Energy Systems" /></label>
+                <label>Industry <b>*</b><select name="industry" required><option value="" selected disabled>Select an industry</option><option value="battery_ev">Battery &amp; EV</option><option value="semiconductor">Semiconductor</option><option value="electronics">Electronics</option><option value="optoelectronics">Optoelectronics</option><option value="industrial_equipment">Industrial equipment</option><option value="other">Other manufacturing</option></select></label>
+                <label class="wide">Main product / business <b>*</b><input name="products" required placeholder="e.g. Lithium-ion battery cells and modules" /><small>Be as specific as possible.</small></label>
+                <label>Home country <b>*</b><select name="home_country"><option value="CN">China</option><option value="VN">Vietnam</option><option value="ID">Indonesia</option><option value="IN">India</option><option value="TH">Thailand</option><option value="MX">Mexico</option><option value="US">United States</option><option value="EU">European Union</option></select></label>
+              </div>
+            </section>
+
+            <section class="form-section">
+              <div class="section-heading"><p class="section-number">02 / FOOTPRINT &amp; MARKETS</p><span class="optional">Recommended</span></div>
+              <div class="form-group"><div class="group-heading"><div><h4>Current production footprint <b>*</b></h4><p>Select each location and, if known, its share of production.</p></div><span class="total" id="production-total">Total 0%</span></div><div id="production-list" class="location-list"></div><button class="add-row" type="button" id="add-production">+ Add production location</button></div>
+              <div class="form-group"><div class="group-heading"><div><h4>Main target markets <b>*</b></h4><p>Add the markets most relevant to this decision.</p></div><span class="total" id="market-total">Total 0%</span></div><div id="market-list" class="location-list market-list"></div><button class="add-row" type="button" id="add-market">+ Add target market</button></div>
+            </section>
+
+            <section class="form-section">
+              <p class="section-number">03 / DECISION CONTEXT</p>
+              <div class="form-group"><h4>What decision are you trying to make? <b>*</b></h4><div class="choice-grid" id="decision-options"><label><input type="radio" name="decision_type" value="Maintain current production structure" checked /><span>Maintain current production structure</span></label><label><input type="radio" name="decision_type" value="Expand existing production" /><span>Expand existing production</span></label><label><input type="radio" name="decision_type" value="Relocate production" /><span>Relocate production</span></label><label><input type="radio" name="decision_type" value="Diversify across multiple countries" /><span>Diversify across multiple countries</span></label><label><input type="radio" name="decision_type" value="Establish a new production site" /><span>Establish a new production site</span></label></div><input class="decision-input" name="decision_question" required placeholder="Describe the decision in your own words" /></div>
+              <div class="form-group"><h4>What is driving this decision now? <b>*</b></h4><div class="chip-grid" id="restriction-options"><label><input type="checkbox" value="tariff_pressure" /><span>Tariff / trade policy</span></label><label><input type="checkbox" value="export_controls" /><span>Geopolitical uncertainty</span></label><label><input type="checkbox" value="labor_cost_increase" /><span>Rising production costs</span></label><label><input type="checkbox" value="supplier_dependency" /><span>Supplier dependency</span></label><label><input type="checkbox" value="local_regulation" /><span>Regulatory changes</span></label><label><input type="checkbox" value="logistics_problems" /><span>Logistics disruption</span></label></div></div>
+              <div class="field-grid two-col"><label>Investment budget <select name="investment_budget"><option value="">Not specified</option><option value="500000">Under USD 1M</option><option value="5000000">USD 1–10M</option><option value="30000000">USD 10–50M</option><option value="75000000">USD 50M+</option></select></label><label>Decision timeline <b>*</b><select name="time_horizon"><option value="within_6_months">Within 6 months</option><option value="6_18_months" selected>6–18 months</option><option value="2_5_years">2–5 years</option></select></label><label class="wide">One-line situation summary <textarea name="notes" maxlength="4000" placeholder="e.g. US tariff uncertainty is increasing while our Vietnam suppliers remain highly dependent on China."></textarea></label></div>
+            </section>
+
+            <section class="advanced-section" id="advanced-fields" hidden>
+              <div class="advanced-heading"><div><p class="section-number">04 / DEEPER ASSESSMENT</p><h4>More context, stronger recommendation.</h4></div><button class="text-button" type="button" id="hide-advanced">Hide details ↑</button></div>
+              <div class="field-grid two-col"><label>Key supplier count<input name="key_supplier_count" type="number" min="0" placeholder="e.g. 18" /></label><label>Largest supplier share (%)<input name="largest_supplier_share" type="number" min="0" max="100" placeholder="e.g. 35" /></label><label>Acceptable cost increase<select name="cost_increase"><option>Not specified</option><option>Under 5%</option><option>5–10%</option><option>10–20%</option><option>20%+</option></select></label><label>Risk posture<select name="risk_posture"><option>Balanced</option><option>Conservative</option><option>Growth-oriented</option><option>Not sure</option></select></label></div>
+              <div class="priority-block"><h4>Decision priorities</h4><p>Rate what matters most to this decision.</p><div class="priority-grid" id="priority-grid"></div></div>
+              <div class="upload-zone"><span>↑</span><div><b>Supporting documents</b><p>Drop annual reports, supply chain data, supplier lists, or internal assessments here.</p></div><button type="button">Browse files</button></div>
+            </section>
+
+            <button class="advanced-toggle" type="button" id="show-advanced"><span>+</span> Add more information for a deeper assessment</button>
+            <div class="form-footer"><p><span>●</span> Your assessment will show evidence and uncertainty clearly.</p><button class="button button-primary" type="submit">Analyze decision <span>→</span></button></div>
+          </form>
+        </div>
+      </section>
+
+      <section class="screen analysis-screen" id="analysis" aria-live="polite">
+        <div class="analysis-panel"><span class="analysis-orbit"></span><p class="eyebrow">Locus is working</p><h2>Analyzing your supply chain.</h2><p>We’re building a decision view around your footprint, priorities and current exposure.</p><ol class="analysis-stages" id="analysis-stages"><li>Understanding company profile <span>Waiting</span></li><li>Gathering relevant evidence <span>Waiting</span></li><li>Assessing geopolitical risks <span>Waiting</span></li><li>Simulating strategic scenarios <span>Waiting</span></li></ol></div>
+      </section>
+
+      <section class="screen assessment-screen" id="assessment" aria-labelledby="assessment-title">
+        <div class="assessment-heading"><div><button class="back-button" type="button" data-screen-target="consultation">← Edit decision profile</button><p class="eyebrow">Initial assessment <span class="live-tag">Prepared</span></p><h2 id="assessment-title">Your decision, in context.</h2></div><div class="assessment-actions"><button class="icon-button" type="button" title="Save assessment">⌑</button><button class="button button-secondary" type="button">Export briefing <span>↓</span></button></div></div>
+        <div class="assessment-layout">
+          <aside class="assessment-nav"><p>IN THIS ASSESSMENT</p><a href="#profile">Company profile</a><a href="#risk-overview">Risk overview</a><a href="#risk-details">Risk details</a><a href="#rationale">Decision rationale</a><a href="#next-step">Next step</a><div class="assessment-disclaimer">For decision support only. High-risk conclusions require human review.</div></aside>
+          <div class="assessment-content">
+            <section class="assessment-section profile-section" id="profile"><div class="section-title-row"><div><p class="section-number">01 / YOUR COMPANY</p><h3>Company profile</h3></div><button class="text-button" id="profile-expand" type="button">View full profile <span>↓</span></button></div><div class="profile-grid" id="profile-grid"></div><div class="profile-extra" id="profile-extra" hidden></div></section>
+            <section class="assessment-section" id="risk-overview"><div class="section-title-row"><div><p class="section-number">02 / EXPOSURE MAP</p><h3>Geopolitical &amp; supply chain risk overview</h3></div><p class="section-note">Relative severity based on current information</p></div><div class="risk-overview"><div class="risk-radar" aria-label="Qualitative risk overview"><div class="radar-ring ring-1"></div><div class="radar-ring ring-2"></div><div class="radar-ring ring-3"></div><span class="radar-axis axis-x"></span><span class="radar-axis axis-y"></span><button class="radar-point high trade" data-risk="trade">Trade <b>High</b></button><button class="radar-point high supply" data-risk="supply">Supply chain <b>High</b></button><button class="radar-point medium political" data-risk="political">Political <b>Medium</b></button><button class="radar-point low regulation" data-risk="regulation">Regulation <b>Low</b></button></div><div class="risk-summary"><div><span class="risk-dot high-dot"></span><p><b>2 high-priority exposures</b><br />Trade policy and supplier concentration need attention now.</p></div><div><span class="risk-dot medium-dot"></span><p><b>1 developing exposure</b><br />Political conditions should be monitored through implementation.</p></div><p class="muted">Levels indicate direction, not a prediction or legal conclusion.</p></div></div></section>
+            <section class="assessment-section" id="risk-details"><div class="section-title-row"><div><p class="section-number">03 / WHAT NEEDS ATTENTION</p><h3>Risk details</h3></div><p class="section-note">Linked to the evidence below</p></div><div class="risk-list" id="risk-list"></div></section>
+            <section class="assessment-section rationale-section" id="rationale"><div class="section-title-row"><div><p class="section-number">04 / EXPLAINED, NOT OBSCURED</p><h3>Decision rationale</h3></div></div><details><summary>View the factors behind this assessment <span>+</span></summary><div class="rationale-content"><div><b>What Locus considered</b><ul><li>Your production concentration and major export markets</li><li>Selected decision trigger and planning horizon</li><li>Public policy and supply-chain evidence related to your footprint</li></ul></div><div><b>Important assumptions</b><ul><li>Production shares represent the current operating model</li><li>Country-level evidence may not reflect company-specific contracts or exemptions</li></ul></div></div></details><div class="uncertainty"><span>!</span><div><b>Uncertainty to keep in view</b><p>Future trade measures, supplier contracts and local incentives may materially change this assessment. Add verified cost and supplier data before committing capital.</p></div></div></section>
+            <section class="next-step" id="next-step"><div><p class="eyebrow">Move from diagnosis to choice</p><h3>Ready to compare your strategic options?</h3><p>Run a scenario simulation to weigh cost, resilience, market access and implementation trade-offs.</p></div><button class="button button-primary" type="button" id="simulate-button">Run scenario simulation <span>→</span></button></section>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen placeholder-screen" id="history"><p class="eyebrow">My decisions</p><h2>Your decision projects will live here.</h2><p>Start a consultation to create your first evidence-based decision workspace.</p><button class="button button-primary" type="button" data-screen-target="consultation">Start new decision <span>→</span></button></section>
+      <section class="screen placeholder-screen" id="news"><p class="eyebrow">News</p><h2>Relevant policy signals, soon.</h2><p>News monitoring is reserved for a future release and does not interrupt your decision workflow.</p></section>
+    </main>
+    <div class="toast" id="toast" role="status"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>
