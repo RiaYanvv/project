@@ -213,7 +213,8 @@ function readForm() {
 }
 
 function validateDecision(profile) {
-  if (!profile.company_name || !profile.products || !profile.decision_question) return "Please complete the required company and decision fields.";
+  if (!profile.company_name || !profile.products) return "Please complete the required company fields.";
+  if (!profile.decision_type) return "Select what decision you are trying to make.";
   if (!profile.production_locations.length || !profile.target_markets.length) return "Please add at least one production location and target market.";
   if (!profile.restrictions.length) return "Select at least one factor driving this decision.";
   return null;
@@ -228,8 +229,11 @@ function locationLabel(item) {
 
 function buildDecisionQuestion(profile) {
   const detail = profile.relocate_destination || profile.new_site_candidates || profile.decision_other;
-  if (!profile.decision_type) return profile.decision_question;
-  return detail ? `${profile.decision_type} (${detail}): ${profile.decision_question}` : `${profile.decision_type}: ${profile.decision_question}`;
+  const type = profile.decision_type || "Maintain current production structure";
+  const composed = detail ? `${type} (${detail})` : type;
+  // The free-text box is optional (see profile list.md), but the Agent API
+  // requires a decision_question string, so the selected option stands in for it.
+  return profile.decision_question ? `${composed}: ${profile.decision_question}` : composed;
 }
 
 function buildNotes(profile) {
@@ -724,7 +728,9 @@ function updateFormProgress() {
   const quickChecks = [
     form.company_name.value,
     form.products.value,
-    form.decision_question.value,
+    // The free-text box is optional, so the decision context counts as answered
+    // when the user types something or picks a decision other than the default.
+    form.decision_question.value.trim() !== "" || document.querySelector('input[name="decision_type"]:checked')?.value !== "Maintain current production structure",
     state.production.some(answeredLocation),
     state.markets.some(answeredLocation),
     document.querySelectorAll("#restriction-options input:checked").length,
