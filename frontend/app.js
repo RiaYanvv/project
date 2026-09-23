@@ -322,24 +322,46 @@ async function streamAssessment(payload, onStage) {
 
 function mapApiAssessment(api, profile) {
   const library = api.evidence || [];
+  const evidenceFor = (id) => {
+    const item = library.find(entry => entry.evidence_id === id);
+    if (!item) return { title: id, publisher: "Evidence reference", date: "", authority: "", url: null };
+    return {
+      title: item.title,
+      publisher: item.publisher,
+      date: item.publication_date || "",
+      authority: item.authority_level ? `Authority ${item.authority_level}` : "",
+      url: item.url || null,
+    };
+  };
+  const recommendation = api.recommendation || {};
   return {
     company_profile: { ...profile, summary: api.company_profile?.summary || "Your decision profile has been prepared." },
     risks: (api.risks || []).map(risk => ({
       severity: risk.severity || "medium",
       name: risk.name,
+      category: risk.category || "",
       description: risk.business_impact,
       uncertainty: risk.uncertainty || "",
-      evidence: (risk.evidence_ids || []).map(id => {
-        const item = library.find(entry => entry.evidence_id === id);
-        if (!item) return { title: id, publisher: "Evidence reference", date: "", url: null };
-        return {
-          title: item.title,
-          publisher: item.publisher,
-          date: [item.publication_date, item.authority_level ? `Authority ${item.authority_level}` : ""].filter(Boolean).join(" · "),
-          url: item.url || null,
-        };
-      }),
+      verification: risk.verification_status || "",
+      evidence: (risk.evidence_ids || []).map(evidenceFor),
     })),
+    recommendation: {
+      headline: recommendation.headline || "",
+      rationale: recommendation.rationale || "",
+      confidence: recommendation.confidence || "",
+      reasons: recommendation.confidence_reasons || [],
+      uncertainty: recommendation.uncertainty || [],
+      next_actions: recommendation.next_actions || [],
+      requires_human_review: Boolean(recommendation.requires_human_review),
+    },
+    limitations: api.limitations || [],
+    trace: (api.trace || []).map(step => ({ agent: step.agent, action: step.action, detail: step.detail, status: step.status })),
+    meta: {
+      assessment_id: api.assessment_id || "",
+      model_name: api.model_name || "",
+      data_mode: api.data_mode || "",
+      evidence_count: library.length,
+    },
   };
 }
 
@@ -350,10 +372,30 @@ function mockAssessment(profile) {
   return {
     company_profile: { ...profile, summary: `${profile.company_name} operates across ${locations}, with a decision horizon of ${horizon}.` },
     risks: [
-      { severity: "high", name: isUsMarket ? "US tariff exposure" : "Trade-policy exposure", description: isUsMarket ? "Changes in US trade policy could materially affect the landed-cost position of products serving this market." : "Changing trade measures may affect cost, lead time and market access across your current footprint.", uncertainty: "Announced measures can change before implementation, and product-level classifications may differ from the headline policy.", evidence: [{ title: "Section 301 Investigations", publisher: "Office of the United States Trade Representative", date: "Official policy source", url: null }, { title: "Global Trade Outlook and Statistics", publisher: "World Trade Organization", date: "Official source · 2026", url: null }] },
-      { severity: "high", name: "Supplier ecosystem dependency", description: "The current footprint may depend on supplier capacity, engineering support or critical inputs located outside the production market.", uncertainty: "Supplier concentration is inferred from your inputs rather than verified bill-of-materials data.", evidence: [{ title: "Trade in Value Added", publisher: "OECD", date: "Official dataset", url: null }, { title: "Global Critical Minerals Outlook", publisher: "International Energy Agency", date: "Official report · 2025", url: null }] },
-      { severity: "medium", name: "Implementation and capacity risk", description: "Any change to production allocation requires time for qualification, workforce ramp-up and customer certification.", uncertainty: "Certification lead times are company specific and are not covered by public sources.", evidence: [{ title: "Geopolitical risk readiness", publisher: "McKinsey & Company", date: "Industry research", url: null }] },
+      { severity: "high", category: "Trade policy", name: isUsMarket ? "US tariff exposure" : "Trade-policy exposure", description: isUsMarket ? "Changes in US trade policy could materially affect the landed-cost position of products serving this market." : "Changing trade measures may affect cost, lead time and market access across your current footprint.", uncertainty: "Announced measures can change before implementation, and product-level classifications may differ from the headline policy.", verification: "partial", evidence: [{ title: "Section 301 Investigations", publisher: "Office of the United States Trade Representative", date: "2026-08-14", authority: "Authority A", url: null }, { title: "Global Trade Outlook and Statistics", publisher: "World Trade Organization", date: "2026-04-02", authority: "Authority A", url: null }] },
+      { severity: "high", category: "Supply chain", name: "Supplier ecosystem dependency", description: "The current footprint may depend on supplier capacity, engineering support or critical inputs located outside the production market.", uncertainty: "Supplier concentration is inferred from your inputs rather than verified bill-of-materials data.", verification: "partial", evidence: [{ title: "Trade in Value Added", publisher: "OECD", date: "2026-02-19", authority: "Authority B", url: null }, { title: "Global Critical Minerals Outlook", publisher: "International Energy Agency", date: "2025-11-06", authority: "Authority B", url: null }] },
+      { severity: "medium", category: "Regulatory & compliance", name: "Export-control and compliance screening", description: "Customer screening, product classification and licence requirements can add lead time or restrict access to specific buyers.", uncertainty: "Whether your specific products fall under current control lists is not confirmed by public sources.", verification: "partial", evidence: [{ title: "Entity List", publisher: "Bureau of Industry and Security", date: "2026-07-21", authority: "Authority A", url: null }] },
+      { severity: "medium", category: "Operational", name: "Implementation and capacity ramp-up", description: "Any change to production allocation requires time for qualification, workforce ramp-up and customer certification.", uncertainty: "Certification lead times are company specific and are not covered by public sources.", verification: "unverified", evidence: [{ title: "Geopolitical risk readiness", publisher: "McKinsey & Company", date: "2025-09-30", authority: "Authority C", url: null }] },
     ],
+    recommendation: {
+      headline: "Preview only — connect the Agent service for a recommendation.",
+      rationale: "This is a demonstration assessment generated in the browser. It shows the structure of the output, not an analysed result.",
+      confidence: "low",
+      reasons: ["Generated locally without the retrieval and analysis pipeline", "No company documents or verified bill-of-materials data"],
+      uncertainty: ["Everything shown here is illustrative until the Agent service is connected."],
+      next_actions: ["Connect the Agent API and re-run the assessment"],
+      requires_human_review: true,
+    },
+    limitations: [
+      "Preview assessment generated in the browser without the retrieval pipeline.",
+      "Evidence entries are placeholders and are not clickable.",
+    ],
+    trace: [
+      { agent: "ProfileAgent", action: "Build company profile", detail: "Company, footprint, markets and decision context standardised.", status: "completed" },
+      { agent: "ResearchAgent", action: "Retrieve evidence", detail: "Skipped — the Agent service is not connected.", status: "fallback" },
+      { agent: "RiskAgent", action: "Assess geopolitical risks", detail: "Rule-based preview risks used instead of model output.", status: "fallback" },
+    ],
+    meta: { assessment_id: "", model_name: "preview", data_mode: "preview", evidence_count: 5 },
   };
 }
 
@@ -433,29 +475,197 @@ async function runAnalysis(profile) {
 
 /* ------------------------------------------------------------- assessment */
 
+/* UI.md risk categories. Levels stay qualitative — no numeric risk scores. */
+const RISK_CATEGORIES = [
+  { key: "trade", label: "Trade", match: ["tariff", "trade", "duty", "customs", "import", "关税", "贸易"] },
+  { key: "political", label: "Political", match: ["geopolitic", "political", "sanction", "conflict", "地缘", "政治"] },
+  { key: "supply_chain", label: "Supply chain", match: ["supplier", "supply", "ecosystem", "dependency", "logistics", "供应", "供应链"] },
+  { key: "regulatory", label: "Regulation", match: ["regulat", "compliance", "export control", "licence", "license", "law", "policy", "standard", "监管", "合规", "政策"] },
+  { key: "market_access", label: "Market access", match: ["market access", "customer", "rules of origin", "市场准入"] },
+  { key: "operational", label: "Operational", match: ["operat", "implementation", "workforce", "labor", "labour", "cost", "ramp", "运营", "实施", "成本"] },
+];
+const SEVERITY_LEVEL = { critical: "high", high: "high", medium: "medium", low: "low" };
+const LEVEL_LABEL = { high: "High", medium: "Medium", low: "Low", unknown: "Not assessed" };
+const LEVEL_RADIUS = { high: 1, medium: 0.68, low: 0.4, unknown: 0.18 };
+const BUDGET_LABELS = { 500000: "< USD 1M", 5000000: "USD 1–10M", 30000000: "USD 10–50M", 75000000: "USD 50M+" };
+
+function levelOf(risks) {
+  const levels = risks.map(risk => SEVERITY_LEVEL[risk.severity] || "medium");
+  if (levels.includes("high")) return "high";
+  if (levels.includes("medium")) return "medium";
+  return levels.length ? "low" : "unknown";
+}
+
+function riskCategoryKey(risk) {
+  const text = `${risk.category || ""} ${risk.name || ""}`.toLowerCase();
+  const found = RISK_CATEGORIES.find(category => category.match.some(token => text.includes(token)));
+  return found ? found.key : "operational";
+}
+
+function renderRiskRadar(risks) {
+  const radar = $("#risk-radar");
+  if (!radar) return;
+  const size = 330;
+  const center = size / 2;
+  const maxRadius = 110;
+  const groups = RISK_CATEGORIES.map(category => {
+    const items = risks.filter(risk => riskCategoryKey(risk) === category.key);
+    return { ...category, items, level: levelOf(items) };
+  });
+  const points = groups.map((group, index) => {
+    const angle = ((-90 + index * (360 / groups.length)) * Math.PI) / 180;
+    const radius = maxRadius * LEVEL_RADIUS[group.level];
+    return { ...group, angle, x: center + Math.cos(angle) * radius, y: center + Math.sin(angle) * radius };
+  });
+  const rings = [1, 0.68, 0.36].map(scale => `<circle class="rr-ring" cx="${center}" cy="${center}" r="${(maxRadius * scale).toFixed(1)}" />`).join("");
+  const spokes = points.map(point => `<line class="rr-axis" x1="${center}" y1="${center}" x2="${(center + Math.cos(point.angle) * maxRadius).toFixed(1)}" y2="${(center + Math.sin(point.angle) * maxRadius).toFixed(1)}" />`).join("");
+  const frame = `<polygon class="rr-frame" points="${points.map(point => `${(center + Math.cos(point.angle) * maxRadius).toFixed(1)},${(center + Math.sin(point.angle) * maxRadius).toFixed(1)}`).join(" ")}" />`;
+  const shape = `<polygon class="rr-shape" points="${points.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ")}" />`;
+  const nodes = points.map(point => `<circle class="rr-node ${point.level}" cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="5.5" />`).join("");
+  const labels = points.map(point => {
+    const labelRadius = maxRadius + 32;
+    const x = center + Math.cos(point.angle) * labelRadius;
+    const y = center + Math.sin(point.angle) * labelRadius;
+    const cos = Math.cos(point.angle);
+    const anchor = cos > 0.3 ? "start" : cos < -0.3 ? "end" : "middle";
+    const target = point.items.length ? `#risk-${risks.indexOf(point.items[0])}` : "#risk-details";
+    return `<g class="rr-label ${point.level}" data-risk-target="${target}" tabindex="0" role="button" aria-label="${escapeHtml(`${point.label}: ${LEVEL_LABEL[point.level]}`)}">
+        <text x="${x.toFixed(1)}" y="${(y - 3).toFixed(1)}" text-anchor="${anchor}">${escapeHtml(point.label)}</text>
+        <text class="rr-level" x="${x.toFixed(1)}" y="${(y + 12).toFixed(1)}" text-anchor="${anchor}">${escapeHtml(LEVEL_LABEL[point.level])}</text>
+      </g>`;
+  }).join("");
+  radar.innerHTML = `<svg viewBox="0 0 ${size} ${size}" role="img" aria-label="Qualitative risk overview by category">${rings}${spokes}${frame}${shape}${nodes}${labels}</svg>`;
+}
+
+function renderRiskSummary(risks) {
+  const summary = $("#risk-summary");
+  if (!summary) return;
+  const counts = { high: 0, medium: 0, low: 0 };
+  risks.forEach(risk => { counts[SEVERITY_LEVEL[risk.severity] || "medium"] += 1; });
+  const rows = [];
+  if (counts.high) rows.push(["high", `${counts.high} high-priority ${counts.high === 1 ? "exposure" : "exposures"}`, "Review these before any capacity commitment."]);
+  if (counts.medium) rows.push(["medium", `${counts.medium} developing ${counts.medium === 1 ? "exposure" : "exposures"}`, "Worth monitoring through the implementation window."]);
+  if (counts.low) rows.push(["low", `${counts.low} monitored ${counts.low === 1 ? "exposure" : "exposures"}`, "Low severity on the current evidence."]);
+  if (!rows.length) rows.push(["medium", "No risks identified yet", "Adjust the decision profile and run the assessment again."]);
+  summary.innerHTML = rows.map(([level, title, note]) => `<div><span class="risk-dot ${level}-dot"></span><p><b>${escapeHtml(title)}</b><br />${escapeHtml(note)}</p></div>`).join("")
+    + `<p class="muted">Levels show direction based on available evidence — not a prediction or a legal conclusion.</p>`;
+}
+
+function evidenceMarkup(evidence) {
+  return (evidence || []).map(item => {
+    const meta = [item.date, item.authority].filter(Boolean).join(" · ");
+    const body = `<span class="evidence-main"><b>${escapeHtml(item.publisher)}</b> — ${escapeHtml(item.title)}</span><span class="evidence-meta">${escapeHtml(meta)}${item.url ? " ↗" : ""}</span>`;
+    return item.url
+      ? `<a class="evidence-link" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${body}</a>`
+      : `<div class="evidence-link static">${body}</div>`;
+  }).join("");
+}
+
+function renderRationale(assessment) {
+  const container = $("#rationale-content");
+  if (!container) return;
+  const profile = assessment.company_profile;
+  const recommendation = assessment.recommendation || {};
+  const sources = [];
+  (assessment.risks || []).forEach(risk => (risk.evidence || []).forEach(item => {
+    if (!sources.some(source => source.title === item.title && source.publisher === item.publisher)) sources.push(item);
+  }));
+  const factors = [
+    `Production footprint: ${profile.production_locations.map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(", ") || "not specified"}`,
+    `Export markets: ${profile.target_markets.map(item => countryName(item.country)).join(", ") || "not specified"}`,
+    `Decision priorities: ${(profile.priorities || []).slice(0, 3).map(item => item.dimension).join(" > ") || "not ranked"}`,
+    `Declared drivers: ${profile.restrictions.map(value => TRIGGER_LABELS[value] || value.replaceAll("_", " ")).join(", ") || "none selected"}`,
+  ];
+  const assumptions = [
+    "Production shares entered in the form represent the current operating model.",
+    "Country-level public sources may not reflect company-specific contracts, exemptions or customer terms.",
+    assessment.meta?.data_mode === "preview"
+      ? "This is a preview assessment: no retrieval or model analysis was run."
+      : "Findings rely on the retrieved evidence listed below; unlisted internal data was not available.",
+  ];
+  const confidence = recommendation.confidence ? [`Reported confidence: ${recommendation.confidence}`] : [];
+  const uncertainties = (assessment.risks || []).map(risk => risk.uncertainty).filter(Boolean).slice(0, 3);
+  const block = (title, items) => `<div class="rationale-block"><b>${escapeHtml(title)}</b><ul>${items.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>`;
+  container.innerHTML = [
+    block("What Locus considered", factors),
+    block("Evidence used", sources.length
+      ? sources.slice(0, 5).map(item => `${item.publisher} — ${item.title}${item.authority ? ` (${item.authority})` : ""}`)
+      : ["No evidence was attached to this assessment."]),
+    block("Assumptions", assumptions),
+    block("Confidence and uncertainties", [...confidence, ...(recommendation.reasons || []), ...uncertainties].length
+      ? [...confidence, ...(recommendation.reasons || []), ...uncertainties]
+      : ["No confidence or uncertainty notes were reported."]),
+  ].join("");
+}
+
+function renderUncertainty(assessment) {
+  const panel = $("#uncertainty-panel");
+  if (!panel) return;
+  const items = [
+    ...(assessment.risks || []).map(risk => risk.uncertainty).filter(Boolean),
+    ...((assessment.recommendation || {}).uncertainty || []),
+    ...(assessment.limitations || []),
+  ];
+  const unique = [...new Set(items)];
+  panel.innerHTML = `<span>!</span><div><b>Uncertainty to keep in view</b>${
+    unique.length
+      ? `<ul>${unique.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`
+      : "<p>No specific uncertainties were reported for this assessment.</p>"
+  }${(assessment.recommendation || {}).requires_human_review ? `<p class="uncertainty-flag">High-severity or unverified findings require human review before capital is committed.</p>` : ""}</div>`;
+}
+
+function renderAssessmentMeta(assessment) {
+  const meta = assessment.meta || {};
+  const live = Boolean(meta.assessment_id);
+  const tags = [];
+  if (meta.assessment_id) tags.push(`Assessment ${meta.assessment_id}`);
+  tags.push(live ? (meta.data_mode === "hybrid" ? "Live agent · knowledge base + web" : "Live agent · knowledge base") : "Preview assessment · Agent service not connected");
+  if (meta.model_name && meta.model_name !== "preview") tags.push(meta.model_name);
+  if (meta.evidence_count) tags.push(`${meta.evidence_count} evidence items retrieved`);
+  const metaLine = $("#assessment-meta");
+  if (metaLine) metaLine.textContent = tags.join(" · ");
+  const modeTag = $("#assessment-mode");
+  if (modeTag) modeTag.textContent = live ? "Live agent" : "Preview";
+}
+
 function renderAssessment(assessment) {
   const profile = assessment.company_profile;
+  const risks = assessment.risks || [];
   const productionText = profile.production_locations.map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(" · ");
   const marketsText = profile.target_markets.map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(" · ");
   $("#profile-grid").innerHTML = [
-    ["Company", profile.company_name], ["Industry", INDUSTRY_LABELS[profile.industry] || (profile.industry || "").replaceAll("_", " ")], ["Main product", profile.products],
-    ["Home country", countryName(profile.home_country)], ["Production footprint", productionText], ["Target markets", marketsText],
-    ["Decision context", profile.decision_question], ["Timeline", (profile.time_horizon || "").replaceAll("_", " ")], ["Decision trigger", profile.restrictions.map(value => TRIGGER_LABELS[value] || value.replaceAll("_", " ")).join(" · ")],
+    ["Company", profile.company_name],
+    ["Industry", INDUSTRY_LABELS[profile.industry] || (profile.industry || "").replaceAll("_", " ")],
+    ["Main product", profile.products],
+    ["Home country", countryName(profile.home_country)],
+    ["Production footprint", productionText],
+    ["Target markets", marketsText],
+    ["Decision context", profile.decision_question],
+    ["Decision drivers", profile.restrictions.map(value => TRIGGER_LABELS[value] || value.replaceAll("_", " ")).join(" · ")],
+    ["Priorities", (profile.priorities || []).map(item => item.dimension).join(" > ")],
+    ["Investment budget", BUDGET_LABELS[profile.investment_budget] || "Not specified"],
+    ["Planning horizon", (profile.time_horizon || "").replaceAll("_", " ")],
   ].map(([label, value]) => `<div><span>${escapeHtml(label)}</span><b>${escapeHtml(value || "Not specified")}</b></div>`).join("");
-  $("#profile-extra").textContent = profile.notes || profile.summary;
-  $("#risk-list").innerHTML = assessment.risks.map((risk, index) => `
-    <article class="risk-item" id="${index === 0 ? "trade" : index === 1 ? "supply" : "political"}">
-      <div class="risk-title"><span class="severity ${escapeHtml(risk.severity)}">${escapeHtml(risk.severity)}</span><h4>${escapeHtml(risk.name)}</h4></div>
+  $("#profile-extra").textContent = [profile.summary, profile.notes].filter(Boolean).join(" ");
+  renderAssessmentMeta(assessment);
+  renderRiskRadar(risks);
+  renderRiskSummary(risks);
+  $("#risk-list").innerHTML = risks.map((risk, index) => {
+    const level = SEVERITY_LEVEL[risk.severity] || "medium";
+    const check = risk.verification && risk.verification !== "verified"
+      ? `<span class="evidence-check ${escapeHtml(risk.verification)}">${escapeHtml(risk.verification)}</span>`
+      : "";
+    return `
+    <article class="risk-item" id="risk-${index}">
+      <div class="risk-title"><span class="severity ${level}">${escapeHtml(risk.severity)}</span><h4>${escapeHtml(risk.name)}</h4>${risk.category ? `<span class="risk-category">${escapeHtml(risk.category)}</span>` : ""}</div>
       <p class="risk-description">${escapeHtml(risk.description)}</p>
-      <p class="evidence-label">Supporting evidence</p>
-      ${(risk.evidence || []).map(item => {
-        const body = `<span><b>${escapeHtml(item.publisher)}</b> — ${escapeHtml(item.title)}</span><span>${escapeHtml(item.date)}${item.url ? " ↗" : ""}</span>`;
-        return item.url
-          ? `<a class="evidence-link" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${body}</a>`
-          : `<div class="evidence-link static">${body}</div>`;
-      }).join("")}
+      <p class="evidence-label">Supporting evidence ${check}</p>
+      ${evidenceMarkup(risk.evidence) || `<div class="evidence-link static"><span class="evidence-main">No linked evidence for this risk.</span></div>`}
       ${risk.uncertainty ? `<p class="risk-uncertainty"><b>Uncertainty</b> · ${escapeHtml(risk.uncertainty)}</p>` : ""}
-    </article>`).join("");
+    </article>`;
+  }).join("");
+  renderRationale(assessment);
+  renderUncertainty(assessment);
 }
 
 function showToast(message) { const toast = $("#toast"); toast.textContent = message; toast.classList.add("show"); setTimeout(() => toast.classList.remove("show"), 4200); }
@@ -645,6 +855,19 @@ document.addEventListener("click", event => {
   if (event.target.closest("#profile-expand")) { const extra = $("#profile-extra"); extra.hidden = !extra.hidden; $("#profile-expand").innerHTML = extra.hidden ? "View full profile <span>↓</span>" : "Hide full profile <span>↑</span>"; }
   if (event.target.closest("#simulate-button")) showToast("Scenario simulation connects to the Agent in the next build step.");
   const openProject = event.target.closest("[data-open-project]");
+  const radarTarget = event.target.closest("[data-risk-target]");
+  if (radarTarget) {
+    document.querySelector(radarTarget.dataset.riskTarget)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+  if (event.target.closest("#export-button")) {
+    const meta = state.assessment?.meta || {};
+    if (meta.assessment_id && window.LOCUS_API_BASE) {
+      window.open(`${window.LOCUS_API_BASE}/api/v1/assessments/${meta.assessment_id}/report`, "_blank", "noopener");
+    } else {
+      showToast("The decision report is produced by the live Agent run after the scenario step.");
+    }
+  }
   if (openProject) {
     const project = readProjects().find(item => item.project_id === openProject.dataset.openProject);
     if (project?.assessment) {
@@ -677,6 +900,14 @@ document.addEventListener("change", event => {
   if (changed.closest("#non-relocatable-options")) {
     $("#non-relocatable-other").hidden = ![...document.querySelectorAll("#non-relocatable-options input:checked")].some(item => item.value === "Other");
   }
+});
+
+document.addEventListener("keydown", event => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const radarTarget = event.target.closest("[data-risk-target]");
+  if (!radarTarget) return;
+  event.preventDefault();
+  document.querySelector(radarTarget.dataset.riskTarget)?.scrollIntoView({ behavior: "smooth", block: "center" });
 });
 
 document.addEventListener("input", event => {

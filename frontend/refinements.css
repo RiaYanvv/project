@@ -151,3 +151,42 @@ label>small{display:block;margin-top:6px}
   .history-screen{padding:36px 20px 60px}
   .project-card{align-items:flex-start;flex-direction:column}
 }
+
+/* Initial assessment: radar, evidence cards, rationale, uncertainty */
+.risk-radar{height:auto;display:grid;place-items:center}
+.risk-radar svg{display:block;width:100%;max-width:360px;height:auto;overflow:visible}
+.rr-ring{fill:none;stroke:#cfdfe8;stroke-width:1}
+.rr-axis{stroke:#dbe8ef;stroke-width:1}
+.rr-frame{fill:none;stroke:#c7d9e4;stroke-width:1}
+.rr-shape{fill:#125f9a18;stroke:#125f9a;stroke-width:1.6;stroke-linejoin:round}
+.rr-node{fill:#8fb4c9;stroke:#fff;stroke-width:2}
+.rr-node.high{fill:var(--high)}
+.rr-node.medium{fill:var(--medium)}
+.rr-node.low{fill:var(--low)}
+.rr-node.unknown{fill:#c2d3dd}
+.rr-label{cursor:pointer}
+.rr-label text{fill:#4d6a7e;font:700 11px var(--sans)}
+.rr-label .rr-level{fill:#8397a5;font:500 9px var(--mono);text-transform:uppercase;letter-spacing:.08em}
+.rr-label.high text{fill:var(--high)}
+.rr-label.high .rr-level{fill:var(--high)}
+.rr-label.medium text{fill:var(--medium)}
+.rr-label.medium .rr-level{fill:#9c691d}
+.rr-label.low text{fill:var(--low)}
+.rr-label.low .rr-level{fill:var(--low)}
+.rr-label.unknown text{fill:#8b9dab}
+.rr-label:hover text,.rr-label:focus-visible text{fill:var(--blue);text-decoration:underline}
+.low-dot{background:var(--low)}
+.risk-category{margin-left:auto;padding:3px 7px;border:1px solid #dbe7ee;color:#77909f;font:500 9px var(--mono);text-transform:uppercase;letter-spacing:.06em}
+.evidence-check{margin-left:7px;padding:2px 6px;border-radius:2px;font:500 8px var(--mono);text-transform:uppercase;letter-spacing:.06em}
+.evidence-check.partial{color:#9c691d;background:#faf3e5}
+.evidence-check.unverified{color:#a33625;background:#f9eae7}
+.evidence-main{line-height:1.5}
+.evidence-meta{white-space:nowrap}
+.rationale-block b{display:block;margin-bottom:8px;color:#345267;font-size:12.5px}
+#rationale-content{gap:26px}
+.uncertainty ul{margin:8px 0 0;padding-left:17px;color:#6c7780;font-size:11.5px;line-height:1.65}
+.uncertainty li{margin-bottom:5px}
+.uncertainty-flag{margin-top:10px!important;color:#8a5a12!important;font-weight:700}
+.assessment-meta{margin:12px 0 0;color:#7b8f9e;font:500 11px var(--mono);letter-spacing:.03em}
+.rationale-section summary span{transition:transform .2s ease}
+.rationale-section details[open] summary span{transform:rotate(45deg)}
