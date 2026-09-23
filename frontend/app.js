@@ -15,6 +15,9 @@ const priorities = ["Supply Chain Resilience", "Market Access", "Cost", "Complia
 /* Country codes, enum values and limits below mirror backend/app/schemas.py.
    Keeping them in sync is what lets the form talk to the Agent API. */
 const BACKEND_COUNTRIES = ["CN", "VN", "ID", "IN", "TH", "MY", "MX", "US", "EU"];
+/* The product scope is the EV / battery supply chain, so industry is a fixed
+   value rather than a form field (see profile list.md). */
+const FIXED_INDUSTRY = "battery_ev";
 const BACKEND_PRIORITY_DIMENSION = {
   "Supply Chain Resilience": "supply_chain_resilience",
   "Market Access": "market_access",
@@ -46,6 +49,7 @@ const TIME_HORIZON_BACKEND_VALUE = {
   "18m_3y": "2_5_years",
   more_than_3y: "2_5_years",
 };
+const INDUSTRY_LABELS = { battery_ev: "Battery & EV", semiconductor: "Semiconductor", electronics: "Electronics", optoelectronics: "Optoelectronics", industrial_equipment: "Industrial equipment", other: "Other manufacturing" };
 const STAGE_BY_AGENT = { ProfileAgent: 0, ResearchAgent: 1, RiskAgent: 2, ScenarioAgent: 3, AdvisorAgent: 3, VerificationAgent: 3 };
 const TRANSITION_LABEL = { consultation: "Opening decision workspace", home: "Returning to overview", history: "Opening my decisions", news: "Opening news", analysis: "Preparing assessment", assessment: "Opening initial assessment" };
 
@@ -183,6 +187,7 @@ function readForm() {
   const text = (name) => (data.get(name) || "").toString().trim();
   return {
     company_name: text("company_name"),
+    industry: FIXED_INDUSTRY,
     products: text("products"),
     home_country: data.get("home_country"),
     production_locations: state.production.filter(item => item.country),
@@ -260,8 +265,8 @@ function buildBackendPayload(profile) {
     company: {
       company_name: profile.company_name,
       // The Agent API requires an industry value. The form follows profile list.md
-      // and no longer asks for one, so it is reported as "other".
-      industry: "other",
+      // and no longer asks for one, so the fixed EV / battery scope is sent instead.
+      industry: profile.industry || FIXED_INDUSTRY,
       products: [profile.products],
       home_country: profile.home_country,
       production_locations: production,
@@ -422,7 +427,7 @@ function renderAssessment(assessment) {
   const productionText = profile.production_locations.map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(" · ");
   const marketsText = profile.target_markets.map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(" · ");
   $("#profile-grid").innerHTML = [
-    ["Company", profile.company_name], ["Industry", (profile.industry || "other").replaceAll("_", " ")], ["Main product", profile.products],
+    ["Company", profile.company_name], ["Industry", INDUSTRY_LABELS[profile.industry] || (profile.industry || "").replaceAll("_", " ")], ["Main product", profile.products],
     ["Home country", countryName(profile.home_country)], ["Production footprint", productionText], ["Target markets", marketsText],
     ["Decision context", profile.decision_question], ["Timeline", (profile.time_horizon || "").replaceAll("_", " ")], ["Decision trigger", profile.restrictions.map(value => TRIGGER_LABELS[value] || value.replaceAll("_", " ")).join(" · ")],
   ].map(([label, value]) => `<div><span>${escapeHtml(label)}</span><b>${escapeHtml(value || "Not specified")}</b></div>`).join("");
