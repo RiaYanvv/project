@@ -23,6 +23,10 @@
 .page-transition-rule{width:76px;height:1px;background:#3d6f95}
 .screen.active{animation:screen-in .34s cubic-bezier(.4,0,.2,1) both}
 .screen:not(.active){display:none}
+/* styles.css sets .screen.active{display:block}, which outranks the per-screen
+   display types such as .home-screen{display:grid}. Restore them here. */
+.home-screen.active{display:grid}
+.analysis-screen.active{display:grid}
 @keyframes screen-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 .workflow-head{grid-template-columns:minmax(0,1fr) minmax(220px,265px)}
 .location-row{grid-template-columns:minmax(125px,1fr) minmax(75px,1fr) 94px 29px}
