@@ -3,8 +3,22 @@ const state = {
   markets: [{ country: "US", share: "", other: "" }],
   assessment: null,
 };
+let runInFlight = false;
 const draftKey = "locus-decision-draft";
 const projectsKey = "locus-decision-projects";
+
+/* Browsers can block localStorage (private mode, security software, full quota).
+   Every storage call is guarded so the consultation still works without it. */
+function storageAvailable() {
+  try {
+    localStorage.setItem("locus-storage-probe", "1");
+    localStorage.removeItem("locus-storage-probe");
+    return true;
+  } catch {
+    return false;
+  }
+}
+const canStore = storageAvailable();
 
 const productionCountries = [
   ["CN", "China"], ["VN", "Vietnam"], ["ID", "Indonesia"], ["IN", "India"],
@@ -436,10 +450,14 @@ function handleStageEvent(event) {
    the next "Start New Decision" begins from a clean sheet. */
 function finishRun(assessment) {
   state.assessment = assessment;
-  completeStages();
-  renderAssessment(assessment);
-  saveProject(assessment);
-  resetDecisionForm();
+  runInFlight = false;
+  const submitButton = $("#decision-form button[type='submit']");
+  if (submitButton) submitButton.disabled = false;
+  try { completeStages(); } catch { /* stage list is cosmetic */ }
+  try { renderAssessment(assessment); } catch (error) { showToast(`Some assessment sections could not be rendered: ${error.message}`); }
+  try { saveProject(assessment); } catch { /* project history is optional */ }
+  try { resetDecisionForm(); } catch { /* the form can be cleared manually */ }
+  // Always move the user forward, whatever happened above.
   setTimeout(() => showScreen("assessment"), 320);
 }
 
@@ -458,12 +476,22 @@ function runPreviewTimeline(profile) {
 }
 
 async function runAnalysis(profile) {
+  if (runInFlight) return;
+  runInFlight = true;
+  const submitButton = $("#decision-form button[type='submit']");
+  if (submitButton) submitButton.disabled = true;
   showScreen("analysis");
   resetStages();
-  const { issues, payload } = buildBackendPayload(profile);
   const configured = Boolean(window.LOCUS_API_BASE && window.LOCUS_API_KEY);
+  let request = { issues: [], payload: null };
+  try {
+    request = buildBackendPayload(profile);
+  } catch (error) {
+    showToast(`Could not prepare the assessment request: ${error.message}`);
+  }
+  const { issues, payload } = request;
 
-  if (configured && !issues.length) {
+  if (configured && payload && !issues.length) {
     try {
       const api = await streamAssessment(payload, handleStageEvent);
       finishRun(mapApiAssessment(api, profile));
@@ -633,46 +661,69 @@ function renderAssessmentMeta(assessment) {
 }
 
 function renderAssessment(assessment) {
-  const profile = assessment.company_profile;
+  // Each section renders independently so one bad field can never blank the page.
+  const guard = (render) => { try { render(); } catch (error) { console.error("Assessment section failed:", error); } };
+  const profile = assessment.company_profile || {};
   const risks = assessment.risks || [];
-  const productionText = profile.production_locations.map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(" · ");
-  const marketsText = profile.target_markets.map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(" · ");
-  $("#profile-grid").innerHTML = [
-    ["Company", profile.company_name],
-    ["Industry", INDUSTRY_LABELS[profile.industry] || (profile.industry || "").replaceAll("_", " ")],
-    ["Main product", profile.products],
-    ["Home country", countryName(profile.home_country)],
-    ["Production footprint", productionText],
-    ["Target markets", marketsText],
-    ["Decision context", profile.decision_question],
-    ["Decision drivers", profile.restrictions.map(value => TRIGGER_LABELS[value] || value.replaceAll("_", " ")).join(" · ")],
-    ["Priorities", (profile.priorities || []).map(item => item.dimension).join(" > ")],
-    ["Investment budget", BUDGET_LABELS[profile.investment_budget] || "Not specified"],
-    ["Planning horizon", (profile.time_horizon || "").replaceAll("_", " ")],
-  ].map(([label, value]) => `<div><span>${escapeHtml(label)}</span><b>${escapeHtml(value || "Not specified")}</b></div>`).join("");
-  $("#profile-extra").textContent = [profile.summary, profile.notes].filter(Boolean).join(" ");
-  renderAssessmentMeta(assessment);
-  renderRiskRadar(risks);
-  renderRiskSummary(risks);
-  $("#risk-list").innerHTML = risks.map((risk, index) => {
-    const level = SEVERITY_LEVEL[risk.severity] || "medium";
-    const check = risk.verification && risk.verification !== "verified"
-      ? `<span class="evidence-check ${escapeHtml(risk.verification)}">${escapeHtml(risk.verification)}</span>`
-      : "";
-    return `
-    <article class="risk-item" id="risk-${index}">
-      <div class="risk-title"><span class="severity ${level}">${escapeHtml(risk.severity)}</span><h4>${escapeHtml(risk.name)}</h4>${risk.category ? `<span class="risk-category">${escapeHtml(risk.category)}</span>` : ""}</div>
-      <p class="risk-description">${escapeHtml(risk.description)}</p>
-      <p class="evidence-label">Supporting evidence ${check}</p>
-      ${evidenceMarkup(risk.evidence) || `<div class="evidence-link static"><span class="evidence-main">No linked evidence for this risk.</span></div>`}
-      ${risk.uncertainty ? `<p class="risk-uncertainty"><b>Uncertainty</b> · ${escapeHtml(risk.uncertainty)}</p>` : ""}
-    </article>`;
-  }).join("");
-  renderRationale(assessment);
-  renderUncertainty(assessment);
+  const production = (profile.production_locations || []).map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(" · ");
+  const markets = (profile.target_markets || []).map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(" · ");
+  guard(() => {
+    $("#profile-grid").innerHTML = [
+      ["Company", profile.company_name],
+      ["Industry", INDUSTRY_LABELS[profile.industry] || (profile.industry || "").replaceAll("_", " ")],
+      ["Main product", profile.products],
+      ["Home country", countryName(profile.home_country)],
+      ["Production footprint", production],
+      ["Target markets", markets],
+      ["Decision context", profile.decision_question],
+      ["Decision drivers", (profile.restrictions || []).map(value => TRIGGER_LABELS[value] || value.replaceAll("_", " ")).join(" · ")],
+      ["Priorities", (profile.priorities || []).map(item => item.dimension).join(" > ")],
+      ["Investment budget", BUDGET_LABELS[profile.investment_budget] || "Not specified"],
+      ["Planning horizon", (profile.time_horizon || "").replaceAll("_", " ")],
+    ].map(([label, value]) => `<div><span>${escapeHtml(label)}</span><b>${escapeHtml(value || "Not specified")}</b></div>`).join("");
+  });
+  guard(() => { $("#profile-extra").textContent = [profile.summary, profile.notes].filter(Boolean).join(" "); });
+  guard(() => renderAssessmentMeta(assessment));
+  guard(() => renderRiskRadar(risks));
+  guard(() => renderRiskSummary(risks));
+  guard(() => {
+    $("#risk-list").innerHTML = risks.map((risk, index) => {
+      const level = SEVERITY_LEVEL[risk.severity] || "medium";
+      const check = risk.verification && risk.verification !== "verified"
+        ? `<span class="evidence-check ${escapeHtml(risk.verification)}">${escapeHtml(risk.verification)}</span>`
+        : "";
+      return `
+      <article class="risk-item" id="risk-${index}">
+        <div class="risk-title"><span class="severity ${level}">${escapeHtml(risk.severity)}</span><h4>${escapeHtml(risk.name)}</h4>${risk.category ? `<span class="risk-category">${escapeHtml(risk.category)}</span>` : ""}</div>
+        <p class="risk-description">${escapeHtml(risk.description)}</p>
+        <p class="evidence-label">Supporting evidence ${check}</p>
+        ${evidenceMarkup(risk.evidence) || `<div class="evidence-link static"><span class="evidence-main">No linked evidence for this risk.</span></div>`}
+        ${risk.uncertainty ? `<p class="risk-uncertainty"><b>Uncertainty</b> · ${escapeHtml(risk.uncertainty)}</p>` : ""}
+      </article>`;
+    }).join("");
+  });
+  guard(() => renderRationale(assessment));
+  guard(() => renderUncertainty(assessment));
 }
 
 function showToast(message) { const toast = $("#toast"); toast.textContent = message; toast.classList.add("show"); setTimeout(() => toast.classList.remove("show"), 4200); }
+
+function showValidationError(message) {
+  const box = $("#form-error");
+  if (box) {
+    box.textContent = message;
+    box.hidden = false;
+    box.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+  showToast(message);
+}
+
+function clearValidationError() {
+  const box = $("#form-error");
+  if (!box || box.hidden) return;
+  box.hidden = true;
+  box.textContent = "";
+}
 
 /* ------------------------------------------------------------ draft state */
 
@@ -684,7 +735,9 @@ function saveDraft() {
     if (values[key] === undefined) values[key] = value;
     else values[key] = [].concat(values[key], value);
   });
-  localStorage.setItem(draftKey, JSON.stringify({ values, production: state.production, markets: state.markets }));
+  try {
+    localStorage.setItem(draftKey, JSON.stringify({ values, production: state.production, markets: state.markets }));
+  } catch { /* storage blocked — the form keeps working, just without a draft */ }
   updateFormProgress();
   markDraftSaved();
 }
@@ -753,6 +806,10 @@ function setSavedLabel(text) {
 }
 
 function markDraftSaved() {
+  if (!canStore) {
+    setSavedLabel("Autosave unavailable in this browser");
+    return;
+  }
   const now = new Date();
   setSavedLabel(`Draft saved automatically · ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`);
 }
@@ -934,14 +991,21 @@ document.addEventListener("input", event => {
   if (input.name === "notes") updateSummaryCount();
 });
 
-$("#decision-form").addEventListener("input", saveDraft);
-$("#decision-form").addEventListener("change", saveDraft);
+$("#decision-form").addEventListener("input", () => { clearValidationError(); saveDraft(); });
+$("#decision-form").addEventListener("change", () => { clearValidationError(); saveDraft(); });
 
 $("#decision-form").addEventListener("submit", event => {
   event.preventDefault();
-  const profile = readForm();
+  if (runInFlight) return;
+  let profile;
+  try {
+    profile = readForm();
+  } catch (error) {
+    return showValidationError(`Could not read the form: ${error.message}`);
+  }
   const error = validateDecision(profile);
-  if (error) return showToast(error);
+  if (error) return showValidationError(error);
+  clearValidationError();
   runAnalysis(profile);
 });
 
