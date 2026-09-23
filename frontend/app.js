@@ -4,6 +4,7 @@ const state = {
   assessment: null,
 };
 const draftKey = "locus-decision-draft";
+const projectsKey = "locus-decision-projects";
 
 const productionCountries = [
   ["CN", "China"], ["VN", "Vietnam"], ["ID", "Indonesia"], ["IN", "India"],
@@ -74,6 +75,7 @@ function showScreen(id) {
     primaryNav.innerHTML = isHome ? "Start New Decision <span>↗</span>" : "Home Page";
     primaryNav.classList.toggle("nav-cta", isHome);
     window.scrollTo({ top: 0, behavior: "auto" });
+    if (id === "history") renderProjects();
   };
 
   if (!curtain) return activate();
@@ -118,9 +120,13 @@ function addLocation(type) {
   renderLocations(type);
 }
 
+function renderPriorityItems() {
+  $("#priority-grid").innerHTML = priorities.map((item, index) => `<div class="priority-item" draggable="true" data-priority="${item}"><span class="drag-handle" aria-hidden="true">⠿</span><b>${index + 1}</b><span>${item}</span></div>`).join("");
+}
+
 function buildPriorityControls() {
   const grid = $("#priority-grid");
-  grid.innerHTML = priorities.map((item, index) => `<div class="priority-item" draggable="true" data-priority="${item}"><span class="drag-handle" aria-hidden="true">⠿</span><b>${index + 1}</b><span>${item}</span></div>`).join("");
+  renderPriorityItems();
   let dragged = null;
   grid.addEventListener("dragstart", event => { dragged = event.target.closest(".priority-item"); dragged?.classList.add("dragging"); });
   grid.addEventListener("dragend", () => { dragged?.classList.remove("dragging"); dragged = null; refreshPriorityRanks(); });
@@ -380,6 +386,17 @@ function handleStageEvent(event) {
   }
 }
 
+/* The submitted profile moves into My Decision, so the form is reset here and
+   the next "Start New Decision" begins from a clean sheet. */
+function finishRun(assessment) {
+  state.assessment = assessment;
+  completeStages();
+  renderAssessment(assessment);
+  saveProject(assessment);
+  resetDecisionForm();
+  setTimeout(() => showScreen("assessment"), 320);
+}
+
 function runPreviewTimeline(profile) {
   const total = document.querySelectorAll("#analysis-stages li").length;
   let position = 0;
@@ -390,10 +407,7 @@ function runPreviewTimeline(profile) {
   }, 620);
   setTimeout(() => {
     clearInterval(timer);
-    completeStages();
-    state.assessment = mockAssessment(profile);
-    renderAssessment(state.assessment);
-    setTimeout(() => showScreen("assessment"), 420);
+    finishRun(mockAssessment(profile));
   }, 2800);
 }
 
@@ -406,10 +420,7 @@ async function runAnalysis(profile) {
   if (configured && !issues.length) {
     try {
       const api = await streamAssessment(payload, handleStageEvent);
-      state.assessment = mapApiAssessment(api, profile);
-      completeStages();
-      renderAssessment(state.assessment);
-      setTimeout(() => showScreen("assessment"), 320);
+      finishRun(mapApiAssessment(api, profile));
       return;
     } catch (error) {
       showToast("Live agent unavailable — showing the local preview.");
@@ -464,28 +475,135 @@ function saveDraft() {
   markDraftSaved();
 }
 
+/* Advanced questions only count once the deeper assessment is open, so the
+   percentage always reflects the questions the user can actually see. */
+function advancedQuestionStates(form) {
+  const filled = (name) => (form[name]?.value || "").trim() !== "";
+  const typed = (name) => (form[name]?.value || "").trim();
+  const anyChecked = (selector) => document.querySelectorAll(selector).length > 0;
+  return [
+    filled("site_country"),
+    filled("site_region"),
+    filled("site_capacity"),
+    filled("site_production_share"),
+    filled("site_established_year"),
+    filled("production_type"),
+    filled("revenue_range"),
+    filled("employee_count"),
+    filled("factory_count"),
+    filled("capacity_utilization"),
+    filled("supplier_dependency_country"),
+    filled("critical_suppliers"),
+    anyChecked('input[name="supplier_concentration"]:checked'),
+    anyChecked("#non-relocatable-options input:checked"),
+    filled("investment_type"),
+    typed("cost_increase") !== "" && typed("cost_increase") !== "Not specified",
+    filled("payback_period"),
+    anyChecked('input[name="success_criteria"]:checked'),
+    anyChecked('input[name="non_negotiable"]:checked'),
+    filled("risk_posture"),
+    filled("advanced_notes"),
+  ];
+}
+
 function updateFormProgress() {
   const form = $("#decision-form");
-  const checks = [
+  // Seeded default rows (China / United States) only count once the user has
+  // actually engaged with them, so a fresh form starts at 0%.
+  const answeredLocation = (item) => Boolean(item.touched) || String(item.share).trim() !== "" || item.country === "NOT_SURE";
+  const quickChecks = [
     form.company_name.value,
     form.products.value,
     form.decision_question.value,
-    state.production.some(item => item.country),
-    state.markets.some(item => item.country),
+    state.production.some(answeredLocation),
+    state.markets.some(answeredLocation),
     document.querySelectorAll("#restriction-options input:checked").length,
   ];
-  const percent = Math.round((checks.filter(Boolean).length / checks.length) * 100);
+  const advancedOpen = !$("#advanced-fields").hidden;
+  const checks = advancedOpen ? [...quickChecks, ...advancedQuestionStates(form)] : quickChecks;
+  const answered = checks.filter(Boolean).length;
+  const percent = Math.round((answered / checks.length) * 100);
   const value = $("#completion-value");
+  const count = $("#completion-count");
   const fill = $("#completion-fill");
   if (value) value.textContent = `${percent}%`;
+  if (count) count.textContent = `· ${answered} / ${checks.length} answered`;
   if (fill) fill.style.width = `${percent}%`;
 }
 
-function markDraftSaved() {
+function setSavedLabel(text) {
   const label = $("#completion-saved");
-  if (!label) return;
+  if (label) label.textContent = text;
+}
+
+function markDraftSaved() {
   const now = new Date();
-  label.textContent = `Draft saved automatically · ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  setSavedLabel(`Draft saved automatically · ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`);
+}
+
+function clearDraft() {
+  try { localStorage.removeItem(draftKey); } catch { /* storage unavailable */ }
+}
+
+/* After a consultation is submitted the profile belongs to the decision project,
+   so the form returns to a clean state for the next decision. */
+function resetDecisionForm() {
+  const form = $("#decision-form");
+  form.reset();
+  state.production = [{ country: "CN", share: "", other: "" }];
+  state.markets = [{ country: "US", share: "", other: "" }];
+  renderLocations("production");
+  renderLocations("markets");
+  renderPriorityItems();
+  document.querySelectorAll("[data-upload-zone]").forEach(zone => renderUploadList(zone));
+  $("#advanced-fields").hidden = true;
+  $("#show-advanced").hidden = false;
+  document.querySelector('input[name="decision_type"]:checked')?.dispatchEvent(new Event("change", { bubbles: true }));
+  updateSummaryCount();
+  updateFormProgress();
+  clearDraft();
+  setSavedLabel("Draft saves automatically as you type");
+}
+
+/* --------------------------------------------------------- decision projects */
+
+function readProjects() {
+  try { return JSON.parse(localStorage.getItem(projectsKey)) || []; } catch { return []; }
+}
+
+function saveProject(assessment) {
+  try {
+    const profile = assessment.company_profile;
+    const project = {
+      project_id: `DEC-${Date.now().toString(36).toUpperCase()}`,
+      created_at: new Date().toISOString(),
+      company_name: profile.company_name,
+      decision_question: profile.decision_question,
+      risks: (assessment.risks || []).map(risk => ({ name: risk.name, severity: risk.severity })),
+      assessment,
+    };
+    localStorage.setItem(projectsKey, JSON.stringify([project, ...readProjects()].slice(0, 20)));
+  } catch { /* storage unavailable */ }
+}
+
+function renderProjects() {
+  const list = $("#project-list");
+  if (!list) return;
+  const projects = readProjects();
+  if (!projects.length) {
+    list.innerHTML = `<p class="project-empty">No decision projects yet. Complete a consultation and the Agent stores the company profile here.</p>`;
+    return;
+  }
+  list.innerHTML = projects.map(project => `
+    <article class="project-card">
+      <div>
+        <p class="project-meta">${escapeHtml(new Date(project.created_at).toLocaleString())} · ${escapeHtml(project.project_id)}</p>
+        <h3>${escapeHtml(project.company_name || "Untitled company")}</h3>
+        <p class="project-question">${escapeHtml(project.decision_question || "")}</p>
+        <p class="project-risks">${(project.risks || []).map(risk => `<span class="severity ${escapeHtml(risk.severity)}">${escapeHtml(risk.severity)}</span> ${escapeHtml(risk.name)}`).join(" · ")}</p>
+      </div>
+      <button class="button button-secondary" type="button" data-open-project="${escapeHtml(project.project_id)}">Open assessment <span>→</span></button>
+    </article>`).join("");
 }
 
 function buildEstablishedYears() {
@@ -501,8 +619,8 @@ function restoreDraft() {
   try {
     const draft = JSON.parse(localStorage.getItem(draftKey));
     if (!draft) return;
-    if (Array.isArray(draft.production)) state.production = draft.production.map(item => ({ other: "", ...item }));
-    if (Array.isArray(draft.markets)) state.markets = draft.markets.map(item => ({ other: "", ...item }));
+    if (Array.isArray(draft.production)) state.production = draft.production.map(item => ({ other: "", ...item, touched: true }));
+    if (Array.isArray(draft.markets)) state.markets = draft.markets.map(item => ({ other: "", ...item, touched: true }));
     Object.entries(draft.values || {}).forEach(([name, rawValue]) => {
       const values = Array.isArray(rawValue) ? rawValue : [rawValue];
       document.querySelectorAll(`[name="${name}"]`).forEach(field => {
@@ -522,15 +640,30 @@ document.addEventListener("click", event => {
   if (event.target.closest("#add-market")) addLocation("markets");
   const remove = event.target.closest("[data-remove]");
   if (remove) { state[remove.dataset.remove].splice(Number(remove.dataset.index), 1); renderLocations(remove.dataset.remove); }
-  if (event.target.closest("#show-advanced")) { $("#advanced-fields").hidden = false; $("#show-advanced").hidden = true; }
-  if (event.target.closest("#hide-advanced")) { $("#advanced-fields").hidden = true; $("#show-advanced").hidden = false; }
+  if (event.target.closest("#show-advanced")) { $("#advanced-fields").hidden = false; $("#show-advanced").hidden = true; updateFormProgress(); }
+  if (event.target.closest("#hide-advanced")) { $("#advanced-fields").hidden = true; $("#show-advanced").hidden = false; updateFormProgress(); }
   if (event.target.closest("#profile-expand")) { const extra = $("#profile-extra"); extra.hidden = !extra.hidden; $("#profile-expand").innerHTML = extra.hidden ? "View full profile <span>↓</span>" : "Hide full profile <span>↑</span>"; }
   if (event.target.closest("#simulate-button")) showToast("Scenario simulation connects to the Agent in the next build step.");
+  const openProject = event.target.closest("[data-open-project]");
+  if (openProject) {
+    const project = readProjects().find(item => item.project_id === openProject.dataset.openProject);
+    if (project?.assessment) {
+      state.assessment = project.assessment;
+      renderAssessment(project.assessment);
+      showScreen("assessment");
+    }
+  }
 });
 
 document.addEventListener("change", event => {
   const changed = event.target;
-  if (changed.dataset.kind && changed.dataset.field === "country") { renderLocations(changed.dataset.kind); return; }
+  if (changed.dataset.kind && changed.dataset.field === "country") {
+    const item = state[changed.dataset.kind][Number(changed.dataset.index)];
+    if (item) item.touched = true;
+    renderLocations(changed.dataset.kind);
+    updateFormProgress();
+    return;
+  }
   if (changed.name === "decision_type") {
     $("#relocate-country").hidden = changed.value !== "Relocate production";
     $("#new-site-country").hidden = changed.value !== "Establish a new production site";
@@ -552,6 +685,7 @@ document.addEventListener("input", event => {
     const item = state[input.dataset.kind][Number(input.dataset.index)];
     if (!item) return;
     item[input.dataset.field] = input.value;
+    item.touched = true;
     if (input.dataset.field === "share") {
       const row = input.closest(".location-row");
       const twin = row.querySelector(input.type === "range" ? 'input[type="number"]' : 'input[type="range"]');
@@ -580,6 +714,7 @@ renderLocations("markets");
 buildPriorityControls();
 setupUploadZones();
 buildEstablishedYears();
+renderProjects();
 updateSummaryCount();
 document.querySelector('input[name="decision_type"]:checked')?.dispatchEvent(new Event("change", { bubbles: true }));
 updateFormProgress();

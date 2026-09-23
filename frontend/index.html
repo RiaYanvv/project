@@ -73,7 +73,7 @@
 
       <section class="screen consultation-screen" id="consultation" aria-labelledby="consultation-title">
         <div class="completion-bar" id="completion-bar">
-          <div class="completion-head"><p>Decision profile completion <b id="completion-value">0%</b></p><span class="completion-saved" id="completion-saved">Draft saves automatically as you type</span></div>
+          <div class="completion-head"><p>Decision profile completion <b id="completion-value">0%</b><span class="completion-count" id="completion-count"></span></p><span class="completion-saved" id="completion-saved">Draft saves automatically as you type</span></div>
           <span class="completion-track"><i id="completion-fill"></i></span>
         </div>
         <div class="workflow-head">
@@ -157,7 +157,13 @@
         </div>
       </section>
 
-      <section class="screen placeholder-screen" id="history"><p class="eyebrow">My decisions</p><h2>Your decision projects will live here.</h2><p>Start a consultation to create your first evidence-based decision workspace.</p><button class="button button-primary" type="button" data-screen-target="consultation">Start new decision <span>→</span></button></section>
+      <section class="screen history-screen" id="history" aria-labelledby="history-title">
+        <p class="eyebrow">My decisions</p>
+        <h2 id="history-title">Decision projects</h2>
+        <p class="history-lede">Every completed consultation is kept here as a decision project, together with the company profile and risk assessment the Agent produced.</p>
+        <div class="project-list" id="project-list"></div>
+        <button class="button button-primary" type="button" data-screen-target="consultation">Start new decision <span>→</span></button>
+      </section>
       <section class="screen placeholder-screen" id="news"><p class="eyebrow">News</p><h2>Relevant policy signals, soon.</h2><p>News monitoring is reserved for a future release and does not interrupt your decision workflow.</p></section>
     </main>
     <div class="toast" id="toast" role="status"></div>
