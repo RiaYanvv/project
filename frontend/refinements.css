@@ -12,10 +12,19 @@
 .quick-upload{margin-top:24px}
 .compact-choice{margin-top:12px}
 .draft-status{margin:8px 0 0;color:#718698;font:500 9px var(--mono);text-align:right}
-.page-transition{position:fixed;z-index:90;inset:0;display:grid;place-items:center;background:var(--ink);color:#fff;clip-path:inset(0 100% 0 0);pointer-events:none;transition:clip-path .42s cubic-bezier(.65,0,.35,1)}
-.page-transition span{font:500 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;opacity:0;transition:opacity .15s .12s}
+.page-transition{position:fixed;z-index:90;inset:0;display:grid;place-items:center;background:var(--ink);color:#fff;clip-path:inset(100% 0 0 0);pointer-events:none;transition:clip-path .36s cubic-bezier(.68,0,.32,1)}
+.page-transition:before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#125f9a,#7cb7d6);transform:scaleX(0);transform-origin:left;transition:transform .36s cubic-bezier(.68,0,.32,1)}
 .page-transition.active{clip-path:inset(0 0 0 0)}
-.page-transition.active span{opacity:1}
+.page-transition.active:before{transform:scaleX(1)}
+.page-transition-inner{display:grid;justify-items:center;gap:13px;opacity:0;transform:translateY(12px);transition:opacity .2s .14s,transform .24s .14s}
+.page-transition.active .page-transition-inner{opacity:1;transform:none}
+.page-transition-brand{font:500 12px var(--mono);letter-spacing:.34em;text-transform:uppercase;color:#7cb7d6}
+.page-transition-label{font:600 clamp(15px,2.2vw,19px) var(--sans);letter-spacing:-.01em}
+.page-transition-rule{width:76px;height:1px;background:#3d6f95}
+.screen.active{animation:screen-in .34s cubic-bezier(.4,0,.2,1) both}
+.screen:not(.active){display:none}
+@keyframes screen-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.workflow-head{grid-template-columns:minmax(0,1fr) minmax(220px,265px)}
 .location-row{grid-template-columns:minmax(125px,1fr) minmax(75px,1fr) 94px 29px}
 .share-slider{padding:0;border:0;accent-color:var(--blue)}
 .location-row:has(.other-location){grid-template-columns:minmax(110px,1fr) 90px 85px minmax(130px,1fr) 29px}
@@ -35,4 +44,35 @@
   .location-row{grid-template-columns:1fr 70px 74px 25px}
   .location-row:has(.other-location){grid-template-columns:1fr 56px 65px 1fr 25px}
   .priority-grid{grid-template-columns:1fr}
+}
+
+/* Form page density, interaction states and evidence display */
+.consultation-screen{padding-top:32px;padding-bottom:70px}
+.workflow-head{padding-bottom:26px;align-items:end}
+.workflow-head>p{margin-top:0}
+.decision-form{padding-top:28px}
+.form-layout{gap:58px}
+.form-aside{padding-top:30px}
+.total.invalid-total{color:var(--medium)}
+.total.invalid-total:after{content:" · not 100% yet"}
+.upload-zone{flex-wrap:wrap}
+.upload-zone.dragover{border-color:var(--blue);background:#eff8fc}
+.upload-zone.has-files{border-style:solid;border-color:#9fc4d7}
+.upload-list{flex-basis:100%;list-style:none;margin:11px 0 0;padding:0;display:grid;gap:6px}
+.upload-list li{display:flex;justify-content:space-between;gap:12px;padding:7px 9px;background:#f3f8fb;border:1px solid #d8e8f0;color:#4c6678;font-size:11px}
+.upload-list li span:last-child{font:500 10px var(--mono);color:#78909f;white-space:nowrap}
+.upload-formats{margin:3px 0 0;font:500 9px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:#8aa2b1}
+.summary-count{margin:7px 0 0;color:#718698;font:500 9px var(--mono);text-align:right}
+.summary-count.over{color:var(--medium)}
+label{display:block}
+label>input,label>select,label>textarea{margin-top:7px}
+label>small{display:block;margin-top:6px}
+.location-row .share-slider{cursor:pointer}
+.risk-uncertainty{margin:9px 0 0;padding:8px 10px;border-left:2px solid var(--medium);background:#fff9ed;color:#6c7780;font-size:11px;line-height:1.6}
+.evidence-link.static{background:#fff;border:1px solid #e2ecf1;cursor:default}
+.evidence-link.static:hover{background:#fff}
+@media(prefers-reduced-motion:reduce){
+  .page-transition,.page-transition:before{transition:none}
+  .page-transition-inner{transition:none}
+  .screen.active{animation:none}
 }
