@@ -99,3 +99,18 @@
 **现状**：前端固定传 `industry="battery_ev"`（产品聚焦 EV/电池赛道），因为 profile list.md 的表单里已无 industry 字段。
 **影响**：后端若将来要支持多行业，`industry` 枚举需要放宽或允许 `other`。
 **建议**：无需改动，记录约定即可。
+
+### 18. 生成内容不支持语言参数（多语言界面）
+**现状**：前端已实现中英文切换（英文/中文两套界面文案），但 Agent 生成的内容没有语言参数：`analyze_risks` / `simulate_scenarios` / `generate_recommendation` / `answer_chat` 的 prompt 未指定输出语言，`trace`、`limitations` 等字段目前是中文，模型回复可能是英文。
+**影响**：界面切成中文后，风险名称、风险描述、情景收益/风险、聊天回复、建议文案仍是混合语言，体验割裂。
+**建议**：`AssessmentRequest` / `ChatRequest` 增加 `language: "en" | "zh"`，在 prompt 中显式要求按该语言输出；报告 PDF 同样支持（`build_assessment_pdf` 目前混用中英文字体与标题）。
+
+### 19. 决策项目只存在浏览器本地
+**现状**：My Decisions 的项目列表存在前端 `localStorage`（最多 20 条），后端没有项目存储接口。
+**影响**：换设备或清缓存后项目丢失；无法实现 UI.md 里"Sign in / 跨设备历史同步"的路线图项。
+**建议**：`GET/POST /api/v1/projects`（或复用 assessments 列表接口），把 `assessment_id` 与用户关联。
+
+### 20. 情景页的评分口径需与前端约定一致
+**现状**：`ScenarioResult.weighted_score` 是后端按优先级加权后的综合分（0–100），前端直接展示为 "Overall score"；五个维度来自五个 `*_score` 字段。
+**影响**：UI.md 情景页要求"综合分不是简单平均，要考虑用户优先级"，目前实现一致；但没有任何字段说明加权过程。
+**建议**：返回 `weighting` 或 `score_breakdown`（各维度权重与贡献），前端即可展示"为什么是这个分数"，而不是只写一句按优先级加权。

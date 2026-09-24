@@ -512,7 +512,7 @@ Avoid:
 
 
 # Scenario Simulation Page — Frontend Specification
-
+当用户点击[ Run Scenario Simulation → ] 之后，有一个短暂的表示开始推演、推演进度的动画。转入结果页面后我希望先把推演结果摆在上面。结果主要就分为维持maintain、back to China、hybrid三类，针对成本、韧性、地缘风险、市场准入等等各类标准以及综合分进行百分制评分，并说明由ai生成及置信度。当用户点击每类推演结果时，出现详细推演结果描述，并列出证据数据。下方生成一份初步报告，包含了profile、risk identify和推演结果等上述信息。最底部button有“继续对话补充信息”，点击后进入LLM交互，聊天初步就携带上述初版报告。接下来等会再聊，这是对推演界面的设计。
 ## 1. Overview
 
 Build the Scenario Simulation result page for an AI Supply Chain Relocation Decision Agent.
@@ -1672,3 +1672,591 @@ The final experience should feel like:
 not:
 
 "general chatbot".
+
+
+# Final Decision Report Page — Frontend Specification
+
+## 1. Overview
+
+Build the Final Decision Report page, which is entered after the user chooses:
+
+**Generate Final Report →**
+
+The purpose of this page is to:
+
+* Present the final AI-generated decision report
+* Allow the user to preview the report before leaving the consultation
+* Download the generated PDF
+* Return to the previous consultation if further refinement is needed
+* Save the completed consultation as a persistent Decision Project in My Decisions
+
+The page represents the final stage of the core product workflow.
+
+---
+
+# 2. Report Generation Transition
+
+After the user confirms:
+
+**Generate Final Report**
+
+display a short transition / loading state before showing the report.
+
+Example:
+
+> Preparing your Executive Decision Report...
+
+Progress steps may include:
+
+* ✓ Finalizing company profile
+* ✓ Consolidating risk assessment
+* ✓ Updating scenario analysis
+* ✓ Integrating consultation insights
+* ✓ Preparing evidence references
+* ✓ Generating final report
+
+Requirements:
+
+* Short and minimal animation
+* Blue/white visual language
+* Professional enterprise style
+* No artificial progress percentage unless actual backend progress is available
+
+---
+
+# 3. Final Report Page Layout
+
+Recommended layout:
+
+```text
+-------------------------------------------------
+| Locus                                         |
+| Final Decision Report                         |
+|                                               |
+|             [ PDF Preview ]                   |
+|                                               |
+|                                               |
+|                                               |
+| Download PDF                                  |
+|                                               |
+| [ Download Report ]                           |
+|                                               |
+| [ Back to Consultation ]                      |
+|                                               |
+| [ End Consultation & Save Decision ]          |
+-------------------------------------------------
+```
+
+The PDF report itself should be the primary content of the page.
+
+---
+
+# 4. PDF Preview
+
+Display the generated PDF directly within the page.
+
+Preferred behavior:
+
+* Embedded PDF viewer or browser-native PDF preview
+* Scrollable
+* Readable at desktop and mobile widths where possible
+* Allow users to inspect the complete report before downloading
+
+The report should include the final information from the entire consultation process.
+
+Expected report sections:
+
+1. Executive Summary
+2. Company Profile
+3. Current Supply Chain Situation
+4. Key Risk Assessment
+5. Scenario Comparison
+6. Consultation Insights
+7. Final Decision / Recommendation
+8. Evidence Sources
+9. Uncertainties & Limitations
+
+The frontend should not generate or rewrite the report content itself. It should display the PDF returned by the backend report-generation service.
+
+---
+
+# 5. Download Function
+
+Display a clear primary action below the preview:
+
+**Download PDF**
+
+The download should use the report file or report URL returned by the backend.
+
+Optional metadata:
+
+* Report title
+* Generation date
+* Decision Project name
+
+---
+
+# 6. Back to Consultation
+
+Provide a secondary action:
+
+**Back to Consultation**
+
+Behavior:
+
+* Return to the previous AI Consultation page
+* Preserve the entire consultation state
+* Do not delete or regenerate the current report automatically
+* Allow the user to continue modifying the decision analysis
+
+Example:
+
+```text
+[ ← Back to Consultation ]
+```
+
+If the user makes additional changes after returning, the final report should be considered outdated until regenerated.
+
+---
+
+# 7. End Consultation & Save Decision
+
+Provide a final primary action:
+
+**End Consultation & Save Decision**
+
+Purpose:
+
+Finalize the current Decision Project and save the complete consultation state to My Decisions.
+
+Before saving, display a confirmation modal:
+
+```text
+Save this decision project?
+
+The following will be saved:
+✓ Company Profile
+✓ Evidence
+✓ Risk Assessment
+✓ Scenario Analysis
+✓ Consultation History
+✓ Final Decision
+✓ Generated PDF Report
+```
+
+Actions:
+
+**Save & Return Home**
+
+**Cancel**
+
+---
+
+# 8. Decision Project Persistence
+
+Once the user confirms:
+
+**Save & Return Home**
+
+save the current Decision Project.
+
+The saved project should contain at minimum:
+
+```text
+decision_project_id
+project_name
+company_profile
+production_footprint
+target_markets
+decision_question
+decision_constraints
+evidence
+risk_assessment
+scenario_results
+conversation_history
+final_decision
+report_id
+report_url
+created_at
+updated_at
+status
+```
+
+Suggested project status:
+
+```text
+ACTIVE
+COMPLETED
+```
+
+For a consultation that reaches the final report stage, use:
+
+```text
+COMPLETED
+```
+
+---
+
+# 9. Return to Home
+
+After the project is successfully saved:
+
+Navigate to Home.
+
+The new project should immediately appear in:
+
+**My Decisions / History**
+
+Example:
+
+```text
+My Decisions
+
+Vietnam Production Strategy
+EV Battery
+Completed
+Updated: Sep 24, 2026
+```
+
+Clicking the project later should reopen its Decision Project workspace.
+
+---
+
+# 10. Product State Logic
+
+The complete flow should be:
+
+```text
+AI Consultation
+       ↓
+Generate Final Report
+       ↓
+Report Generation Transition
+       ↓
+Final Decision Report
+       ↓
+ ┌─────────────────────────────┐
+ │                             │
+ ↓                             ↓
+Back to Consultation      End & Save Decision
+ │                             │
+ ↓                             ↓
+Continue Analysis          Save Project
+                               ↓
+                           Home / My Decisions
+```
+
+---
+
+# 11. Report Versioning
+
+If the user returns to the consultation and changes the analysis, the previously generated PDF should not be silently overwritten.
+
+The system should treat the newly generated report as a new version.
+
+Example:
+
+```text
+Report v1
+Report v2
+```
+
+The latest report should be marked as the current version.
+
+This is important for future Decision Project history.
+
+---
+
+# 12. UI Style
+
+Maintain the existing product design language:
+
+* White background
+* Blue primary color
+* Clean enterprise layout
+* High readability
+* Minimal animation
+* Clear hierarchy
+
+The PDF preview should dominate the page.
+
+Do not add unnecessary dashboard elements to this page.
+
+The primary goal is to let the user:
+
+1. Review the final report
+2. Download it
+3. Save the completed decision project
+
+
+
+# My Decisions — Decision Project State Specification
+关于my decison的状态应该分为这两项：已经完成（即已经生成PDF、确认结束咨询）点进去只能看到关键决策流程点，以及重新决策按钮。如果进行重新决策，那么从intial assessment page开始；
+未完成的决策（比如停止在推演等页面），点进去之后就是正常最后一步的页面，可以继续往下执行。
+以及新增一个删除历史记录的功能。
+## 1. Concept
+
+My Decisions should manage **Decision Projects**, not individual chat sessions.
+
+Each Decision Project represents one complete supply-chain strategic decision workflow.
+
+A project should have exactly two user-facing states:
+
+* **In Progress**
+* **Completed**
+
+---
+
+## 2. In Progress
+
+### Definition
+
+A Decision Project is considered **In Progress** when the user has started the consultation process but has not confirmed the final report and ended the consultation.
+
+Possible stages include:
+
+* User Input
+* Initial Assessment
+* Scenario Simulation
+* AI Consultation
+* Report Generation / Preview
+
+### Behavior
+
+When the user opens an In Progress project from My Decisions:
+
+> Resume the project from the latest completed stage.
+
+Do not restart the workflow.
+
+Example:
+
+```text
+Input
+  ↓
+Initial Assessment
+  ↓
+Scenario Simulation
+  ↓
+AI Consultation ← User left here
+```
+
+Opening the project again should return directly to:
+
+**AI Consultation**
+
+The project should preserve all relevant state:
+
+* User input
+* Company Profile
+* Evidence
+* Risk Assessment
+* Scenario Results
+* Conversation History
+* Uploaded Documents
+* Updated Constraints
+* User Preferences
+* Current Stage
+
+Primary action:
+
+**Resume Decision →**
+
+---
+
+## 3. Completed
+
+### Definition
+
+A project becomes **Completed** only when:
+
+1. The final PDF has been generated
+2. The user explicitly confirms:
+   **End Consultation & Save Decision**
+
+### Behavior
+
+A Completed project should become a historical decision record.
+
+Opening the project should NOT return to the previous chat session.
+
+Instead, show a read-only **Decision Overview**.
+
+Display the key decision process:
+
+### Company Situation
+
+* Company
+* Product
+* Production footprint
+* Target markets
+
+### Initial Assessment
+
+* Major identified risks
+* Initial assessment
+
+### Scenario Analysis
+
+* Scenarios considered
+* Major trade-offs
+
+### Consultation Summary
+
+* Important information added during consultation
+* Important constraints / preference changes
+
+### Final Decision
+
+* Final user decision
+* Final recommendation / considerations
+* Final report
+
+Do not show the full conversation by default.
+
+The main purpose of the Completed view is to provide a concise historical record of how the decision was reached.
+
+---
+
+## 4. Re-assessment
+
+Completed projects should provide:
+
+**Re-assess Decision →**
+
+Clicking this should NOT modify the original completed project.
+
+Instead:
+
+```text
+Completed Decision
+        ↓
+Create New Assessment
+        ↓
+Initial Assessment
+        ↓
+New Scenario Simulation
+        ↓
+New AI Consultation
+        ↓
+New Final Report
+```
+
+The new project should preserve a reference to the original project:
+
+```text
+parent_decision_project_id
+```
+
+This allows future version/history tracking.
+
+The original decision remains unchanged.
+
+---
+
+## 5. Decision Project Data Model
+
+Each project should include:
+
+```json
+{
+  "decision_project_id": "DP-001",
+  "status": "IN_PROGRESS",
+  "current_stage": "AI_CONSULTATION",
+
+  "company_profile": {},
+  "user_input": {},
+  "evidence": [],
+  "risk_assessment": {},
+  "scenario_results": {},
+  "conversation_history": [],
+  "uploaded_documents": [],
+
+  "final_decision": null,
+  "report_id": null,
+
+  "parent_decision_project_id": null,
+
+  "created_at": "",
+  "updated_at": ""
+}
+```
+
+---
+
+## 6. Status Values
+
+Only use:
+
+```text
+IN_PROGRESS
+COMPLETED
+```
+
+Do not create additional user-facing status categories unless required later.
+
+---
+
+## 7. Current Stage Values
+
+Use:
+
+```text
+INPUT
+INITIAL_ASSESSMENT
+SCENARIO_SIMULATION
+AI_CONSULTATION
+REPORT_GENERATION
+COMPLETED
+```
+
+`current_stage` determines where an In Progress project should resume.
+
+---
+
+## 8. My Decisions UI
+
+Recommended structure:
+
+```text
+My Decisions
+
+[ + Start New Decision ]
+
+IN PROGRESS
+────────────────────────
+Vietnam Production Strategy
+EV Battery
+Last updated: Sep 24, 2026
+Current stage: AI Consultation
+
+[ Resume → ]
+
+
+COMPLETED
+────────────────────────
+China–Vietnam Supply Chain Strategy
+EV Battery
+Completed: Sep 22, 2026
+
+Final Decision:
+Hybrid Diversification
+
+[ View Decision ]
+[ Re-assess → ]
+```
+
+Completed projects should be visually distinct from In Progress projects.
+
+---
+
+## 9. Product Principle
+
+The system must clearly distinguish:
+
+**Resume** from **Re-assess**.
+
+* **Resume** = continue an unfinished decision project from the latest stage.
+* **Re-assess** = create a new decision analysis based on a completed historical decision.
+
+Never overwrite a completed decision when creating a reassessment.
