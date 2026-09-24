@@ -1587,8 +1587,44 @@ const PROJECT_STAGE_SCREEN = {
   REPORT: "chat",
 };
 
+/* Projects created before the Decision Project model used `project_id` and had
+   no status/stage, so records are migrated on read (and written back once). */
+function migrateProject(record) {
+  if (!record) return null;
+  const profile = record.company_profile || record.assessment?.company_profile || {};
+  return {
+    ...record,
+    decision_project_id: record.decision_project_id || record.project_id || `DP-${Math.random().toString(36).slice(2, 9).toUpperCase()}`,
+    status: record.status === "COMPLETED" ? "COMPLETED" : "IN_PROGRESS",
+    current_stage: record.current_stage || "INITIAL_ASSESSMENT",
+    name: record.name || record.company_name || projectTitle(profile),
+    company_name: record.company_name || profile.company_name || "",
+    industry: record.industry || profile.industry || "battery_ev",
+    product: record.product || profile.products || "",
+    decision_question: record.decision_question || profile.decision_question || "",
+    company_profile: profile,
+    user_input: record.user_input || profile,
+    risk_assessment: record.risk_assessment || { risks: record.assessment?.risks || record.risks || [] },
+    scenario_results: record.scenario_results || { scenarios: record.assessment?.scenarios || [] },
+    conversation_history: record.conversation_history || [],
+    uploaded_documents: record.uploaded_documents || [],
+    updated_constraints: record.updated_constraints || [],
+    final_decision: record.final_decision || null,
+    report_id: record.report_id || null,
+    report_url: record.report_url || null,
+    parent_decision_project_id: record.parent_decision_project_id || null,
+    created_at: record.created_at || new Date().toISOString(),
+    updated_at: record.updated_at || record.created_at || new Date().toISOString(),
+  };
+}
+
 function readProjects() {
-  try { return JSON.parse(localStorage.getItem(projectsKey)) || []; } catch { return []; }
+  try {
+    const raw = JSON.parse(localStorage.getItem(projectsKey)) || [];
+    const projects = raw.map(migrateProject).filter(Boolean);
+    if (raw.some(record => record && !record.decision_project_id)) writeProjects(projects);
+    return projects;
+  } catch { return []; }
 }
 
 function writeProjects(projects) {
@@ -1666,14 +1702,33 @@ function syncChatIntoProject() {
   });
 }
 
-function deleteProject(id) {
+/* Deleting always asks for confirmation first (UI.md: delete history records). */
+function askDeleteProject(id) {
   const project = readProjects().find(item => item.decision_project_id === id);
-  if (!project) return;
-  const name = project.name || project.company_name || "this decision";
-  const message = currentLanguage() === "zh"
-    ? `删除「${name}」？此操作不可恢复。`
-    : `Delete "${name}"? This cannot be undone.`;
-  if (!window.confirm(message)) return;
+  if (!project) {
+    showToast("This decision project could not be found — reload My Decisions.");
+    return;
+  }
+  const modal = $("#confirm-modal");
+  if (!modal) return;
+  $("#confirm-name").textContent = project.name || project.company_name || "this decision";
+  modal.dataset.projectId = id;
+  modal.hidden = false;
+}
+
+function closeDeleteConfirm() {
+  const modal = $("#confirm-modal");
+  if (modal) {
+    modal.hidden = true;
+    delete modal.dataset.projectId;
+  }
+}
+
+function confirmDeleteProject() {
+  const modal = $("#confirm-modal");
+  const id = modal?.dataset.projectId;
+  closeDeleteConfirm();
+  if (!id) return;
   writeProjects(readProjects().filter(item => item.decision_project_id !== id));
   if (state.projectId === id) state.projectId = null;
   renderProjects();
@@ -1716,7 +1771,10 @@ function restoreChatFromProject(project) {
 
 function openProjectById(id) {
   const project = readProjects().find(item => item.decision_project_id === id);
-  if (!project) return;
+  if (!project) {
+    showToast("This decision project could not be found — reload My Decisions.");
+    return;
+  }
   if (project.status === "COMPLETED") {
     renderDecisionOverview(project);
     showScreen("overview");
@@ -1748,7 +1806,10 @@ function openProjectById(id) {
 
 function reassessProject(id) {
   const project = readProjects().find(item => item.decision_project_id === id);
-  if (!project) return;
+  if (!project) {
+    showToast("This decision project could not be found — reload My Decisions.");
+    return;
+  }
   state.parentProjectId = project.decision_project_id;
   state.projectId = null;
   formFromProfile(project.company_profile || {});
@@ -1948,7 +2009,9 @@ document.addEventListener("click", event => {
   const reassessButton = event.target.closest("[data-reassess-project]");
   if (reassessButton) return reassessProject(reassessButton.dataset.reassessProject);
   const deleteButton = event.target.closest("[data-delete-project]");
-  if (deleteButton) return deleteProject(deleteButton.dataset.deleteProject);
+  if (deleteButton) return askDeleteProject(deleteButton.dataset.deleteProject);
+  if (event.target.closest("#confirm-cancel")) return closeDeleteConfirm();
+  if (event.target.closest("#confirm-delete")) return confirmDeleteProject();
   const overviewReassess = event.target.closest("#overview-reassess");
   if (overviewReassess?.dataset.projectId) return reassessProject(overviewReassess.dataset.projectId);
 });

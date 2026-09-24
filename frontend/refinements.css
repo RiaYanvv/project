@@ -288,6 +288,9 @@ input.field-invalid,select.field-invalid,textarea.field-invalid{border-color:#d8
 .modal-card p{margin:0 0 12px;color:#5a7182;font-size:13.5px;line-height:1.7}
 .modal-card ul{margin:0 0 20px;padding-left:20px;color:#5a7182;font-size:13.5px;line-height:1.8}
 .modal-actions{display:flex;gap:12px;justify-content:flex-end}
+.modal-note{margin:0 0 20px;color:#8293a0;font-size:12.5px;line-height:1.6}
+.button-danger{background:#b5382a;color:#fff;box-shadow:0 6px 12px #b5382a26}
+.button-danger:hover{background:#9b2f22}
 @media(max-width:900px){
   .chat-screen{padding:30px 20px 60px}
   .chat-layout{grid-template-columns:1fr;gap:20px}

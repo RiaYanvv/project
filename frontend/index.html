@@ -292,6 +292,19 @@
         </div>
       </div>
 
+      <div class="modal" id="confirm-modal" hidden>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+          <p class="eyebrow">Delete record</p>
+          <h3 id="confirm-title">Delete this decision project?</h3>
+          <p><b id="confirm-name"></b> will be removed from My Decisions. This cannot be undone.</p>
+          <p class="modal-note">The decision record, its scenario results and any conversation saved with it are deleted from this browser.</p>
+          <div class="modal-actions">
+            <button class="button button-secondary" type="button" id="confirm-cancel">Cancel</button>
+            <button class="button button-danger" type="button" id="confirm-delete">Delete project</button>
+          </div>
+        </div>
+      </div>
+
       <section class="screen overview-screen" id="overview" aria-labelledby="overview-title">
         <div class="assessment-heading">
           <div>

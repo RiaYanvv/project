@@ -591,6 +591,12 @@ Object.assign(ZH_TEXT, {
   "Open the decision report ↗": "打开决策报告 ↗",
   "Decision project deleted.": "决策项目已删除。",
   "New assessment created from this decision — review the profile and run the analysis again.": "已基于该决策创建新评估 —— 请确认企业画像后重新运行分析。",
+  "This decision project could not be found — reload My Decisions.": "找不到这个决策项目 —— 请刷新 My Decisions 页面。",
+  "Delete record": "删除记录",
+  "Delete this decision project?": "确定要删除这个决策项目吗？",
+  "will be removed from My Decisions. This cannot be undone.": "将从 My Decisions 中移除，此操作不可恢复。",
+  "The decision record, its scenario results and any conversation saved with it are deleted from this browser.": "该决策记录、情景结果以及随它保存的对话都会从本浏览器中删除。",
+  "Delete project": "删除项目",
 });
 
 ZH_PATTERNS.push(
