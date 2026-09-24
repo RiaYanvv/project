@@ -519,7 +519,7 @@ function handleStageEvent(event) {
 
 /* The submitted profile moves into My Decision, so the form is reset here and
    the next "Start New Decision" begins from a clean sheet. */
-function finishRun(assessment, profile) {
+function finishRun(assessment, profile, thenSimulate = false) {
   state.assessment = assessment;
   runInFlight = false;
   const submitButton = $("#decision-form button[type='submit']");
@@ -529,10 +529,11 @@ function finishRun(assessment, profile) {
   try { saveProject(assessment, profile || assessment.company_profile || {}); } catch { /* project history is optional */ }
   try { resetDecisionForm(); } catch { /* the form can be cleared manually */ }
   // Always move the user forward, whatever happened above.
-  setTimeout(() => showScreen("assessment"), 320);
+  if (thenSimulate) setTimeout(() => runScenarioSimulation(), 420);
+  else setTimeout(() => showScreen("assessment"), 320);
 }
 
-function runPreviewTimeline(profile) {
+function runPreviewTimeline(profile, thenSimulate = false) {
   const total = document.querySelectorAll("#analysis-stages li").length;
   let position = 0;
   const timer = setInterval(() => {
@@ -542,11 +543,11 @@ function runPreviewTimeline(profile) {
   }, 620);
   setTimeout(() => {
     clearInterval(timer);
-    finishRun(mockAssessment(profile), profile);
+    finishRun(mockAssessment(profile), profile, thenSimulate);
   }, 2800);
 }
 
-async function runAnalysis(profile) {
+async function runAnalysis(profile, thenSimulate = false) {
   if (runInFlight) return;
   runInFlight = true;
   const submitButton = $("#decision-form button[type='submit']");
@@ -565,7 +566,7 @@ async function runAnalysis(profile) {
   if (configured && payload && !issues.length) {
     try {
       const api = await streamAssessment(payload, handleStageEvent);
-      finishRun(mapApiAssessment(api, profile), profile);
+      finishRun(mapApiAssessment(api, profile), profile, thenSimulate);
       return;
     } catch (error) {
       showToast("Live agent unavailable — showing the local preview.");
@@ -573,7 +574,7 @@ async function runAnalysis(profile) {
   } else if (configured && issues.length) {
     showToast(`${issues[0]} Showing the local preview instead.`);
   }
-  runPreviewTimeline(profile);
+  runPreviewTimeline(profile, thenSimulate);
 }
 
 /* ------------------------------------------------------------- assessment */
@@ -899,8 +900,20 @@ function renderAssessment(assessment) {
 
 function runScenarioSimulation() {
   const assessment = state.assessment;
-  if (!assessment || !(assessment.scenarios || []).length) {
+  if (!assessment) {
     showToast("Run the assessment first — scenario options come from the Agent run.");
+    return;
+  }
+  // Projects saved before scenario results existed carry none, so the analysis is
+  // re-run with the stored profile and then continues straight into the simulation.
+  if (!(assessment.scenarios || []).length) {
+    const profile = currentProject()?.company_profile || assessment.company_profile;
+    if (!profile) {
+      showToast("Run the assessment first — scenario options come from the Agent run.");
+      return;
+    }
+    showToast("No scenario results are saved for this decision — re-running the analysis to produce them.");
+    runAnalysis(profile, true);
     return;
   }
   showScreen("scenario-loading");
@@ -1908,6 +1921,16 @@ function openProjectById(id) {
     return;
   }
   state.projectId = project.decision_project_id;
+  if (!project.assessment) {
+    formFromProfile(project.company_profile || {});
+    chatState.messages = [];
+    chatState.updated = [];
+    chatState.documents = [];
+    chatState.seeded = false;
+    showToast("This project has no saved assessment yet — review the profile and run the analysis.");
+    showScreen("consultation");
+    return;
+  }
   if (project.assessment) state.assessment = project.assessment;
   formFromProfile(project.company_profile || {});
   restoreChatFromProject(project);
