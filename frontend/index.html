@@ -201,6 +201,7 @@
                 <p class="section-note">Overall score is weighted by your stated priorities</p>
               </div>
               <p class="scenario-subtitle">AI-generated assessment based on the company profile, evidence database, risk analysis and your constraints.</p>
+              <div class="scenario-update-note" id="scenario-update-note" hidden></div>
               <div class="scenario-grid" id="scenario-grid"></div>
               <p class="scenario-disclaimer">Scores are AI-generated estimates based on available evidence and assumptions. They are not predictions of future outcomes.</p>
             </section>
@@ -222,6 +223,74 @@
           </div>
         </div>
       </section>
+
+      <section class="screen chat-screen" id="chat" aria-labelledby="chat-title">
+        <div class="assessment-heading chat-head">
+          <div>
+            <p class="eyebrow">AI consultation <span class="live-tag" id="chat-mode">Prepared</span></p>
+            <h2 id="chat-title">Consultation workspace</h2>
+            <p class="assessment-meta" id="chat-meta"></p>
+          </div>
+          <div class="assessment-actions"><button class="button button-secondary" type="button" data-screen-target="scenarios">Back to scenarios <span>↑</span></button></div>
+        </div>
+        <div class="chat-layout">
+          <aside class="chat-context" id="chat-context" aria-label="Decision context"></aside>
+          <div class="chat-main">
+            <div class="chat-log" id="chat-log" aria-live="polite"></div>
+            <div class="chat-update-state" id="chat-update-state" hidden></div>
+            <section class="chat-add" id="chat-add" hidden>
+              <div class="chat-add-head"><p class="section-number">ADD INFORMATION</p><button class="text-button" type="button" id="chat-add-close">Close <span>↑</span></button></div>
+              <div class="chat-add-block">
+                <p class="chat-add-title">Upload a document</p>
+                <p class="chat-add-note">PDF · DOCX · XLSX · CSV — annual reports, supply chain data, supplier lists, factory information, internal risk assessments.</p>
+                <label class="upload-button">Browse files<input type="file" id="chat-file" multiple accept=".xlsx,.xls,.csv,.pdf,.doc,.docx" /></label>
+                <ul class="upload-list" id="chat-file-list" hidden></ul>
+                <p class="chat-add-note" id="chat-file-note" hidden></p>
+              </div>
+              <div class="chat-add-block">
+                <p class="chat-add-title">Or add information directly</p>
+                <div class="chat-add-categories" id="chat-add-categories"></div>
+                <div class="chat-add-field" id="chat-add-field" hidden>
+                  <textarea id="chat-add-text" rows="3" placeholder="Type the detail the consultant should take into account…"></textarea>
+                  <button class="button button-primary" type="button" id="chat-add-submit">Add to consultation</button>
+                </div>
+              </div>
+            </section>
+            <form class="chat-composer" id="chat-form">
+              <textarea id="chat-input" rows="3" placeholder="Ask a question, or add context the consultant should consider…"></textarea>
+              <div class="chat-composer-actions">
+                <button class="text-button" type="button" id="chat-add-toggle">+ Add information</button>
+                <button class="button button-primary" type="submit">Send <span>→</span></button>
+              </div>
+            </form>
+            <div class="chat-actions">
+              <button class="button button-secondary" type="button" id="chat-continue">Continue consultation</button>
+              <button class="button button-secondary" type="button" id="chat-update">Update scenario analysis <span>→</span></button>
+              <button class="button button-primary" type="button" id="chat-report">Generate final report <span>→</span></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="modal" id="report-modal" hidden>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="report-modal-title">
+          <p class="eyebrow">Final report</p>
+          <h3 id="report-modal-title">Generate final decision report?</h3>
+          <p>The report will include:</p>
+          <ul>
+            <li>Company profile</li>
+            <li>Evidence analysis</li>
+            <li>Risk assessment</li>
+            <li>Scenario comparison</li>
+            <li>Consultation insights</li>
+            <li>Final strategic considerations</li>
+          </ul>
+          <div class="modal-actions">
+            <button class="button button-secondary" type="button" id="report-cancel">Cancel</button>
+            <button class="button button-primary" type="button" id="report-confirm">Confirm and generate <span>→</span></button>
+          </div>
+        </div>
+      </div>
 
       <section class="screen history-screen" id="history" aria-labelledby="history-title">
         <p class="eyebrow">My decisions</p>

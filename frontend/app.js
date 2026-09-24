@@ -1042,10 +1042,374 @@ function renderScenarios(assessment) {
   }
   const mode = $("#scenario-mode");
   if (mode) mode.textContent = meta.assessment_id ? "Live agent" : "Preview";
+  const note = $("#scenario-update-note");
+  if (note) {
+    const comparison = state.scenarioComparison;
+    if (comparison && (comparison.after || []).length) {
+      note.hidden = false;
+      note.innerHTML = `<p class="section-number">UPDATED SCENARIO RESULT</p><ul class="scenario-comparison">${comparison.after.map((item, index) => {
+        const previous = comparison.before[index];
+        const delta = previous ? item.score - previous.score : 0;
+        const arrow = delta > 0 ? `↑ +${delta}` : delta < 0 ? `↓ ${delta}` : "unchanged";
+        const tone = delta > 0 ? "up" : delta < 0 ? "down" : "";
+        return `<li><span>${escapeHtml(item.name)}</span><b>${previous ? `${previous.score} → ${item.score}` : item.score}</b><em class="${tone}">${arrow}</em></li>`;
+      }).join("")}</ul><p class="scenario-comparison-reason">Reason: ${escapeHtml(comparison.reason)}${comparison.live ? "" : " · preview estimate"}</p>`;
+    } else {
+      note.hidden = true;
+      note.innerHTML = "";
+    }
+  }
   renderStrategicReport(assessment, scenarios);
 }
 
 function showToast(message) { const toast = $("#toast"); toast.textContent = message; toast.classList.add("show"); setTimeout(() => toast.classList.remove("show"), 4200); }
+
+/* -------------------------------------------------------------- chat page */
+
+const chatState = { messages: [], documents: [], updated: [], seeded: false, pendingCategory: "" };
+
+const INFO_CATEGORIES = [
+  "Add supplier information",
+  "Add factory information",
+  "Update production share",
+  "Add cost information",
+  "Add customer requirements",
+];
+
+function openChat() {
+  if (!state.assessment) {
+    showToast("Complete an assessment first — the consultation builds on it.");
+    return;
+  }
+  if (!chatState.seeded) {
+    chatState.messages.push({ id: "msg-open", role: "assistant", at: new Date().toISOString(), content: chatOpeningMessage(state.assessment), explain: true });
+    chatState.seeded = true;
+  }
+  renderChatCategories();
+  renderChatContext();
+  renderChatLog();
+  renderChatMeta();
+  showScreen("chat");
+}
+
+function chatOpeningMessage(assessment) {
+  const profile = assessment.company_profile || {};
+  const risks = assessment.risks || [];
+  const scenarios = normalizeScenarios(assessment);
+  const top = scenarios[0];
+  const high = risks.filter(risk => SEVERITY_LEVEL[risk.severity] === "high").length;
+  const lines = [`I have reviewed the profile for **${profile.company_name || "your company"}**, the evidence set, the risk assessment and ${scenarios.length} scenario option${scenarios.length === 1 ? "" : "s"}.`];
+  if (top) lines.push(`The current leading option is **${top.name}** at ${top.overall_score}/100, with ${high} high-priority exposure${high === 1 ? "" : "s"} to manage.`);
+  lines.push([
+    "To improve the assessment, additional information would help:",
+    "1. Supplier dependency — which critical inputs or components have only one qualified source",
+    "2. Cost differences between locations, including logistics and duties",
+    "3. Investment constraints and budget ceiling",
+    "4. Customer requirements or certifications that restrict origin",
+    "5. Implementation timeline and capacity ramp-up limits",
+  ].join("\n"));
+  lines.push("You can answer any of these, ask a question, or use **+ Add information** to attach a document or a constraint.");
+  return lines.join("\n\n");
+}
+
+function renderChatMeta() {
+  const meta = state.assessment?.meta || {};
+  const live = Boolean(meta.assessment_id);
+  const mode = $("#chat-mode");
+  if (mode) mode.textContent = live ? "Live agent" : "Preview";
+  const line = $("#chat-meta");
+  if (line) {
+    line.textContent = [
+      meta.assessment_id ? `Assessment ${meta.assessment_id}` : "",
+      live ? "Consultation runs against the retrieved evidence set" : "Preview consultation · Agent service not connected",
+      `${chatState.messages.length} message${chatState.messages.length === 1 ? "" : "s"} in this session`,
+    ].filter(Boolean).join(" · ");
+  }
+}
+
+function renderChatCategories() {
+  const container = $("#chat-add-categories");
+  if (!container) return;
+  container.innerHTML = INFO_CATEGORIES.map(category => `<button class="chat-category" type="button" data-chat-category="${escapeHtml(category)}">${escapeHtml(category)}</button>`).join("");
+}
+
+function renderChatContext() {
+  const container = $("#chat-context");
+  if (!container) return;
+  const assessment = state.assessment || {};
+  const profile = assessment.company_profile || {};
+  const risks = assessment.risks || [];
+  const scenarios = normalizeScenarios(assessment);
+  const footprint = (profile.production_locations || []).map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(" · ") || "not specified";
+  const markets = (profile.target_markets || []).map(item => countryName(item.country)).join(" · ") || "not specified";
+  container.innerHTML = `
+    <div class="context-block">
+      <p class="context-label">Company profile</p>
+      <p class="context-strong">${escapeHtml(profile.company_name || "—")}</p>
+      <p>${escapeHtml(profile.products || "")}</p>
+      <p><span class="context-key">Production</span> ${escapeHtml(footprint)}</p>
+      <p><span class="context-key">Markets</span> ${escapeHtml(markets)}</p>
+      <p><span class="context-key">Decision</span> ${escapeHtml(profile.decision_question || "not specified")}</p>
+    </div>
+    <div class="context-block">
+      <p class="context-label">Current risks</p>
+      ${risks.length ? `<ul class="context-list">${risks.slice(0, 5).map(risk => `<li><span class="severity ${SEVERITY_LEVEL[risk.severity] || "medium"}">${escapeHtml(risk.severity)}</span> ${escapeHtml(risk.name)}</li>`).join("")}</ul>` : `<p class="muted">No risks recorded</p>`}
+    </div>
+    <div class="context-block">
+      <p class="context-label">Scenario summary</p>
+      ${scenarios.length ? `<ul class="context-scenarios">${scenarios.map(item => `<li><span>${escapeHtml(item.name)}</span><b>${item.overall_score}/100</b></li>`).join("")}</ul>` : `<p class="muted">No scenarios yet</p>`}
+    </div>
+    <div class="context-block">
+      <p class="context-label">Updated information</p>
+      ${chatState.updated.length || chatState.documents.length
+        ? `<ul class="context-list">${chatState.updated.map(item => `<li>${escapeHtml(item)}</li>`).join("")}${chatState.documents.map(name => `<li>Document: ${escapeHtml(name)}</li>`).join("")}</ul>`
+        : `<p class="muted">Nothing added yet</p>`}
+    </div>`;
+}
+
+function chatExplainPanel() {
+  const assessment = state.assessment || {};
+  const profile = assessment.company_profile || {};
+  const risks = assessment.risks || [];
+  const recommendation = assessment.recommendation || {};
+  const sources = [];
+  risks.forEach(risk => (risk.evidence || []).forEach(item => {
+    if (!sources.some(existing => existing.title === item.title)) sources.push(item);
+  }));
+  return `
+    <details class="chat-explain">
+      <summary>Why this assessment? <span>+</span></summary>
+      <div class="chat-explain-body">
+        <p><b>Factors considered.</b> ${escapeHtml(`Footprint ${(profile.production_locations || []).map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(", ") || "not specified"}; markets ${(profile.target_markets || []).map(item => countryName(item.country)).join(", ") || "not specified"}; priorities ${(profile.priorities || []).map(item => item.dimension).join(" > ") || "not ranked"}.`)}</p>
+        <p><b>Evidence used.</b> ${escapeHtml(sources.length ? sources.slice(0, 4).map(item => `${item.publisher} — ${item.title}`).join("; ") : "no evidence was attached")}</p>
+        <p><b>Assumptions.</b> Production shares reflect the current model; country-level public sources may not reflect company-specific contracts.</p>
+        <p><b>Uncertainty.</b> ${escapeHtml([...new Set(risks.map(risk => risk.uncertainty).filter(Boolean))].slice(0, 2).join(" ") || "no specific uncertainties were reported")}</p>
+        ${recommendation.confidence ? `<p><b>Confidence.</b> ${escapeHtml(recommendation.confidence)}</p>` : ""}
+      </div>
+    </details>`;
+}
+
+function renderRichText(text) {
+  const escaped = escapeHtml(text || "");
+  const blocks = escaped.split(/\n{2,}/).map(block => {
+    const lines = block.split("\n").filter(line => line.trim() !== "");
+    if (!lines.length) return "";
+    if (lines.every(line => /^\s*[-•]\s+/.test(line))) {
+      return `<ul>${lines.map(line => `<li>${line.replace(/^\s*[-•]\s+/, "")}</li>`).join("")}</ul>`;
+    }
+    if (lines.every(line => /^\s*\d+[.)]\s+/.test(line))) {
+      return `<ol>${lines.map(line => `<li>${line.replace(/^\s*\d+[.)]\s+/, "")}</li>`).join("")}</ol>`;
+    }
+    return `<p>${lines.join("<br />")}</p>`;
+  }).join("");
+  return blocks.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+}
+
+function chatBubble(message) {
+  const mine = message.role === "user";
+  return `
+    <article class="chat-message${mine ? " from-user" : " from-ai"}">
+      <div class="chat-bubble">
+        <p class="chat-role">${mine ? "You" : "Locus consultant"}</p>
+        <div class="chat-text">${renderRichText(message.content)}</div>
+        ${message.explain && !mine ? chatExplainPanel() : ""}
+        ${message.prompt ? `<div class="chat-prompt"><p>Would you like to update the scenario analysis?</p><div class="chat-prompt-actions"><button class="button button-secondary" type="button" data-chat-review>Review first</button><button class="button button-primary" type="button" data-chat-update>Update scenario</button></div></div>` : ""}
+      </div>
+    </article>`;
+}
+
+function renderChatLog() {
+  const log = $("#chat-log");
+  if (!log) return;
+  log.innerHTML = chatState.messages.map(chatBubble).join("");
+  log.scrollTop = log.scrollHeight;
+}
+
+function appendChatMessage(message) {
+  const id = `msg-${chatState.messages.length + 1}-${Date.now().toString(36)}`;
+  chatState.messages.push({ id, at: new Date().toISOString(), ...message });
+  renderChatLog();
+  renderChatMeta();
+  return id;
+}
+
+function removeChatMessage(id) {
+  chatState.messages = chatState.messages.filter(message => message.id !== id);
+  renderChatLog();
+  renderChatMeta();
+}
+
+function previewReply(question) {
+  const assessment = state.assessment || {};
+  const scenarios = normalizeScenarios(assessment);
+  const top = scenarios[0];
+  const dimensions = top ? SCENARIO_DIMENSIONS.map(([key, label]) => ({ label, value: top.scores[key] })).sort((a, b) => b.value - a.value) : [];
+  return [
+    "**Preview mode.** The Agent service is not connected, so this answer is composed locally from the assessment you just ran rather than from a live model call.",
+    `Your question: “${question}”`,
+    top ? `Within the current analysis, **${top.name}** leads at ${top.overall_score}/100 — strongest on ${dimensions[0].label.toLowerCase()} (${dimensions[0].value}), weakest on ${dimensions[dimensions.length - 1].label.toLowerCase()} (${dimensions[dimensions.length - 1].value}).` : "",
+    "Add the supplier, cost or customer detail behind your question using **+ Add information**, then run **Update scenario analysis** so the scores reflect it.",
+  ].filter(Boolean).join("\n\n");
+}
+
+async function sendChatMessage(text) {
+  const assessment = state.assessment;
+  const live = Boolean(assessment?.meta?.assessment_id && window.LOCUS_API_BASE && window.LOCUS_API_KEY);
+  appendChatMessage({ role: "user", content: text });
+  if (!live) {
+    setTimeout(() => appendChatMessage({ role: "assistant", content: previewReply(text), explain: true }), 500);
+    return;
+  }
+  const pending = appendChatMessage({ role: "assistant", content: "Reviewing your message against the evidence set…" });
+  try {
+    const response = await fetch(`${window.LOCUS_API_BASE}/api/v1/assessments/${assessment.meta.assessment_id}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text, api_key: window.LOCUS_API_KEY }),
+    });
+    if (!response.ok) throw new Error(`chat service returned ${response.status}`);
+    const updated = await response.json();
+    const reply = (updated.chat_history || []).filter(turn => turn.role === "assistant").slice(-1)[0];
+    removeChatMessage(pending);
+    appendChatMessage({ role: "assistant", content: reply?.content || "I could not produce a reply for that message.", explain: true });
+    state.assessment = mapApiAssessment(updated, assessment.company_profile);
+    renderChatContext();
+    renderChatMeta();
+  } catch (error) {
+    removeChatMessage(pending);
+    appendChatMessage({ role: "assistant", content: `I could not reach the Agent service: ${error.message}. Your message is kept in this session.` });
+  }
+}
+
+function addInformation(kind, detail) {
+  chatState.updated.push(detail ? `${kind}: ${detail}` : kind);
+  renderChatContext();
+  appendChatMessage({ role: "user", content: detail ? `${kind}: ${detail}` : kind });
+  appendChatMessage({ role: "assistant", content: "New information received.", prompt: true });
+  $("#chat-add").hidden = true;
+  $("#chat-add-field").hidden = true;
+  $("#chat-add-text").value = "";
+  chatState.pendingCategory = "";
+}
+
+function handleChatFiles(files) {
+  const names = [...files].map(file => file.name);
+  if (!names.length) return;
+  chatState.documents.push(...names);
+  const list = $("#chat-file-list");
+  if (list) {
+    list.hidden = false;
+    list.innerHTML = names.map(name => `<li><span>${escapeHtml(name)}</span><span>attached</span></li>`).join("");
+  }
+  const note = $("#chat-file-note");
+  if (note) {
+    note.hidden = false;
+    note.textContent = "Documents are attached to this browser session. Ingestion into the knowledge base needs the upload endpoint listed in backend changes.md.";
+  }
+  renderChatContext();
+  appendChatMessage({ role: "user", content: `Uploaded: ${names.join(", ")}` });
+  appendChatMessage({ role: "assistant", content: "New information received.", prompt: true });
+}
+
+function continueConsultation() {
+  const input = $("#chat-input");
+  appendChatMessage({
+    role: "assistant",
+    content: "Of course. The most decision-relevant gaps right now are supplier concentration, the cost gap between locations, and any customer origin requirements. Which of those can you speak to?",
+  });
+  input?.focus();
+}
+
+async function rerunAssessmentForChat() {
+  const profile = { ...(state.assessment.company_profile || {}) };
+  const additions = [...chatState.updated, ...chatState.documents.map(name => `Document provided: ${name}`)];
+  profile.notes = [profile.notes, ...additions.map(item => `Additional input: ${item}`)].filter(Boolean).join("\n");
+  const { issues, payload } = buildBackendPayload(profile);
+  if (issues.length) throw new Error(issues[0]);
+  const api = await streamAssessment(payload, () => {});
+  return mapApiAssessment(api, profile);
+}
+
+function comparisonText(before, after) {
+  return after.map((item, index) => {
+    const previous = before[index];
+    if (!previous) return `${item.name}: ${item.score}/100`;
+    const delta = item.score - previous.score;
+    const arrow = delta > 0 ? ` ↑ +${delta}` : delta < 0 ? ` ↓ ${delta}` : " — unchanged";
+    return `${item.name}: ${previous.score} → **${item.score}**${arrow}`;
+  }).join("\n");
+}
+
+async function runScenarioUpdate() {
+  const assessment = state.assessment;
+  if (!assessment) return;
+  const before = normalizeScenarios(assessment).map(item => ({ name: item.name, score: item.overall_score }));
+  const steps = ["New business constraints", "Updated risk factors", "Additional evidence", "User preferences"];
+  const panel = $("#chat-update-state");
+  panel.hidden = false;
+  panel.innerHTML = `<p class="section-number">UPDATING SCENARIO ANALYSIS</p><p class="chat-add-title">Updating Scenario Analysis…</p><ol class="chat-update-steps" id="chat-update-steps">${steps.map(step => `<li>${escapeHtml(step)} <span>Waiting</span></li>`).join("")}</ol>`;
+  let position = 0;
+  const timer = setInterval(() => {
+    if (position > 0) setStageIn("chat-update-steps", position - 1, "done");
+    if (position < steps.length) { setStageIn("chat-update-steps", position, "working"); position += 1; }
+    else clearInterval(timer);
+  }, 600);
+  const live = Boolean(assessment.meta?.assessment_id && window.LOCUS_API_BASE && window.LOCUS_API_KEY);
+  let rerun = null;
+  if (live) {
+    try { rerun = await rerunAssessmentForChat(); }
+    catch (error) { showToast(`Scenario update failed: ${error.message} — showing the previous analysis.`); }
+  }
+  await new Promise(resolve => setTimeout(resolve, live ? 600 : 2600));
+  clearInterval(timer);
+  eachStageIn("chat-update-steps", "done");
+  if (rerun) {
+    state.assessment = rerun;
+  } else {
+    const bump = Math.min(5, Math.max(1, chatState.updated.length + chatState.documents.length) * 2);
+    state.assessment = {
+      ...assessment,
+      scenarios: normalizeScenarios(assessment).map(item => ({ ...item, overall_score: Math.min(100, item.overall_score + bump) })),
+    };
+  }
+  const after = normalizeScenarios(state.assessment).map(item => ({ name: item.name, score: item.overall_score }));
+  const reason = [...chatState.updated, ...chatState.documents.map(name => `document: ${name}`)].join("; ") || "no new constraints were added";
+  state.scenarioComparison = { before, after, reason, live };
+  panel.hidden = true;
+  appendChatMessage({
+    role: "assistant",
+    content: [
+      "Scenario analysis updated.",
+      comparisonText(before, after),
+      `Reason: ${reason}.`,
+      live ? "" : "**Preview mode:** scores were adjusted illustratively because the Agent service is not connected.",
+    ].filter(Boolean).join("\n\n"),
+    explain: true,
+  });
+  renderScenarios(state.assessment);
+  renderChatContext();
+  showToast(live ? "Scenario analysis updated from the Agent run." : "Scenario analysis updated (preview estimate).");
+  setTimeout(() => showScreen("scenarios"), 700);
+}
+
+function reviewFirst() {
+  appendChatMessage({ role: "assistant", content: "Sure — the new information is listed under **Updated information** in the context panel. Tell me when you want it folded into the scenario scores, or keep asking questions first." });
+}
+
+function openReportModal() { const modal = $("#report-modal"); if (modal) modal.hidden = false; }
+function closeReportModal() { const modal = $("#report-modal"); if (modal) modal.hidden = true; }
+
+function confirmReport() {
+  closeReportModal();
+  const meta = state.assessment?.meta || {};
+  if (meta.assessment_id && window.LOCUS_API_BASE) {
+    window.open(`${window.LOCUS_API_BASE}/api/v1/assessments/${meta.assessment_id}/report`, "_blank", "noopener");
+    appendChatMessage({ role: "assistant", content: "The decision report has been generated and opened in a new tab: company profile, evidence analysis, risk assessment, scenario comparison, consultation insights and strategic considerations." });
+    return;
+  }
+  showToast("The report endpoint needs a live Agent assessment.");
+  appendChatMessage({ role: "assistant", content: "I cannot generate the PDF yet: the report endpoint requires a live Agent assessment. Everything in this session is kept in My Decision, and the backend gap is recorded in backend changes.md." });
+}
 
 function clearInvalidMarks() {
   document.querySelectorAll("#decision-form .field-invalid").forEach(element => element.classList.remove("field-invalid"));
@@ -1270,7 +1634,27 @@ document.addEventListener("click", event => {
   if (event.target.closest("#hide-advanced")) { $("#advanced-fields").hidden = true; $("#show-advanced").hidden = false; updateFormProgress(); }
   if (event.target.closest("#profile-expand")) { const extra = $("#profile-extra"); extra.hidden = !extra.hidden; $("#profile-expand").innerHTML = extra.hidden ? "View full profile <span>↓</span>" : "Hide full profile <span>↑</span>"; }
   if (event.target.closest("#simulate-button")) runScenarioSimulation();
-  if (event.target.closest("#consultation-button")) showToast("The AI consultation workspace is the next page to build.");
+  if (event.target.closest("#consultation-button")) openChat();
+  if (event.target.closest("#chat-continue")) continueConsultation();
+  if (event.target.closest("#chat-update") || event.target.closest("[data-chat-update]")) runScenarioUpdate();
+  if (event.target.closest("[data-chat-review]")) reviewFirst();
+  if (event.target.closest("#chat-report")) openReportModal();
+  if (event.target.closest("#report-cancel")) closeReportModal();
+  if (event.target.closest("#report-confirm")) confirmReport();
+  if (event.target.closest("#chat-add-toggle")) { const panel = $("#chat-add"); if (panel) panel.hidden = !panel.hidden; }
+  if (event.target.closest("#chat-add-close")) { const panel = $("#chat-add"); if (panel) panel.hidden = true; }
+  const chatCategory = event.target.closest("[data-chat-category]");
+  if (chatCategory) {
+    chatState.pendingCategory = chatCategory.dataset.chatCategory;
+    const field = $("#chat-add-field");
+    if (field) field.hidden = false;
+    $("#chat-add-text")?.focus();
+  }
+  if (event.target.closest("#chat-add-submit")) {
+    const detail = ($("#chat-add-text")?.value || "").trim();
+    if (!detail) showToast("Add a short description before submitting.");
+    else addInformation(chatState.pendingCategory || "Additional information", detail);
+  }
   const scenarioToggle = event.target.closest("[data-scenario-toggle]");
   if (scenarioToggle) {
     const detail = $(`#scenario-detail-${scenarioToggle.dataset.scenarioToggle}`);
@@ -1358,6 +1742,17 @@ document.addEventListener("input", event => {
 
 $("#decision-form").addEventListener("input", () => { clearValidationError(); saveDraft(); });
 $("#decision-form").addEventListener("change", () => { clearValidationError(); saveDraft(); });
+
+$("#chat-form").addEventListener("submit", event => {
+  event.preventDefault();
+  const input = $("#chat-input");
+  const text = (input?.value || "").trim();
+  if (!text) { showToast("Type a message first."); return; }
+  input.value = "";
+  sendChatMessage(text);
+});
+
+$("#chat-file")?.addEventListener("change", event => handleChatFiles(event.target.files || []));
 
 $("#decision-form").addEventListener("submit", event => {
   event.preventDefault();
