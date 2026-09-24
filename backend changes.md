@@ -119,3 +119,15 @@
 **现状**：`GET /api/v1/assessments/{id}/report` 每次按当时的 Assessment 生成 PDF，没有版本概念；前端现在只在项目上存一个 `report_id` / `report_url`。
 **影响**：UI.md §11 明确要求"用户回到咨询改动分析后重新生成报告，不应静默覆盖旧版本，应视为 Report v1 / v2，最新一版标记为当前版本"。
 **建议**：报告产物带上 `report_version` 与 `generated_at` 列表（例如 `Assessment.reports[]`），并保留历史版本可下载。
+
+### 22. 最终报告的内容规格（详实度、字数、证据引用）
+**来源**：用户明确要求 + UI.md《Final Decision Report Page》§4、§7。
+**现状**：`build_assessment_pdf` 只按 `Assessment` 生成一份较短的 PDF，章节偏提纲式，不读 `chat_history`（缺少 Consultation Insights 一节），也没有逐条证据引用、字数下限和版本号。
+**要求**：
+1. **内容详实丰富，字数不得过少**——不能是条目罗列。建议给每章设最低内容量：执行摘要 ≥ 300 字；公司画像 / 当前供应链情况 / 关键风险评估 / 情景比较 各 ≥ 400 字；咨询洞见 ≥ 300 字；最终决策与建议 ≥ 400 字；证据与不确定性 ≥ 200 字；正文合计 ≥ 3000 字（中文按字数、英文按词数折算）。
+2. **必须附证据**——每条重要结论后附证据引用：证据编号、标题、发布方、发布日期、权威等级，且可回溯到 Evidence 库（指向原始文件或网页）。
+3. **固定九章**：Executive Summary / Company Profile / Current Supply Chain Situation / Key Risk Assessment / Scenario Comparison / Consultation Insights / Final Decision or Recommendation / Evidence Sources / Uncertainties & Limitations。
+4. **必须包含咨询洞见**——把 `chat_history` 中新增的约束、偏好、上传文档，以及它们如何改变结论，写进 Consultation Insights 一节。
+5. **首页元数据**——报告标题、决策项目名、生成时间、版本号。
+6. **语言**——按 #18 的语言参数输出。
+7. **版本**——每次重新生成产生新版本、不覆盖旧版（见 #21）。
