@@ -4,6 +4,7 @@ const state = {
   assessment: null,
   projectId: null,
   parentProjectId: null,
+  reportOutdated: false,
 };
 let runInFlight = false;
 const draftKey = "locus-decision-draft";
@@ -1261,6 +1262,7 @@ async function sendChatMessage(text) {
   const assessment = state.assessment;
   const live = Boolean(assessment?.meta?.assessment_id && window.LOCUS_API_BASE && window.LOCUS_API_KEY);
   appendChatMessage({ role: "user", content: text });
+  markReportOutdated();
   if (!live) {
     setTimeout(() => appendChatMessage({ role: "assistant", content: previewReply(text), explain: true }), 500);
     return;
@@ -1287,6 +1289,7 @@ async function sendChatMessage(text) {
 }
 
 function addInformation(kind, detail) {
+  markReportOutdated();
   chatState.updated.push(detail ? `${kind}: ${detail}` : kind);
   renderChatContext();
   appendChatMessage({ role: "user", content: detail ? `${kind}: ${detail}` : kind });
@@ -1339,6 +1342,7 @@ function comparisonText(before, after) {
 async function runScenarioUpdate() {
   const assessment = state.assessment;
   if (!assessment) return;
+  markReportOutdated();
   const before = normalizeScenarios(assessment).map(item => ({ name: item.name, score: item.overall_score }));
   const steps = ["New business constraints", "Updated risk factors", "Additional evidence", "User preferences"];
   const panel = $("#chat-update-state");
@@ -1392,34 +1396,157 @@ function reviewFirst() {
   appendChatMessage({ role: "assistant", content: "Sure — the new information is listed under **Updated information** in the context panel. Tell me when you want it folded into the scenario scores, or keep asking questions first." });
 }
 
-function openReportModal() { const modal = $("#report-modal"); if (modal) modal.hidden = false; }
-function closeReportModal() { const modal = $("#report-modal"); if (modal) modal.hidden = true; }
+/* ------------------------------------------------- final decision report
+   UI.md: the frontend never writes the report itself — it embeds and downloads
+   the PDF returned by the backend report service. */
 
-function confirmReport() {
-  closeReportModal();
-  const meta = state.assessment?.meta || {};
+const REPORT_SECTIONS = [
+  "Executive summary",
+  "Company profile",
+  "Current supply chain situation",
+  "Key risk assessment",
+  "Scenario comparison",
+  "Consultation insights",
+  "Final decision / recommendation",
+  "Evidence sources",
+  "Uncertainties & limitations",
+];
+
+function currentReport() {
+  const versions = currentProject()?.report_versions || [];
+  return versions.length ? versions[versions.length - 1] : null;
+}
+
+function reportUrlFor(assessmentId) {
+  return assessmentId && window.LOCUS_API_BASE ? `${window.LOCUS_API_BASE}/api/v1/assessments/${assessmentId}/report` : null;
+}
+
+function recordReportVersion() {
+  const assessmentId = state.assessment?.meta?.assessment_id || null;
+  const versions = currentProject()?.report_versions || [];
+  const version = {
+    version: versions.length + 1,
+    report_id: assessmentId,
+    url: reportUrlFor(assessmentId),
+    generated_at: new Date().toISOString(),
+  };
+  syncChatIntoProject();
+  updateCurrentProject({
+    current_stage: "REPORT",
+    report_id: version.report_id,
+    report_url: version.url,
+    report_versions: [...versions, version],
+  });
+  state.reportOutdated = false;
+}
+
+async function runReportGeneration() {
+  showScreen("report-loading");
+  eachStageIn("report-stages", "idle");
+  const total = document.querySelectorAll("#report-stages li").length;
+  let position = 0;
+  const timer = setInterval(() => {
+    if (position > 0) setStageIn("report-stages", position - 1, "done");
+    if (position < total) { setStageIn("report-stages", position, "working"); position += 1; }
+    else clearInterval(timer);
+  }, 380);
+  await new Promise(resolve => setTimeout(resolve, 2400));
+  clearInterval(timer);
+  eachStageIn("report-stages", "done");
+  try { recordReportVersion(); } catch { /* project history is optional */ }
+  renderReportPage();
+  setTimeout(() => showScreen("report"), 340);
+}
+
+function renderReportPage() {
+  const project = currentProject() || {};
+  const report = currentReport();
+  const profile = state.assessment?.company_profile || project.company_profile || {};
+  const generatedAt = report?.generated_at ? new Date(report.generated_at) : new Date();
+  const metaLine = $("#report-meta");
+  if (metaLine) {
+    metaLine.textContent = [
+      project.name || profile.company_name || "Decision",
+      `Generated ${generatedAt.toLocaleString()}`,
+      report?.version ? `Report v${report.version}` : "",
+      report?.report_id ? `Assessment ${report.report_id}` : "",
+    ].filter(Boolean).join(" · ");
+  }
+  const status = $("#report-status");
+  if (status) status.textContent = report?.url ? "Generated" : "Preview";
+  const name = $("#report-file-name");
+  if (name) name.textContent = `${profile.company_name || "Decision"} — Executive Decision Report`;
+  const fileMeta = $("#report-file-meta");
+  if (fileMeta) {
+    fileMeta.textContent = [
+      generatedAt.toLocaleDateString(),
+      report?.url ? "PDF from the Agent report service" : "PDF not available without a live Agent run",
+    ].join(" · ");
+  }
+  const download = $("#report-download");
+  if (download) {
+    download.href = report?.url || "#";
+    download.dataset.available = report?.url ? "true" : "false";
+  }
+  const viewer = $("#report-viewer");
+  if (viewer) {
+    viewer.innerHTML = report?.url
+      ? `<iframe class="report-frame" title="Executive Decision Report" src="${escapeHtml(report.url)}"></iframe>`
+      : `<div class="report-placeholder">
+          <p class="report-placeholder-title">The PDF is produced by the backend report service</p>
+          <p class="report-placeholder-text">This session has no live Agent run, so no PDF exists yet. Once the Agent service is connected, the report returned by <code>GET /api/v1/assessments/&lt;id&gt;/report</code> is embedded here unchanged.</p>
+          <p class="report-placeholder-label">The report will contain</p>
+          <ol class="report-sections">${REPORT_SECTIONS.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>
+        </div>`;
+  }
+  const outdated = $("#report-outdated");
+  if (outdated) {
+    outdated.hidden = !state.reportOutdated;
+    outdated.textContent = state.reportOutdated
+      ? "This report is outdated — the analysis changed after it was generated. Generate the report again to refresh it."
+      : "";
+  }
+}
+
+function markReportOutdated() {
+  if (!currentReport()) return;
+  state.reportOutdated = true;
+}
+
+function openSaveModal() { const modal = $("#save-modal"); if (modal) modal.hidden = false; }
+function closeSaveModal() { const modal = $("#save-modal"); if (modal) modal.hidden = true; }
+
+/* §7–§9: ending the consultation saves the project and returns home. */
+function endConsultationAndSave() {
+  closeSaveModal();
+  const report = currentReport();
   const lastUserTurn = [...chatState.messages].reverse().find(message => message.role === "user");
   const recommendation = state.assessment?.recommendation || {};
   syncChatIntoProject();
   updateCurrentProject({
     status: "COMPLETED",
     current_stage: "REPORT",
-    report_id: meta.assessment_id || null,
-    report_url: meta.assessment_id && window.LOCUS_API_BASE ? `${window.LOCUS_API_BASE}/api/v1/assessments/${meta.assessment_id}/report` : null,
+    report_id: report?.report_id || state.assessment?.meta?.assessment_id || null,
+    report_url: report?.url || null,
     final_decision: {
       summary: recommendation.headline || lastUserTurn?.content || "Consultation ended without an additional final statement.",
       decided_at: new Date().toISOString(),
     },
   });
-  if (meta.assessment_id && window.LOCUS_API_BASE) {
-    window.open(`${window.LOCUS_API_BASE}/api/v1/assessments/${meta.assessment_id}/report`, "_blank", "noopener");
-    appendChatMessage({ role: "assistant", content: "The decision report has been generated and opened in a new tab. This consultation is now saved as a completed decision project in My Decisions." });
-  } else {
-    showToast("Saved as a completed decision project. The PDF needs a live Agent assessment.");
-    appendChatMessage({ role: "assistant", content: "This consultation is now saved as a completed decision project in My Decisions. The PDF itself needs the live Agent service (see backend changes.md)." });
-  }
   renderProjects();
-  setTimeout(() => { showScreen("history"); renderProjects(); }, 900);
+  showToast("Decision project saved to My Decisions.");
+  showScreen("home");
+}
+
+function openReportModal() { const modal = $("#report-modal"); if (modal) modal.hidden = false; }
+function closeReportModal() { const modal = $("#report-modal"); if (modal) modal.hidden = true; }
+
+function confirmReport() {
+  closeReportModal();
+  // UI.md §2: a short transition leads to the Final Decision Report page; the
+  // project is only finalised when the user ends the consultation there.
+  appendChatMessage({ role: "assistant", content: "Preparing the Executive Decision Report — you can review it, download it, or come back to the consultation." });
+  runReportGeneration();
 }
 
 function clearInvalidMarks() {
@@ -2012,6 +2139,20 @@ document.addEventListener("click", event => {
   if (deleteButton) return askDeleteProject(deleteButton.dataset.deleteProject);
   if (event.target.closest("#confirm-cancel")) return closeDeleteConfirm();
   if (event.target.closest("#confirm-delete")) return confirmDeleteProject();
+  if (event.target.closest("#report-back")) {
+    showScreen("chat");
+    showToast("Back in the consultation — the generated report stays available.");
+    return;
+  }
+  if (event.target.closest("#report-end")) return openSaveModal();
+  if (event.target.closest("#save-cancel")) return closeSaveModal();
+  if (event.target.closest("#save-confirm")) return endConsultationAndSave();
+  const download = event.target.closest("#report-download");
+  if (download && download.dataset.available !== "true") {
+    event.preventDefault();
+    showToast("The PDF needs a live Agent run — connect the report service to download it.");
+    return;
+  }
   const overviewReassess = event.target.closest("#overview-reassess");
   if (overviewReassess?.dataset.projectId) return reassessProject(overviewReassess.dataset.projectId);
 });

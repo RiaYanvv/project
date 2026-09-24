@@ -305,6 +305,69 @@
         </div>
       </div>
 
+      <section class="screen analysis-screen" id="report-loading" aria-live="polite">
+        <div class="analysis-panel">
+          <span class="analysis-orbit"></span>
+          <p class="eyebrow">Final decision report</p>
+          <h2>Preparing your Executive Decision Report…</h2>
+          <p>Compiling the whole consultation into one document for review and download.</p>
+          <ol class="analysis-stages" id="report-stages">
+            <li>Finalizing company profile <span>Waiting</span></li>
+            <li>Consolidating risk assessment <span>Waiting</span></li>
+            <li>Updating scenario analysis <span>Waiting</span></li>
+            <li>Integrating consultation insights <span>Waiting</span></li>
+            <li>Preparing evidence references <span>Waiting</span></li>
+            <li>Generating final report <span>Waiting</span></li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="screen report-screen" id="report" aria-labelledby="report-title">
+        <div class="assessment-heading">
+          <div>
+            <p class="eyebrow">Final decision report <span class="live-tag" id="report-status">Generated</span></p>
+            <h2 id="report-title">Final Decision Report</h2>
+            <p class="assessment-meta" id="report-meta"></p>
+          </div>
+          <div class="assessment-actions">
+            <button class="button button-secondary" type="button" id="report-back">← Back to Consultation</button>
+            <button class="button button-primary" type="button" id="report-end">End Consultation &amp; Save Decision</button>
+          </div>
+        </div>
+        <div class="report-page">
+          <div class="report-outdated" id="report-outdated" hidden></div>
+          <div class="report-toolbar">
+            <div>
+              <p class="report-file-name" id="report-file-name">Executive Decision Report</p>
+              <p class="report-file-meta" id="report-file-meta"></p>
+            </div>
+            <a class="button button-primary" id="report-download" href="#" target="_blank" rel="noopener noreferrer">Download PDF <span>↓</span></a>
+          </div>
+          <div class="report-viewer" id="report-viewer"></div>
+        </div>
+      </section>
+
+      <div class="modal" id="save-modal" hidden>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="save-title">
+          <p class="eyebrow">Save decision</p>
+          <h3 id="save-title">Save this decision project?</h3>
+          <p>The following will be saved:</p>
+          <ul>
+            <li>Company profile</li>
+            <li>Evidence</li>
+            <li>Risk assessment</li>
+            <li>Scenario analysis</li>
+            <li>Consultation history</li>
+            <li>Final decision</li>
+            <li>Generated PDF report</li>
+          </ul>
+          <div class="modal-actions">
+            <button class="button button-secondary" type="button" id="save-cancel">Cancel</button>
+            <button class="button button-primary" type="button" id="save-confirm">Save &amp; Return Home <span>→</span></button>
+          </div>
+        </div>
+      </div>
+
       <section class="screen overview-screen" id="overview" aria-labelledby="overview-title">
         <div class="assessment-heading">
           <div>

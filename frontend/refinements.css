@@ -291,6 +291,27 @@ input.field-invalid,select.field-invalid,textarea.field-invalid{border-color:#d8
 .modal-note{margin:0 0 20px;color:#8293a0;font-size:12.5px;line-height:1.6}
 .button-danger{background:#b5382a;color:#fff;box-shadow:0 6px 12px #b5382a26}
 .button-danger:hover{background:#9b2f22}
+
+/* Final decision report page */
+.report-screen{max-width:1240px;margin:auto;padding:45px 32px 80px}
+.report-page{display:grid;gap:18px;margin-top:30px}
+.report-outdated{padding:14px 16px;border:1px solid #e5d0a6;border-left:3px solid var(--medium);background:#fff9ed;color:#8a5a12;font-size:13px;line-height:1.6}
+.report-toolbar{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:16px 18px;border:1px solid var(--line);background:#fff}
+.report-file-name{margin:0 0 4px;color:var(--ink);font-size:15px;font-weight:700}
+.report-file-meta{margin:0;color:#7b8f9e;font:500 11px var(--mono)}
+.report-viewer{display:grid;min-height:min(70vh,880px);border:1px solid var(--line);background:#f4f8fa}
+.report-frame{width:100%;height:min(70vh,880px);border:0;background:#fff}
+.report-placeholder{align-self:center;justify-self:center;max-width:640px;padding:40px}
+.report-placeholder-title{margin:0 0 10px;color:var(--ink);font-size:17px;font-weight:700}
+.report-placeholder-text{margin:0 0 18px;color:#5a7182;font-size:13.5px;line-height:1.75}
+.report-placeholder-text code{padding:1px 5px;border-radius:3px;background:#eef4f7;font:.88em var(--mono)}
+.report-placeholder-label{margin:0 0 8px;color:#7b8f9e;font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase}
+.report-sections{margin:0;padding-left:22px;color:#5a7182;font-size:13.5px;line-height:1.9}
+@media(max-width:800px){
+  .report-screen{padding:30px 20px 60px}
+  .report-toolbar{align-items:flex-start;flex-direction:column}
+  .report-frame{height:70vh}
+}
 @media(max-width:900px){
   .chat-screen{padding:30px 20px 60px}
   .chat-layout{grid-template-columns:1fr;gap:20px}

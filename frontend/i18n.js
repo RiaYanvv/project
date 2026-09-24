@@ -597,6 +597,50 @@ Object.assign(ZH_TEXT, {
   "will be removed from My Decisions. This cannot be undone.": "将从 My Decisions 中移除，此操作不可恢复。",
   "The decision record, its scenario results and any conversation saved with it are deleted from this browser.": "该决策记录、情景结果以及随它保存的对话都会从本浏览器中删除。",
   "Delete project": "删除项目",
+  /* Final decision report */
+  "Final decision report": "最终决策报告",
+  "Final Decision Report": "最终决策报告",
+  "Preparing your Executive Decision Report…": "正在生成你的执行决策报告…",
+  "Compiling the whole consultation into one document for review and download.": "正在把整段咨询整理成一份可供查看与下载的文档。",
+  "Finalizing company profile": "整理企业画像",
+  "Consolidating risk assessment": "汇总风险评估",
+  "Updating scenario analysis": "更新情景分析",
+  "Integrating consultation insights": "整合咨询洞见",
+  "Preparing evidence references": "整理证据引用",
+  "Generating final report": "生成最终报告",
+  "← Back to Consultation": "← 返回咨询",
+  "End Consultation & Save Decision": "结束咨询并保存决策",
+  "Download PDF": "下载 PDF",
+  "Executive Decision Report": "执行决策报告",
+  "Generated": "已生成",
+  "PDF from the Agent report service": "PDF 由 Agent 报告服务生成",
+  "PDF not available without a live Agent run": "没有实时 Agent 运行时无法生成 PDF",
+  "This report is outdated — the analysis changed after it was generated. Generate the report again to refresh it.": "这份报告已过期 —— 生成之后分析发生了改动，请重新生成以刷新。",
+  "The PDF is produced by the backend report service": "PDF 由后端报告服务生成",
+  "This session has no live Agent run, so no PDF exists yet. Once the Agent service is connected, the report returned by": "本次会话没有实时 Agent 运行，因此还没有 PDF。接入 Agent 服务后，下面这个接口返回的报告会被原样嵌入此处：",
+  "is embedded here unchanged.": "。",
+  "The report will contain": "报告将包含",
+  "Executive summary": "执行摘要",
+  "Company profile": "企业画像",
+  "Current supply chain situation": "当前供应链情况",
+  "Key risk assessment": "关键风险评估",
+  "Scenario comparison": "情景比较",
+  "Consultation insights": "咨询洞见",
+  "Final decision / recommendation": "最终决策 / 建议",
+  "Evidence sources": "证据来源",
+  "Uncertainties & limitations": "不确定性与限制",
+  "Save decision": "保存决策",
+  "Save this decision project?": "保存这个决策项目吗？",
+  "The following will be saved:": "以下内容会被保存：",
+  "Evidence": "证据",
+  "Risk assessment": "风险评估",
+  "Consultation history": "咨询历史",
+  "Generated PDF report": "生成的 PDF 报告",
+  "Save & Return Home": "保存并返回首页",
+  "Decision project saved to My Decisions.": "决策项目已保存到 My Decisions。",
+  "Back in the consultation — the generated report stays available.": "已回到咨询界面 —— 已生成的报告仍然保留。",
+  "The PDF needs a live Agent run — connect the report service to download it.": "下载 PDF 需要实时 Agent 运行 —— 请先接入报告服务。",
+  "Preparing the Executive Decision Report — you can review it, download it, or come back to the consultation.": "正在准备执行决策报告 —— 你可以查看、下载，也可以返回继续咨询。",
 });
 
 ZH_PATTERNS.push(
@@ -604,6 +648,12 @@ ZH_PATTERNS.push(
   [/^Document: (.+)$/, "文档：$1"],
 );
 ZH_FRAGMENTS.push([/Updated: /g, "更新于："]);
+ZH_FRAGMENTS.push(
+  [/Generated /g, "生成于："],
+  [/Report v(\d+)/g, "报告 v$1"],
+  [/PDF not available without a live Agent run/g, "无实时 Agent 运行时无法生成 PDF"],
+  [/Executive Decision Report/g, "执行决策报告"],
+);
 
 /* Meta lines are composed from several values, so they are matched by shape. */
 ZH_PATTERNS.push(
