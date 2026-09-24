@@ -348,6 +348,55 @@ const ZH_TEXT = {
   "Documents are attached to this browser session. Ingestion into the knowledge base needs the upload endpoint listed in backend changes.md.": "文档已附在本次浏览器会话中。要进入知识库，需要 backend changes.md 里列出的上传接口。",
 };
 
+/* Second pass: labels that are uppercased by CSS, profile grid cells, and the
+   preview (mock) analysis content so the demo reads fully in Chinese. */
+Object.assign(ZH_TEXT, {
+  "AI Supply Chain Relocation": "AI 供应链迁移",
+  "Decision Agent": "决策助手",
+  "Risk overview": "风险总览",
+  "IN THIS ASSESSMENT": "本页内容",
+  "Company": "公司",
+  "Industry": "行业",
+  "Main product": "主要产品",
+  "Production footprint": "生产布局",
+  "Target markets": "目标市场",
+  "Decision drivers": "决策驱动",
+  "Decision trigger": "决策驱动",
+  "Priorities": "优先级",
+  "Investment budget": "投资预算",
+  "Planning horizon": "规划期限",
+  "Timeline": "时间期限",
+  "Review these before any capacity commitment.": "在做产能承诺之前请先审视这些风险。",
+  "Worth monitoring through the implementation window.": "在实施周期内值得持续跟踪。",
+  "Low severity on the current evidence.": "按现有证据属于低严重度。",
+  "No risks identified yet": "暂未识别到风险",
+  "Adjust the decision profile and run the assessment again.": "调整决策画像后重新运行评估。",
+  "Levels show direction based on available evidence — not a prediction or a legal conclusion.": "风险等级反映的是现有证据下的方向，不是预测，也不是法律结论。",
+  "Review before any capacity commitment.": "在做产能承诺前请先审视。",
+  "No evidence was attached to this assessment.": "本次评估没有附带证据。",
+  "No confidence or uncertainty notes were reported.": "没有报告置信度或不确定性说明。",
+  "No specific uncertainties were reported for this assessment.": "本次评估没有报告具体的不确定性。",
+  "Key assumptions:": "关键假设：",
+  "US tariff exposure": "美国关税风险",
+  "Trade-policy exposure": "贸易政策风险",
+  "Supplier ecosystem dependency": "供应商生态依赖",
+  "Export-control and compliance screening": "出口管制与合规审查",
+  "Implementation and capacity ramp-up": "实施与产能爬坡",
+  "Changes in US trade policy could materially affect the landed-cost position of products serving this market.": "美国贸易政策的变化可能显著影响面向该市场产品的到岸成本。",
+  "Changing trade measures may affect cost, lead time and market access across your current footprint.": "贸易措施变化可能影响你现有布局的成本、交期与市场准入。",
+  "The current footprint may depend on supplier capacity, engineering support or critical inputs located outside the production market.": "当前布局可能依赖生产地之外的供应商产能、工程支持或关键投入。",
+  "Customer screening, product classification and licence requirements can add lead time or restrict access to specific buyers.": "客户筛查、产品分类与许可要求会增加交期，或限制对特定买家的销售。",
+  "Any change to production allocation requires time for qualification, workforce ramp-up and customer certification.": "任何生产分配调整都需要资格认证、人员爬坡与客户认证的时间。",
+  "Announced measures can change before implementation, and product-level classifications may differ from the headline policy.": "已公布的措施在落地前可能变化，具体产品的分类也可能与政策口径不同。",
+  "Supplier concentration is inferred from your inputs rather than verified bill-of-materials data.": "供应商集中度是根据你的输入推断的，并非经过验证的物料清单数据。",
+  "Whether your specific products fall under current control lists is not confirmed by public sources.": "公开来源无法确认你的具体产品是否落在现行管制清单内。",
+  "Certification lead times are company specific and are not covered by public sources.": "认证周期因企业而异，公开来源不会覆盖。",
+  "Hybrid Diversification": "混合多元化布局",
+  "Maintain Current Layout": "维持现有布局",
+  "Increase China Production": "提高中国产能占比",
+  "Preview only — connect the Agent service for a recommendation.": "当前仅为预览 —— 接入 Agent 服务后会给出建议。",
+});
+
 /* Counter-style strings that carry live values. */
 const ZH_PATTERNS = [
   [/^Total (.+)$/, "合计 $1"],
@@ -368,6 +417,22 @@ const ZH_PATTERNS = [
   [/^(\d+) more items? still need input\.$/, "还有 $1 项需要填写。"],
   [/^Assessment (ASM-\S+)$/, "评估编号 $1"],
   [/^(DEC-\S+) · (.+)$/, "$1 · $2"],
+  [/^(.+) operates across (.+), with a decision horizon of (.+)\.$/, "$1 的生产布局为 $2，规划期限为 $3。"],
+  [/^(\d+) exposures identified, (\d+) of them high priority — concentrated in (.+)\.$/, "识别出 $1 项风险，其中 $2 项为高优先级 —— 集中在 $3。"],
+  [/^The assessment draws on (\d+) retrieved evidence items? \(preview placeholders\)\.$/, "本次评估基于 $1 条检索到的证据（预览占位）。"],
+  [/^The assessment draws on (\d+) retrieved evidence items? from the project knowledge base\.$/, "本次评估基于项目知识库中检索到的 $1 条证据。"],
+  [/^Reported confidence is (.+), and the findings are flagged for human review\.$/, "报告的置信度为 $1，且结论已标记为需要人工复核。"],
+  [/^Reported confidence is (.+)\.$/, "报告的置信度为 $1。"],
+  [/^I have reviewed the profile for (.+), the evidence set, the risk assessment and (\d+) scenario options?\.$/, "我已查阅 $1 的企业画像、证据集、风险评估与 $2 个情景方案。"],
+  [/^The current leading option is (.+) at (\d+)\/100, with (\d+) high-priority exposures? to manage\.$/, "当前领先方案是 $1，综合分 $2/100，另有 $3 项高优先级风险需要应对。"],
+  [/^(\d+) options were compared\. (.+) scores highest at (\d+)\/100, ahead of (.+) \((\d+)\/100\)\.$/, "共比较 $1 个方案，$2 得分最高（$3/100），领先 $4（$5/100）。"],
+  [/^Strongest dimension: (.+) \((\d+)\); weakest: (.+) \((\d+)\)\.$/, "最强维度：$1（$2）；最弱维度：$3（$4）。"],
+  [/^The overall score is weighted by your stated priorities: (.+)\.$/, "综合评分按你填写的优先级加权：$1。"],
+  [/^No priority ranking was provided, so the five dimensions are weighted equally\.$/, "未提供优先级排序，因此五个维度等权。"],
+  [/^Production footprint: (.+)$/, "生产布局：$1"],
+  [/^Target markets: (.+)$/, "目标市场：$1"],
+  [/^Decision: (.+)$/, "决策：$1"],
+  [/^Main product: (.+)$/, "主要产品：$1"],
 ];
 
 const ZH_PLACEHOLDERS = {
@@ -403,10 +468,29 @@ function translateString(value) {
   const text = String(value || "").trim();
   if (!text) return null;
   if (ZH_TEXT[text]) return ZH_TEXT[text];
+  let candidate = null;
   for (const [pattern, replacement] of ZH_PATTERNS) {
-    if (pattern.test(text)) return text.replace(pattern, replacement);
+    if (pattern.test(text)) { candidate = text.replace(pattern, replacement); break; }
   }
-  return null;
+  // Composed lines (meta rows) mix translated and untranslated fragments.
+  if (candidate !== null) return applyFragments(candidate);
+  const fragments = applyFragments(text);
+  return fragments === text ? null : fragments;
+}
+
+const ZH_FRAGMENTS = [
+  [/(\d+) evidence items? retrieved/g, "已检索 $1 条证据"],
+  [/(\d+) scenarios? compared/g, "已比较 $1 个情景"],
+  [/(\d+) messages? in this session/g, "本次会话 $1 条消息"],
+  [/Preview assessment/g, "预览评估"],
+  [/Preview consultation/g, "预览咨询"],
+  [/Agent service not connected/g, "未连接 Agent 服务"],
+];
+
+function applyFragments(text) {
+  let out = text;
+  ZH_FRAGMENTS.forEach(([pattern, replacement]) => { out = out.replace(pattern, replacement); });
+  return out;
 }
 
 function translateTextNode(node) {
@@ -473,3 +557,17 @@ const i18nObserver = new MutationObserver(mutations => {
   if (i18nState.lang !== "zh") return;
   mutations.forEach(mutation => mutation.addedNodes.forEach(node => i18nWalk(node)));
 });
+
+/* Sentences whose markup splits the English across several text nodes. */
+Object.assign(ZH_TEXT, {
+  "Give Locus a clear picture of your business, footprint and decision. Fields marked": "把企业、生产布局与决策信息告诉 Locus。标记",
+  "are required.": "的为必填项。",
+});
+
+/* Meta lines are composed from several values, so they are matched by shape. */
+ZH_PATTERNS.push(
+  [/^Preview assessment · Agent service not connected · (.+)$/, "预览评估 · 未连接 Agent 服务 · $1"],
+  [/^Preview consultation · Agent service not connected · (.+)$/, "预览咨询 · 未连接 Agent 服务 · $1"],
+  [/^Preview scenario estimates · Agent service not connected · (.+)$/, "预览情景估算 · 未连接 Agent 服务 · $1"],
+  [/^Consultation runs against the retrieved evidence set · (.+)$/, "咨询基于已检索的证据集 · $1"],
+);
