@@ -296,6 +296,10 @@ input.field-invalid,select.field-invalid,textarea.field-invalid{border-color:#d8
   .chat-bubble{max-width:100%}
 }
 
+.lang-toggle{padding:8px 12px;border:1px solid #cbdde7;border-radius:4px;color:#3f6b8b;font:600 12px var(--sans)}
+.lang-toggle:hover{border-color:var(--blue);color:var(--blue)}
+@media(max-width:800px){.nav-link.lang-toggle{display:inline-block}}
+
 /* Must stay last: author display rules such as .modal{display:grid} would
    otherwise override the hidden attribute and leave panels permanently open. */
 [hidden]{display:none}

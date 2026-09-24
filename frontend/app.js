@@ -1311,15 +1311,6 @@ function handleChatFiles(files) {
   appendChatMessage({ role: "assistant", content: "New information received.", prompt: true });
 }
 
-function continueConsultation() {
-  const input = $("#chat-input");
-  appendChatMessage({
-    role: "assistant",
-    content: "Of course. The most decision-relevant gaps right now are supplier concentration, the cost gap between locations, and any customer origin requirements. Which of those can you speak to?",
-  });
-  input?.focus();
-}
-
 async function rerunAssessmentForChat() {
   const profile = { ...(state.assessment.company_profile || {}) };
   const additions = [...chatState.updated, ...chatState.documents.map(name => `Document provided: ${name}`)];
@@ -1635,7 +1626,7 @@ document.addEventListener("click", event => {
   if (event.target.closest("#profile-expand")) { const extra = $("#profile-extra"); extra.hidden = !extra.hidden; $("#profile-expand").innerHTML = extra.hidden ? "View full profile <span>↓</span>" : "Hide full profile <span>↑</span>"; }
   if (event.target.closest("#simulate-button")) runScenarioSimulation();
   if (event.target.closest("#consultation-button")) openChat();
-  if (event.target.closest("#chat-continue")) continueConsultation();
+  if (event.target.closest("#lang-toggle")) toggleLanguage();
   if (event.target.closest("#chat-update") || event.target.closest("[data-chat-update]")) runScenarioUpdate();
   if (event.target.closest("[data-chat-review]")) reviewFirst();
   if (event.target.closest("#chat-report")) openReportModal();
@@ -1779,3 +1770,7 @@ renderProjects();
 updateSummaryCount();
 document.querySelector('input[name="decision_type"]:checked')?.dispatchEvent(new Event("change", { bubbles: true }));
 updateFormProgress();
+
+/* Language: translate the rendered page and keep translating anything added later. */
+i18nObserver.observe(document.body, { childList: true, subtree: true });
+applyLanguage(storedLanguage());

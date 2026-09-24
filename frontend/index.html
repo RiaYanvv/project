@@ -32,6 +32,7 @@
           <button type="button" class="nav-link" data-screen-target="history">My Decision</button>
           <button type="button" class="nav-link nav-cta" id="primary-nav-action" data-screen-target="consultation">Start New Decision <span>↗</span></button>
           <button type="button" class="nav-link" data-screen-target="news">News</button>
+          <button type="button" class="nav-link lang-toggle" id="lang-toggle">中文</button>
         </nav>
       </header>
 
@@ -264,7 +265,6 @@
               </div>
             </form>
             <div class="chat-actions">
-              <button class="button button-secondary" type="button" id="chat-continue">Continue consultation</button>
               <button class="button button-secondary" type="button" id="chat-update">Update scenario analysis <span>→</span></button>
               <button class="button button-primary" type="button" id="chat-report">Generate final report <span>→</span></button>
             </div>
@@ -307,6 +307,7 @@
          window.LOCUS_API_KEY  = "your DeepSeek API key";
          window.LOCUS_MODEL    = "deepseek-flash";
          Without them the page runs in local preview mode. -->
+    <script src="./i18n.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>
