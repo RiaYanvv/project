@@ -385,6 +385,7 @@ function mapApiAssessment(api, profile) {
     },
     limitations: api.limitations || [],
     trace: (api.trace || []).map(step => ({ agent: step.agent, action: step.action, detail: step.detail, status: step.status })),
+    scenarios: (api.scenarios || []).map(item => mapScenario(item, evidenceFor, { data_mode: api.data_mode || "" })),
     meta: {
       assessment_id: api.assessment_id || "",
       model_name: api.model_name || "",
@@ -416,7 +417,43 @@ function mockAssessment(profile) {
         { evidence_id: "EVD-DEMO-006", title: "Geopolitical risk readiness", publisher: "McKinsey & Company", date: "2025-09-30", authority: "Authority C", url: "https://www.mckinsey.com/capabilities/risk-and-resilience/our-insights/how-companies-can-strengthen-their-geopolitical-risk-readiness", source_type: "industry_report", country_region: "GLOBAL", topic: "operational_risk", content: "Survey evidence on how companies organise geopolitical risk assessment and how long operational changes such as shifting production lines typically take." },
       ] },
     ],
+    scenarios: [
+      {
+        scenario_id: "SCN-001",
+        name: "Hybrid Diversification",
+        description: "Keep the existing China and Vietnam capacity and add a third qualified location for the most tariff-exposed volumes, so no single market carries the whole export book.",
+        weighted_score: isUsMarket ? 84 : 80,
+        cost_score: 72, resilience_score: 90, geopolitical_risk_score: 86, market_access_score: 80, implementation_score: 66,
+        benefits: ["Reduces single-country tariff exposure", "Keeps the mature battery supplier ecosystem available", "Improves resilience if one location is disrupted"],
+        risks: ["Higher coordination and quality overhead across sites", "Extra qualification and certification effort", "Investment is required before the cost benefit is proven"],
+        applicable_conditions: ["Investment capacity for a third site or contract-manufacturing partner", "Customer acceptance of multi-origin supply", "Tariff treatment of the current locations stays broadly stable"],
+        evidence_ids: ["EVD-DEMO-003", "EVD-DEMO-004"],
+      },
+      {
+        scenario_id: "SCN-002",
+        name: "Maintain Current Layout",
+        description: "Keep the current production distribution and manage exposure through inventory, pricing and contract terms instead of moving capacity.",
+        weighted_score: isUsMarket ? 71 : 76,
+        cost_score: 88, resilience_score: 52, geopolitical_risk_score: 45, market_access_score: 62, implementation_score: 92,
+        benefits: ["No relocation or qualification cost", "Existing cost base and supplier relationships preserved", "Fastest to execute — no new site required"],
+        risks: ["Tariff exposure on the main export lane remains", "Supplier concentration is not addressed", "Limited room to absorb a further policy shock"],
+        applicable_conditions: ["Current tariff treatment stays acceptable", "Cost parity is the dominant decision criterion", "No customer requirement forces a second origin"],
+        evidence_ids: ["EVD-DEMO-001", "EVD-DEMO-002"],
+      },
+      {
+        scenario_id: "SCN-003",
+        name: "Increase China Production",
+        description: "Shift a larger share of production into China to use the deeper supplier ecosystem, while keeping overseas export capacity running.",
+        weighted_score: isUsMarket ? 68 : 78,
+        cost_score: 82, resilience_score: 74, geopolitical_risk_score: 40, market_access_score: 52, implementation_score: 78,
+        benefits: ["Stronger supplier ecosystem and engineering support", "Lower coordination complexity", "Faster manufacturing scaling for new products"],
+        risks: ["Higher tariff exposure for products sold into the US", "Export-control and compliance screening burden", "Customer origin requirements may restrict where output can be sold"],
+        applicable_conditions: ["US tariff treatment of China-origin goods does not deteriorate further", "Customers accept China-origin cells for the affected programmes"],
+        evidence_ids: ["EVD-DEMO-001", "EVD-DEMO-005"],
+      },
+    ],
     recommendation: {
+      recommended_scenario_id: "SCN-001",
       headline: "Preview only — connect the Agent service for a recommendation.",
       rationale: "This is a demonstration assessment generated in the browser. It shows the structure of the output, not an analysed result.",
       confidence: "low",
@@ -440,20 +477,30 @@ function mockAssessment(profile) {
 
 /* --------------------------------------------------------------- analysis */
 
-function setStage(index, status) {
-  const item = document.querySelectorAll("#analysis-stages li")[index];
+function setStageIn(listId, index, status) {
+  const item = document.querySelectorAll(`#${listId} li`)[index];
   if (!item) return;
   item.classList.toggle("working", status === "working");
   item.classList.toggle("done", status === "done");
   item.querySelector("span").textContent = status === "done" ? "Complete" : status === "working" ? "In progress" : "Waiting";
 }
 
-function resetStages() {
-  document.querySelectorAll("#analysis-stages li").forEach((item, index) => setStage(index, "idle"));
+function eachStageIn(listId, status) {
+  document.querySelectorAll(`#${listId} li`).forEach((item, index) => setStageIn(listId, index, status));
 }
 
-function completeStages() {
-  document.querySelectorAll("#analysis-stages li").forEach((item, index) => setStage(index, "done"));
+function setStage(index, status) { setStageIn("analysis-stages", index, status); }
+function resetStages() { eachStageIn("analysis-stages", "idle"); }
+function completeStages() { eachStageIn("analysis-stages", "done"); }
+
+function updateSimProgress() {
+  const items = [...document.querySelectorAll("#sim-stages li")];
+  const done = items.filter(item => item.classList.contains("done")).length;
+  const percent = items.length ? Math.round((done / items.length) * 100) : 0;
+  const fill = $("#sim-fill");
+  const label = $("#sim-label");
+  if (fill) fill.style.width = `${percent}%`;
+  if (label) label.textContent = `${percent}% complete`;
 }
 
 function handleStageEvent(event) {
@@ -541,6 +588,77 @@ const SEVERITY_LEVEL = { critical: "high", high: "high", medium: "medium", low: 
 const LEVEL_LABEL = { high: "High", medium: "Medium", low: "Low", unknown: "Not assessed" };
 const LEVEL_RADIUS = { high: 1, medium: 0.68, low: 0.4, unknown: 0.18 };
 const BUDGET_LABELS = { 500000: "< USD 1M", 5000000: "USD 1–10M", 30000000: "USD 10–50M", 75000000: "USD 50M+" };
+
+/* UI.md scenario page: five evaluation dimensions, overall score plus confidence. */
+const SCENARIO_DIMENSIONS = [
+  ["cost", "Cost impact"],
+  ["resilience", "Supply resilience"],
+  ["geopolitical_risk", "Geopolitical risk"],
+  ["market_access", "Market access"],
+  ["feasibility", "Feasibility"],
+];
+
+function evidenceConfidence(item) {
+  const level = String(item.authority || "");
+  if (level.includes("A")) return "High";
+  if (level.includes("B")) return "Medium";
+  return "Low";
+}
+
+/* The Agent API has no per-scenario confidence field, so it is derived from the
+   evidence linked to the scenario and whether a real retrieval run happened. */
+function scenarioConfidence(scenario, meta) {
+  const items = scenario.evidence || [];
+  if (meta?.data_mode === "preview") {
+    return { label: "Low", reason: "preview estimate — no retrieval or model run happened" };
+  }
+  if (!items.length) return { label: "Low", reason: "no evidence is linked to this scenario" };
+  const strong = items.some(item => String(item.authority).includes("A"));
+  if (items.length >= 3 && strong) return { label: "High", reason: `${items.length} linked sources including authority A material` };
+  if (items.length >= 2) return { label: "Medium", reason: `${items.length} linked sources, no authority A material` };
+  return { label: "Low", reason: "only one linked source" };
+}
+
+function mapScenario(item, evidenceFor, meta) {
+  const scenario = {
+    scenario_id: item.scenario_id || "",
+    name: item.name || "Scenario",
+    summary: item.description || "",
+    overall_score: Math.round(Number(item.weighted_score) || 0),
+    scores: {
+      cost: Math.round(Number(item.cost_score) || 0),
+      resilience: Math.round(Number(item.resilience_score) || 0),
+      geopolitical_risk: Math.round(Number(item.geopolitical_risk_score) || 0),
+      market_access: Math.round(Number(item.market_access_score) || 0),
+      feasibility: Math.round(Number(item.implementation_score) || 0),
+    },
+    benefits: item.benefits || [],
+    risks: item.risks || [],
+    assumptions: item.applicable_conditions || [],
+    evidence: (item.evidence_ids || []).map(evidenceFor),
+  };
+  scenario.confidence = scenarioConfidence(scenario, meta);
+  return scenario;
+}
+
+/* Evidence is stored per risk on the frontend, so scenario evidence references
+   are resolved through this lookup. */
+function evidenceLookupFromRisks(risks) {
+  const library = [];
+  (risks || []).forEach(risk => (risk.evidence || []).forEach(item => {
+    if (!library.some(existing => existing.evidence_id === item.evidence_id)) library.push(item);
+  }));
+  return (id) => library.find(item => item.evidence_id === id)
+    || { evidence_id: id, title: id, publisher: "Evidence reference", date: "", authority: "", url: null };
+}
+
+/* Scenarios arrive already mapped from the Agent path, and in raw API shape from
+   the local preview, so normalise whichever form is present. */
+function normalizeScenarios(assessment) {
+  const evidenceFor = evidenceLookupFromRisks(assessment.risks);
+  const meta = { data_mode: assessment.meta?.data_mode || "" };
+  return (assessment.scenarios || []).map(item => (item && item.scores ? item : mapScenario(item, evidenceFor, meta)));
+}
 
 function levelOf(risks) {
   const levels = risks.map(risk => SEVERITY_LEVEL[risk.severity] || "medium");
@@ -774,6 +892,159 @@ function renderAssessment(assessment) {
   guard(() => renderUncertainty(assessment));
 }
 
+/* ----------------------------------------------------- scenario simulation */
+
+function runScenarioSimulation() {
+  const assessment = state.assessment;
+  if (!assessment || !(assessment.scenarios || []).length) {
+    showToast("Run the assessment first — scenario options come from the Agent run.");
+    return;
+  }
+  showScreen("scenario-loading");
+  eachStageIn("sim-stages", "idle");
+  updateSimProgress();
+  const total = document.querySelectorAll("#sim-stages li").length;
+  let position = 0;
+  const timer = setInterval(() => {
+    if (position > 0) setStageIn("sim-stages", position - 1, "done");
+    if (position < total) { setStageIn("sim-stages", position, "working"); position += 1; }
+    else clearInterval(timer);
+    updateSimProgress();
+  }, 500);
+  setTimeout(() => {
+    clearInterval(timer);
+    eachStageIn("sim-stages", "done");
+    updateSimProgress();
+    try { renderScenarios(assessment); } catch (error) { showToast(`Scenario rendering issue: ${error.message}`); }
+    setTimeout(() => showScreen("scenarios"), 420);
+  }, 3100);
+}
+
+function dimensionList(scores) {
+  return SCENARIO_DIMENSIONS.map(([key, label]) => {
+    const value = Math.max(0, Math.min(100, Number(scores[key]) || 0));
+    return `<li><span class="dim-label">${escapeHtml(label)}</span><span class="dim-bar"><i style="width:${value}%"></i></span><b>${value}</b></li>`;
+  }).join("");
+}
+
+function bulletBlock(title, items, emptyText) {
+  if (items && items.length) {
+    return `<div class="scenario-block"><b>${title}</b><ul>${items.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>`;
+  }
+  return emptyText ? `<div class="scenario-block"><b>${title}</b><p class="muted">${emptyText}</p></div>` : "";
+}
+
+function scenarioDetail(scenario, index, weighting) {
+  const ranked = SCENARIO_DIMENSIONS.map(([key, label]) => ({ label, value: scenario.scores[key] })).sort((a, b) => b.value - a.value);
+  const strongest = ranked[0];
+  const weakest = ranked[ranked.length - 1];
+  const evidence = (scenario.evidence || []).length
+    ? `<div class="scenario-block"><b>Evidence support</b><ul class="scenario-evidence">${scenario.evidence.map(item => `<li><span>${escapeHtml(item.publisher)} — ${escapeHtml(item.title)}</span><em>${escapeHtml([item.date, item.authority].filter(Boolean).join(" · "))}</em><span class="evidence-conf">Confidence: ${evidenceConfidence(item)}</span></li>`).join("")}</ul></div>`
+    : `<div class="scenario-block"><b>Evidence support</b><p class="muted">No source is linked to this scenario yet.</p></div>`;
+  return `
+    <div class="scenario-detail" id="scenario-detail-${index}" hidden>
+      <div class="scenario-block"><b>Scenario overview</b><p>${escapeHtml(scenario.summary || "")}</p></div>
+      ${bulletBlock("Potential benefits", scenario.benefits, "No benefits were listed.")}
+      ${bulletBlock("Potential risks", scenario.risks, "No risks were listed.")}
+      ${bulletBlock("Key assumptions", scenario.assumptions, "No assumptions were listed.")}
+      ${evidence}
+      <details class="scenario-why">
+        <summary>Why this assessment? <span>+</span></summary>
+        <div class="scenario-why-body">
+          <p><b>Scoring drivers.</b> Strongest dimension: ${escapeHtml(strongest.label)} (${strongest.value}); weakest: ${escapeHtml(weakest.label)} (${weakest.value}).</p>
+          <p><b>Weighting.</b> ${escapeHtml(weighting)}</p>
+          <p><b>Confidence.</b> ${escapeHtml(scenario.confidence.label)} — ${escapeHtml(scenario.confidence.reason)}.</p>
+          <p><b>Not a forecast.</b> Scores are estimates built from the evidence and assumptions listed above.</p>
+        </div>
+      </details>
+    </div>`;
+}
+
+function scenarioCard(scenario, index, recommendedId, weighting) {
+  const letter = String.fromCharCode(65 + index);
+  const recommended = Boolean(scenario.scenario_id && scenario.scenario_id === recommendedId);
+  return `
+  <article class="scenario-card${recommended ? " recommended" : ""}">
+    <header class="scenario-card-head">
+      <div><p class="scenario-tag">Scenario ${letter}</p><h4>${escapeHtml(scenario.name)}</h4></div>
+      ${recommended ? `<span class="scenario-badge">Recommended</span>` : ""}
+    </header>
+    <p class="scenario-summary">${escapeHtml(scenario.summary || "")}</p>
+    <div class="scenario-score"><b>${scenario.overall_score}</b><span>/ 100</span></div>
+    <p class="scenario-score-label">Overall score · Confidence: <b>${escapeHtml(scenario.confidence.label)}</b></p>
+    <ul class="scenario-dimensions">${dimensionList(scenario.scores)}</ul>
+    <button class="button button-secondary scenario-toggle" type="button" data-scenario-toggle="${index}" aria-expanded="false">View Analysis <span>→</span></button>
+    ${scenarioDetail(scenario, index, weighting)}
+  </article>`;
+}
+
+function reportSection(number, title, inner) {
+  return `<div class="report-block"><p class="report-number">${number}</p><div class="report-text"><h4>${escapeHtml(title)}</h4>${inner}</div></div>`;
+}
+
+function renderStrategicReport(assessment, scenarioList) {
+  const body = $("#report-body");
+  if (!body) return;
+  const profile = assessment.company_profile || {};
+  const risks = assessment.risks || [];
+  const scenarios = scenarioList || normalizeScenarios(assessment);
+  const recommendation = assessment.recommendation || {};
+  const best = scenarios[0];
+  const runnerUp = scenarios[1];
+  const footprint = (profile.production_locations || []).map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(" · ") || "not specified";
+  const markets = (profile.target_markets || []).map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(" · ") || "not specified";
+  const sources = [];
+  scenarios.forEach(scenario => (scenario.evidence || []).forEach(item => {
+    if (!sources.some(existing => existing.title === item.title && existing.publisher === item.publisher)) sources.push(item);
+  }));
+  const assumptions = [...new Set(scenarios.flatMap(scenario => scenario.assumptions || []))];
+  const questions = [];
+  const openRisks = risks.filter(risk => risk.verification === "unverified" || risk.verification === "partial");
+  if (openRisks.length) questions.push(`Verify the open items behind "${openRisks[0].name}" — the current sources are not company specific.`);
+  questions.push("What is the cost gap per unit between each production location, including logistics and duties?");
+  questions.push("Which critical components or materials have only one qualified supplier today?");
+  questions.push("What customer certifications or contract terms limit how quickly production can move?");
+  const table = `<table class="report-table"><thead><tr><th>Scenario</th><th>Overall</th><th>Strongest dimension</th><th>Main risk</th></tr></thead><tbody>${scenarios.map(scenario => {
+    const top = SCENARIO_DIMENSIONS.map(([key, label]) => ({ label, value: scenario.scores[key] })).sort((a, b) => b.value - a.value)[0];
+    return `<tr><td>${escapeHtml(scenario.name)}</td><td>${scenario.overall_score}/100</td><td>${escapeHtml(top.label)} (${top.value})</td><td>${escapeHtml((scenario.risks || [])[0] || "—")}</td></tr>`;
+  }).join("")}</tbody></table>`;
+  const summaryLine = scenarios.length
+    ? `${scenarios.length} options were compared. ${best.name} scores highest at ${best.overall_score}/100${runnerUp ? `, ahead of ${runnerUp.name} (${runnerUp.overall_score}/100)` : ""}.`
+    : "No scenario comparison is available yet.";
+  body.innerHTML = [
+    reportSection("1", "Executive summary", `<p>${escapeHtml(summaryLine)}</p>${recommendation.headline ? `<p>${escapeHtml(recommendation.headline)}</p>` : ""}`),
+    reportSection("2", "Company profile", `<p>${escapeHtml(`${profile.company_name || "The company"} · ${INDUSTRY_LABELS[profile.industry] || profile.industry || "industry not specified"}`)}</p><p>${escapeHtml(`Main product: ${profile.products || "not specified"}`)}</p>`),
+    reportSection("3", "Current supply chain overview", `<p>${escapeHtml(`Production footprint: ${footprint}`)}</p><p>${escapeHtml(`Target markets: ${markets}`)}</p><p>${escapeHtml(`Decision: ${profile.decision_question || "not specified"}`)}</p>`),
+    reportSection("4", "Key risks identified", risks.length ? `<ul>${risks.slice(0, 4).map(risk => `<li><b>${escapeHtml(risk.severity)}</b> — ${escapeHtml(risk.name)}: ${escapeHtml(risk.description || "")}</li>`).join("")}</ul>` : "<p>No risks were reported.</p>"),
+    reportSection("5", "Scenario comparison", table),
+    reportSection("6", "Evidence &amp; assumptions", `<p>${escapeHtml(`Sources used: ${sources.length}`)}</p>${sources.length ? `<ul>${sources.slice(0, 5).map(item => `<li>${escapeHtml(`${item.publisher} — ${item.title}${item.authority ? ` (${item.authority})` : ""}`)}</li>`).join("")}</ul>` : ""}${assumptions.length ? `<p>Key assumptions:</p><ul>${assumptions.slice(0, 5).map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}`),
+    reportSection("7", "Questions for further analysis", `<ul>${questions.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`),
+  ].join("");
+}
+
+function renderScenarios(assessment) {
+  const profile = assessment.company_profile || {};
+  const scenarios = normalizeScenarios(assessment);
+  const meta = assessment.meta || {};
+  const priorities = (profile.priorities || []).map(item => item.dimension);
+  const weighting = priorities.length
+    ? `The overall score is weighted by your stated priorities: ${priorities.join(" > ")}.`
+    : "No priority ranking was provided, so the five dimensions are weighted equally.";
+  $("#scenario-grid").innerHTML = scenarios.map((scenario, index) => scenarioCard(scenario, index, assessment.recommendation?.recommended_scenario_id || "", weighting)).join("");
+  const metaLine = $("#scenario-meta");
+  if (metaLine) {
+    metaLine.textContent = [
+      meta.assessment_id ? `Assessment ${meta.assessment_id}` : "",
+      meta.data_mode === "preview" ? "Preview scenario estimates · Agent service not connected" : "Live agent · scenario simulation",
+      meta.model_name && meta.model_name !== "preview" ? meta.model_name : "",
+      `${scenarios.length} scenario${scenarios.length === 1 ? "" : "s"} compared`,
+    ].filter(Boolean).join(" · ");
+  }
+  const mode = $("#scenario-mode");
+  if (mode) mode.textContent = meta.assessment_id ? "Live agent" : "Preview";
+  renderStrategicReport(assessment, scenarios);
+}
+
 function showToast(message) { const toast = $("#toast"); toast.textContent = message; toast.classList.add("show"); setTimeout(() => toast.classList.remove("show"), 4200); }
 
 function clearInvalidMarks() {
@@ -998,7 +1269,18 @@ document.addEventListener("click", event => {
   if (event.target.closest("#show-advanced")) { $("#advanced-fields").hidden = false; $("#show-advanced").hidden = true; updateFormProgress(); }
   if (event.target.closest("#hide-advanced")) { $("#advanced-fields").hidden = true; $("#show-advanced").hidden = false; updateFormProgress(); }
   if (event.target.closest("#profile-expand")) { const extra = $("#profile-extra"); extra.hidden = !extra.hidden; $("#profile-expand").innerHTML = extra.hidden ? "View full profile <span>↓</span>" : "Hide full profile <span>↑</span>"; }
-  if (event.target.closest("#simulate-button")) showToast("Scenario simulation connects to the Agent in the next build step.");
+  if (event.target.closest("#simulate-button")) runScenarioSimulation();
+  if (event.target.closest("#consultation-button")) showToast("The AI consultation workspace is the next page to build.");
+  const scenarioToggle = event.target.closest("[data-scenario-toggle]");
+  if (scenarioToggle) {
+    const detail = $(`#scenario-detail-${scenarioToggle.dataset.scenarioToggle}`);
+    if (detail) {
+      const open = detail.hidden;
+      detail.hidden = !open;
+      scenarioToggle.setAttribute("aria-expanded", String(open));
+      scenarioToggle.innerHTML = open ? "Hide analysis <span>↑</span>" : "View Analysis <span>→</span>";
+    }
+  }
   const openProject = event.target.closest("[data-open-project]");
   const radarTarget = event.target.closest("[data-risk-target]");
   if (radarTarget) {

@@ -158,6 +158,71 @@
         </div>
       </section>
 
+      <section class="screen analysis-screen" id="scenario-loading" aria-live="polite">
+        <div class="analysis-panel">
+          <span class="analysis-orbit"></span>
+          <p class="eyebrow">Scenario simulation</p>
+          <h2>Running Scenario Simulation</h2>
+          <p>Analyzing possible supply chain futures for your footprint, markets and constraints.</p>
+          <span class="sim-track"><i id="sim-fill"></i></span>
+          <p class="sim-label" id="sim-label">0% complete</p>
+          <ol class="analysis-stages" id="sim-stages">
+            <li>Reviewing company profile <span>Waiting</span></li>
+            <li>Analyzing supply-chain structure <span>Waiting</span></li>
+            <li>Retrieving evidence database <span>Waiting</span></li>
+            <li>Evaluating geopolitical risks <span>Waiting</span></li>
+            <li>Comparing relocation scenarios <span>Waiting</span></li>
+            <li>Generating scenario assessment <span>Waiting</span></li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="screen scenarios-screen" id="scenarios" aria-labelledby="scenarios-title">
+        <div class="assessment-heading scenario-heading">
+          <div>
+            <p class="eyebrow">Scenario simulation <span class="live-tag" id="scenario-mode">Prepared</span></p>
+            <h2 id="scenarios-title">Strategic Scenario Analysis</h2>
+            <p class="assessment-meta" id="scenario-meta"></p>
+          </div>
+          <div class="assessment-actions"><button class="button button-secondary" type="button" data-screen-target="assessment">Back to assessment <span>↑</span></button></div>
+        </div>
+        <div class="assessment-layout scenario-layout">
+          <aside class="assessment-nav">
+            <p>ON THIS PAGE</p>
+            <a href="#scenario-dashboard">Scenario comparison</a>
+            <a href="#scenario-report">Initial strategic assessment</a>
+            <a href="#scenario-next">Continue consultation</a>
+            <div class="assessment-disclaimer">Scores are AI-generated estimates based on available evidence and stated assumptions. They are not predictions of future outcomes.</div>
+          </aside>
+          <div class="assessment-content">
+            <section class="assessment-section" id="scenario-dashboard">
+              <div class="section-title-row">
+                <div><p class="section-number">01 / OPTION COMPARISON</p><h3>Scenario comparison</h3></div>
+                <p class="section-note">Overall score is weighted by your stated priorities</p>
+              </div>
+              <p class="scenario-subtitle">AI-generated assessment based on the company profile, evidence database, risk analysis and your constraints.</p>
+              <div class="scenario-grid" id="scenario-grid"></div>
+              <p class="scenario-disclaimer">Scores are AI-generated estimates based on available evidence and assumptions. They are not predictions of future outcomes.</p>
+            </section>
+            <section class="assessment-section" id="scenario-report">
+              <div class="section-title-row">
+                <div><p class="section-number">02 / PRELIMINARY REPORT</p><h3>Initial strategic assessment</h3></div>
+                <p class="section-note">Sections follow the report outline in UI.md</p>
+              </div>
+              <div class="report-body" id="report-body"></div>
+            </section>
+            <section class="next-step" id="scenario-next">
+              <div>
+                <p class="eyebrow">From comparison to decision</p>
+                <h3>Want to refine these scenarios?</h3>
+                <p>Continue the consultation to add supplier, cost or customer constraints and update the analysis.</p>
+              </div>
+              <button class="button button-primary" type="button" id="consultation-button">Continue AI Consultation <span>→</span></button>
+            </section>
+          </div>
+        </div>
+      </section>
+
       <section class="screen history-screen" id="history" aria-labelledby="history-title">
         <p class="eyebrow">My decisions</p>
         <h2 id="history-title">Decision projects</h2>
