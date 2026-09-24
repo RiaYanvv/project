@@ -290,7 +290,7 @@ Do not add unnecessary technical complexity for the future News or enterprise ac
 
 
 Initial Assessment Page
-可以先是简单企业画像目录。再往下是风险雷达，分板块列出可能风险，板块色区从高风险到低风险颜色渐变。标题简洁说明，下面小字详细说明一下风险，并列出证据，每条证据为链接，点击可以看到数据原文。AI思考过程折叠，但是点击可以看到完整rationale。接下来底部是一个“进行模拟推演”的button，点击再重新接回agent进行模拟，这样可以比较突出特色。
+可以先是简单企业画像目录。企业目录不仅是刚刚填写信息的简单罗列，还应该有对企业的agent简短总结和分析。再往下是风险雷达，分板块列出可能风险，板块色区从高风险到低风险颜色渐变。标题简洁说明，下面小字详细说明一下风险，并列出证据，每条证据为链接，点击可以看到数据原文。AI思考过程折叠，但是点击可以看到完整rationale。接下来底部是一个“进行模拟推演”的button，点击再重新接回agent进行模拟，这样可以比较突出特色。
 ┌─────────────────────────────────────────────────┐
 │ Initial Supply Chain Assessment                 │
 │                                                 │
@@ -320,7 +320,7 @@ Initial Assessment Page
 │ [HIGH] US Tariff Exposure                       │
 │ Short explanation...                            │
 │                                                 │
-│ Evidence                                       │
+│ Evidence （这里的每个evidence在点击是应该可以呈现数据库或网页端原文、PDF之类的文档。内容要么来自data分支中的raw，要么来自search出的网页、数据集。）                                      │
 │ • USTR — ...                                   │
 │ • WTO — ...                                    │
 │                                                 │
@@ -1070,3 +1070,605 @@ Simulation Result
 └── Continue AI Consultation
 
 
+chat page
+咨询页面。这里点击开始聊天后先自动显示从刚刚那份初版报告开始，窗口界面就像一般LLM聊天。而这个报告要作为重要背景贯穿，随着用户给出的信息和展现的偏好不断更新。一开始ai方先给出提示，比如还加入哪些信息可以支持决策。每轮对话后有继续对话/scenario update（点击跳返模拟页面）/结束生成报告三个选项，同时增添增加文件等功能。点击后结束对话，跳转PDF生成页。
+# AI Consultation Workspace — Frontend Specification
+
+## 1. Overview
+
+Build the AI Consultation Workspace page for the Supply Chain Relocation Decision Agent.
+
+This page is entered after the user completes the Scenario Simulation stage.
+
+The purpose of this page is not to provide a normal chatbot experience, but to create an interactive decision refinement workspace.
+
+The system should allow users to:
+
+* Continue discussing the initial assessment
+* Provide additional business information
+* Upload supporting documents
+* Modify decision assumptions
+* Trigger updated scenario analysis
+* Generate the final executive decision report
+
+Core concept:
+
+```
+Initial Assessment
+        ↓
+AI Consultation
+        ↓
+Information Refinement
+        ↓
+Scenario Update
+        ↓
+Final Decision Report
+```
+
+---
+
+# 2. Entry State
+
+When the user clicks:
+
+```
+Continue AI Consultation →
+```
+
+Navigate to:
+
+```
+AI Consultation Workspace
+```
+
+The chat session should automatically load previous analysis context.
+
+The LLM should NOT start from an empty conversation.
+
+Required context:
+
+* Company Profile
+* Current Supply Chain Overview
+* Evidence Database
+* Risk Assessment
+* Scenario Simulation Results
+* Initial Strategic Assessment Report
+
+---
+
+# 3. Page Layout
+
+Desktop layout:
+
+```
+---------------------------------------------------
+| Decision Context Panel | AI Consultation Chat    |
+|                        |                         |
+| Company Profile        | AI messages             |
+| Current Risks          | User messages           |
+| Scenario Summary       |                         |
+| Updated Information    |                         |
+|                        | Action Buttons          |
+---------------------------------------------------
+```
+
+---
+
+# 4. Left Context Panel
+
+Purpose:
+
+Provide persistent decision context during the conversation.
+
+## Section 1: Company Profile
+
+Display:
+
+* Company name
+* Product/business
+* Production footprint
+* Target markets
+* Current decision question
+
+Example:
+
+```
+Company:
+ABC Battery
+
+Production:
+China 30%
+Vietnam 70%
+
+Market:
+United States
+
+Decision:
+Should we increase China production?
+```
+
+---
+
+## Section 2: Current Risk Summary
+
+Display identified risks:
+
+Example:
+
+```
+Key Risks:
+
+• Tariff exposure
+• Supplier dependency
+• Export control uncertainty
+```
+
+---
+
+## Section 3: Scenario Summary
+
+Display current scenario scores:
+
+Example:
+
+```
+Maintain Layout
+78/100
+
+Increase China Production
+75/100
+
+Hybrid Diversification
+86/100
+```
+
+---
+
+## Section 4: Updated Information
+
+Display new information provided during consultation.
+
+Example:
+
+```
+Updated Information:
+
++ Vietnam supplier dependency
++ Customer certification constraint
+```
+
+---
+
+# 5. Initial AI Message
+
+When entering the page, AI should automatically send a first message.
+
+Example:
+
+```
+I have reviewed your company profile, evidence analysis,
+risk assessment and scenario simulation.
+
+To improve the assessment, additional information may help:
+
+1. Supplier dependency
+2. Cost differences between locations
+3. Investment constraints
+4. Customer requirements
+5. Implementation timeline
+
+You can provide more information or ask questions.
+```
+
+Purpose:
+
+Guide users instead of showing an empty chat window.
+
+---
+
+# 6. Chat Interface
+
+The main area should follow enterprise LLM chat design.
+
+Requirements:
+
+* User message bubbles
+* AI response bubbles
+* Markdown rendering
+* Table rendering
+* Evidence link rendering
+* Expandable explanation sections
+
+The style should be:
+
+* Professional
+* Enterprise-oriented
+* Consulting assistant style
+
+Avoid:
+
+* Casual chatbot appearance
+* Entertainment-style UI
+
+---
+
+# 7. AI Response Structure
+
+AI responses should support structured outputs.
+
+Example:
+
+```
+Updated Assessment
+
+Based on your additional information:
+
+Risk Change:
+Supplier dependency risk increased.
+
+Scenario Impact:
+
+Hybrid strategy becomes more attractive because...
+
+Evidence:
+
+- McKinsey Report
+- Trade data source
+
+Uncertainty:
+
+Limited company-specific supplier data available.
+```
+
+---
+
+# 8. Analysis Explanation
+
+Do NOT display model chain-of-thought.
+
+Instead provide an expandable section:
+
+```
+Why this assessment?
+```
+
+When expanded:
+
+Display:
+
+* Factors considered
+* Evidence used
+* Key assumptions
+* Uncertainty explanation
+
+Example:
+
+```
+Factors considered:
+
+1. Existing supplier ecosystem
+2. Tariff exposure
+3. Relocation difficulty
+
+Key assumption:
+
+US tariff policy remains unchanged.
+```
+
+---
+
+# 9. Add Information Function
+
+Add a button:
+
+```
++ Add Information
+```
+
+Purpose:
+
+Allow users to provide additional decision-relevant information.
+
+Supported inputs:
+
+## File Upload
+
+Support:
+
+* PDF
+* DOCX
+* XLSX
+* CSV
+
+Examples:
+
+* Annual reports
+* Supply chain data
+* Supplier lists
+* Factory information
+* Internal risk assessments
+
+## Manual Information Addition
+
+Categories:
+
+```
+Add supplier information
+
+Add factory information
+
+Update production share
+
+Add cost information
+
+Add customer requirements
+```
+
+---
+
+# 10. Post-upload Flow
+
+After uploading information:
+
+Show:
+
+```
+New information received.
+
+Would you like to update the scenario analysis?
+```
+
+Options:
+
+```
+Review First
+
+Update Scenario
+```
+
+---
+
+# 11. Bottom Action Bar
+
+After each AI response, display three main actions.
+
+Layout:
+
+```
+[Continue Consultation]
+
+[Update Scenario Analysis]
+
+[Generate Final Report]
+```
+
+---
+
+# 12. Continue Consultation
+
+Default action.
+
+Behavior:
+
+* Keep current chat session
+* Allow further questions
+* Maintain previous context
+
+---
+
+# 13. Update Scenario Analysis
+
+Purpose:
+
+Re-run scenario simulation based on updated information.
+
+Button:
+
+```
+Update Scenario Analysis →
+```
+
+Flow:
+
+```
+Current Conversation Context
+
++
+New User Information
+
+        ↓
+
+Scenario Simulation Engine
+
+        ↓
+
+Updated Scenario Results
+```
+
+---
+
+# 14. Scenario Update Loading State
+
+Display:
+
+```
+Updating Scenario Analysis...
+
+Analyzing:
+
+✓ New business constraints
+✓ Updated risk factors
+✓ Additional evidence
+✓ User preferences
+```
+
+---
+
+# 15. Updated Scenario Result
+
+After update, return to Scenario Simulation page.
+
+Show comparison:
+
+Before:
+
+```
+Hybrid:
+82/100
+```
+
+After:
+
+```
+Hybrid:
+86/100 ↑
+```
+
+Explain:
+
+```
+Reason:
+
+Vietnam supplier dependency increases the value
+of China integration.
+```
+
+---
+
+# 16. Generate Final Report
+
+Button:
+
+```
+Generate Final Report →
+```
+
+Before generation show confirmation modal.
+
+Example:
+
+```
+Generate final decision report?
+
+The report will include:
+
+✓ Company Profile
+✓ Evidence Analysis
+✓ Risk Assessment
+✓ Scenario Comparison
+✓ Consultation Insights
+✓ Final Strategic Considerations
+```
+
+Button:
+
+```
+Confirm and Generate
+```
+
+---
+
+# 17. Report Generation Flow
+
+After confirmation:
+
+```
+End Consultation
+
+        ↓
+
+Compile:
+
+- Initial Assessment
+- Updated Analysis
+- Conversation Insights
+- Scenario Results
+- Evidence
+
+        ↓
+
+Generate PDF Report
+```
+
+Navigate to:
+
+```
+Executive Decision Report Page
+```
+
+---
+
+# 18. Frontend State Management Requirements
+
+The frontend should maintain:
+
+```json
+{
+  "company_profile": {},
+  "risk_assessment": {},
+  "scenario_results": {},
+  "conversation_history": [],
+  "uploaded_documents": [],
+  "updated_constraints": [],
+  "user_preferences": []
+}
+```
+
+---
+
+# 19. Backend API Expectations
+
+The chat API should not only return text.
+
+Expected response:
+
+```json
+{
+  "message": "",
+
+  "context_update": {
+    "new_constraints": [],
+    "new_preferences": []
+  },
+
+  "scenario_update_required": false,
+
+  "updated_analysis": {}
+}
+```
+
+The frontend should be able to:
+
+* Update context panel
+* Refresh scenario summary
+* Display new evidence
+* Trigger scenario update workflow
+
+---
+
+# 20. UI Style
+
+Maintain consistency with previous pages.
+
+Theme:
+
+* White background
+* Blue primary color
+* Professional enterprise AI style
+
+Components:
+
+* Chat bubbles
+* Context cards
+* Expandable evidence sections
+* Upload area
+* Action buttons
+* Progress indicators
+
+The final experience should feel like:
+
+"AI strategy consultant workspace"
+
+not:
+
+"general chatbot".

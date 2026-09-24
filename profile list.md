@@ -32,7 +32,7 @@ EU
 China
 ASEAN
 Other
-5、Decision Question
+5、Decision Question（有一个明显的问题，当用户选择第一个默认预设选项时，进度条不会改变，只有用户选择了其他选项才会改变，请修改）
 快捷选项
 Maintain current production structure
 Expand existing production
@@ -212,3 +212,5 @@ PDF / DOCX
 显示完成度
 允许先做 Quick，再回来做 Advanced
 移动端友好
+
+点击“开始分析”时如果有未填写内容应跳回该问题提醒用户填写
