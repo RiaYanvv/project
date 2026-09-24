@@ -134,6 +134,29 @@ label>small{display:block;margin-top:6px}
 #consultation .form-footer p{font-size:12.5px}
 #consultation .form-footer .button{font-size:15px;padding:15px 24px}
 .form-error{margin-top:26px;margin-bottom:-6px;padding:14px 16px;border:1px solid #e5bab1;border-left:3px solid var(--high);background:#fdf3f1;color:#8f3a2c;font-size:13.5px;line-height:1.6}
+.field-invalid{outline:2px solid #d8695a;outline-offset:3px;border-radius:3px}
+input.field-invalid,select.field-invalid,textarea.field-invalid{border-color:#d8695a;background:#fdf6f5}
+
+/* Company section: short Agent summary above the profile grid */
+.profile-summary{margin-top:22px;padding:20px 22px;border-left:3px solid var(--blue);background:#f3f8fb}
+.profile-summary-label{margin:0 0 9px;color:#6d8ba0;font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase}
+.profile-summary-text{margin:0;color:#3f5b70;font-size:14.5px;line-height:1.7}
+.profile-summary-points{margin:12px 0 0;padding-left:18px;color:#5a7182;font-size:13.5px;line-height:1.7}
+.profile-summary-points li{margin-bottom:4px}
+
+/* Evidence: click a source to read the retrieved original text */
+.evidence-card{border:0;margin-bottom:6px}
+.evidence-card summary{list-style:none;cursor:pointer}
+.evidence-card summary::-webkit-details-marker{display:none}
+.evidence-card summary:hover{background:#edf5f8}
+.evidence-card[open] summary{background:#eef6fa;color:var(--blue)}
+.evidence-preview{padding:12px 14px;background:#fbfdfe;border:1px solid #e2ecf1;border-top:0}
+.evidence-facts{margin:0 0 8px;color:#8293a0;font:500 9.5px var(--mono);letter-spacing:.06em;text-transform:uppercase}
+.evidence-excerpt{margin:0 0 10px;color:#5a7182;font-size:12.5px;line-height:1.7}
+.evidence-open{font-size:12px;font-weight:700;color:var(--blue);text-decoration:none}
+.evidence-open:hover{text-decoration:underline}
+.evidence-open.muted{color:#8293a0;font-weight:500;font-size:11.5px;line-height:1.6}
+.evidence-open.muted b{color:#5f7a8c}
 .completion-count{margin-left:10px;color:#7b8f9e;font:500 12px var(--mono)}
 
 /* My Decision: lightweight decision project list */

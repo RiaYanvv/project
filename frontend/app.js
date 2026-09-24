@@ -226,12 +226,18 @@ function readForm() {
   };
 }
 
-function validateDecision(profile) {
-  if (!profile.company_name || !profile.products) return "Please complete the required company fields.";
-  if (!profile.decision_type) return "Select what decision you are trying to make.";
-  if (!profile.production_locations.length || !profile.target_markets.length) return "Please add at least one production location and target market.";
-  if (!profile.restrictions.length) return "Select at least one factor driving this decision.";
-  return null;
+/* profile list.md: submitting with missing answers should jump back to the
+   question that still needs input and tell the user what is missing. */
+function findValidationIssue(profile) {
+  const form = $("#decision-form");
+  const issues = [];
+  if (!profile.company_name) issues.push({ message: "Company name is required.", target: form.company_name });
+  if (!profile.products) issues.push({ message: "Main product / business is required.", target: form.products });
+  if (!profile.decision_type) issues.push({ message: "Select the decision you are trying to make.", target: $("#decision-options") });
+  if (!profile.production_locations.length) issues.push({ message: "Add at least one production location.", target: $("#production-list") });
+  if (!profile.target_markets.length) issues.push({ message: "Add at least one target market.", target: $("#market-list") });
+  if (!profile.restrictions.length) issues.push({ message: "Select at least one factor driving this decision.", target: $("#restriction-options") });
+  return issues;
 }
 
 /* ------------------------------------------------- backend API contract */
@@ -342,13 +348,18 @@ function mapApiAssessment(api, profile) {
   const library = api.evidence || [];
   const evidenceFor = (id) => {
     const item = library.find(entry => entry.evidence_id === id);
-    if (!item) return { title: id, publisher: "Evidence reference", date: "", authority: "", url: null };
+    if (!item) return { evidence_id: id, title: id, publisher: "Evidence reference", date: "", authority: "", url: null, source_type: "", country_region: "", topic: "", content: "" };
     return {
+      evidence_id: item.evidence_id,
       title: item.title,
       publisher: item.publisher,
       date: item.publication_date || "",
       authority: item.authority_level ? `Authority ${item.authority_level}` : "",
       url: item.url || null,
+      source_type: item.source_type || "",
+      country_region: item.country_region || "",
+      topic: item.topic || "",
+      content: item.content || "",
     };
   };
   const recommendation = api.recommendation || {};
@@ -390,10 +401,20 @@ function mockAssessment(profile) {
   return {
     company_profile: { ...profile, summary: `${profile.company_name} operates across ${locations}, with a decision horizon of ${horizon}.` },
     risks: [
-      { severity: "high", category: "Trade policy", name: isUsMarket ? "US tariff exposure" : "Trade-policy exposure", description: isUsMarket ? "Changes in US trade policy could materially affect the landed-cost position of products serving this market." : "Changing trade measures may affect cost, lead time and market access across your current footprint.", uncertainty: "Announced measures can change before implementation, and product-level classifications may differ from the headline policy.", verification: "partial", evidence: [{ title: "Section 301 Investigations", publisher: "Office of the United States Trade Representative", date: "2026-08-14", authority: "Authority A", url: null }, { title: "Global Trade Outlook and Statistics", publisher: "World Trade Organization", date: "2026-04-02", authority: "Authority A", url: null }] },
-      { severity: "high", category: "Supply chain", name: "Supplier ecosystem dependency", description: "The current footprint may depend on supplier capacity, engineering support or critical inputs located outside the production market.", uncertainty: "Supplier concentration is inferred from your inputs rather than verified bill-of-materials data.", verification: "partial", evidence: [{ title: "Trade in Value Added", publisher: "OECD", date: "2026-02-19", authority: "Authority B", url: null }, { title: "Global Critical Minerals Outlook", publisher: "International Energy Agency", date: "2025-11-06", authority: "Authority B", url: null }] },
-      { severity: "medium", category: "Regulatory & compliance", name: "Export-control and compliance screening", description: "Customer screening, product classification and licence requirements can add lead time or restrict access to specific buyers.", uncertainty: "Whether your specific products fall under current control lists is not confirmed by public sources.", verification: "partial", evidence: [{ title: "Entity List", publisher: "Bureau of Industry and Security", date: "2026-07-21", authority: "Authority A", url: null }] },
-      { severity: "medium", category: "Operational", name: "Implementation and capacity ramp-up", description: "Any change to production allocation requires time for qualification, workforce ramp-up and customer certification.", uncertainty: "Certification lead times are company specific and are not covered by public sources.", verification: "unverified", evidence: [{ title: "Geopolitical risk readiness", publisher: "McKinsey & Company", date: "2025-09-30", authority: "Authority C", url: null }] },
+      { severity: "high", category: "Trade policy", name: isUsMarket ? "US tariff exposure" : "Trade-policy exposure", description: isUsMarket ? "Changes in US trade policy could materially affect the landed-cost position of products serving this market." : "Changing trade measures may affect cost, lead time and market access across your current footprint.", uncertainty: "Announced measures can change before implementation, and product-level classifications may differ from the headline policy.", verification: "partial", evidence: [
+        { evidence_id: "EVD-DEMO-001", title: "Section 301 Investigations", publisher: "Office of the United States Trade Representative", date: "2026-08-14", authority: "Authority A", url: "https://ustr.gov/issue-areas/enforcement/section-301-investigations", source_type: "policy", country_region: "US", topic: "tariff_pressure", content: "Section 301 investigations cover acts, policies and practices of foreign governments affecting US commerce, and are the basis for tariff action on covered product categories." },
+        { evidence_id: "EVD-DEMO-002", title: "Global Trade Outlook and Statistics", publisher: "World Trade Organization", date: "2026-04-02", authority: "Authority A", url: "https://www.wto.org/english/res_e/publications_e/gtos0326_e.htm", source_type: "report", country_region: "GLOBAL", topic: "trade_policy", content: "Trade volumes and policy measures monitored by the WTO, including tariff changes and trade-restrictive measures recorded by member economies." },
+      ] },
+      { severity: "high", category: "Supply chain", name: "Supplier ecosystem dependency", description: "The current footprint may depend on supplier capacity, engineering support or critical inputs located outside the production market.", uncertainty: "Supplier concentration is inferred from your inputs rather than verified bill-of-materials data.", verification: "partial", evidence: [
+        { evidence_id: "EVD-DEMO-003", title: "Trade in Value Added", publisher: "OECD", date: "2026-02-19", authority: "Authority B", url: "https://www.oecd.org/en/topics/sub-issues/trade-in-value-added.html", source_type: "dataset", country_region: "GLOBAL", topic: "supplier_dependency", content: "Value-added decomposition showing where intermediate inputs originate, used to estimate how much of a finished product depends on suppliers located in a given economy." },
+        { evidence_id: "EVD-DEMO-004", title: "Global Critical Minerals Outlook", publisher: "International Energy Agency", date: "2025-11-06", authority: "Authority B", url: "https://www.iea.org/reports/global-critical-minerals-outlook", source_type: "report", country_region: "GLOBAL", topic: "supply_chain_resilience", content: "Supply and refining concentration for battery-grade materials, including processing capacity by country and expected demand growth for EV batteries." },
+      ] },
+      { severity: "medium", category: "Regulatory & compliance", name: "Export-control and compliance screening", description: "Customer screening, product classification and licence requirements can add lead time or restrict access to specific buyers.", uncertainty: "Whether your specific products fall under current control lists is not confirmed by public sources.", verification: "partial", evidence: [
+        { evidence_id: "EVD-DEMO-005", title: "Entity List", publisher: "Bureau of Industry and Security", date: "2026-07-21", authority: "Authority A", url: "https://www.bis.gov/entity-list", source_type: "regulation", country_region: "US", topic: "export_controls", content: "Listed parties subject to export licence requirements; shipments to or involving listed entities require screening before export." },
+      ] },
+      { severity: "medium", category: "Operational", name: "Implementation and capacity ramp-up", description: "Any change to production allocation requires time for qualification, workforce ramp-up and customer certification.", uncertainty: "Certification lead times are company specific and are not covered by public sources.", verification: "unverified", evidence: [
+        { evidence_id: "EVD-DEMO-006", title: "Geopolitical risk readiness", publisher: "McKinsey & Company", date: "2025-09-30", authority: "Authority C", url: "https://www.mckinsey.com/capabilities/risk-and-resilience/our-insights/how-companies-can-strengthen-their-geopolitical-risk-readiness", source_type: "industry_report", country_region: "GLOBAL", topic: "operational_risk", content: "Survey evidence on how companies organise geopolitical risk assessment and how long operational changes such as shifting production lines typically take." },
+      ] },
     ],
     recommendation: {
       headline: "Preview only — connect the Agent service for a recommendation.",
@@ -586,10 +607,24 @@ function renderRiskSummary(risks) {
 function evidenceMarkup(evidence) {
   return (evidence || []).map(item => {
     const meta = [item.date, item.authority].filter(Boolean).join(" · ");
-    const body = `<span class="evidence-main"><b>${escapeHtml(item.publisher)}</b> — ${escapeHtml(item.title)}</span><span class="evidence-meta">${escapeHtml(meta)}${item.url ? " ↗" : ""}</span>`;
-    return item.url
-      ? `<a class="evidence-link" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${body}</a>`
-      : `<div class="evidence-link static">${body}</div>`;
+    const facts = [
+      item.evidence_id,
+      item.source_type ? item.source_type.replaceAll("_", " ") : "",
+      item.country_region,
+      item.topic ? item.topic.replaceAll("_", " ") : "",
+    ].filter(Boolean).join(" · ");
+    const source = item.url
+      ? `<a class="evidence-open" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">Open original source ↗</a>`
+      : `<span class="evidence-open muted">Original document is not linked in this preview — raw files live in the <b>data</b> branch and web sources come from the Agent's search.</span>`;
+    return `
+      <details class="evidence-card">
+        <summary class="evidence-link"><span class="evidence-main"><b>${escapeHtml(item.publisher)}</b> — ${escapeHtml(item.title)}</span><span class="evidence-meta">${escapeHtml(meta)}</span></summary>
+        <div class="evidence-preview">
+          ${facts ? `<p class="evidence-facts">${escapeHtml(facts)}</p>` : ""}
+          ${item.content ? `<p class="evidence-excerpt">${escapeHtml(item.content)}</p>` : `<p class="evidence-excerpt muted">No retrieved text is attached to this source.</p>`}
+          ${source}
+        </div>
+      </details>`;
   }).join("");
 }
 
@@ -646,6 +681,38 @@ function renderUncertainty(assessment) {
   }${(assessment.recommendation || {}).requires_human_review ? `<p class="uncertainty-flag">High-severity or unverified findings require human review before capital is committed.</p>` : ""}</div>`;
 }
 
+/* UI.md: the company section is not a plain restatement of the form — it opens
+   with a short Agent summary and analysis of the company. */
+function renderProfileSummary(assessment) {
+  const container = $("#profile-summary");
+  if (!container) return;
+  const profile = assessment.company_profile || {};
+  const risks = assessment.risks || [];
+  const recommendation = assessment.recommendation || {};
+  const summary = (profile.summary || "").trim();
+  const highs = risks.filter(risk => SEVERITY_LEVEL[risk.severity] === "high");
+  const categories = [...new Set(risks.map(risk => risk.category).filter(Boolean))];
+  const points = [];
+  if (risks.length) {
+    points.push(`${risks.length} exposures identified${highs.length ? `, ${highs.length} of them high priority` : ""}${categories.length ? ` — concentrated in ${categories.slice(0, 3).join(", ").toLowerCase()}` : ""}.`);
+  }
+  if (assessment.meta?.evidence_count) {
+    const count = assessment.meta.evidence_count;
+    points.push(`The assessment draws on ${count} retrieved evidence item${count === 1 ? "" : "s"}${assessment.meta.data_mode === "preview" ? " (preview placeholders)" : " from the project knowledge base"}.`);
+  }
+  if (recommendation.confidence) {
+    points.push(`Reported confidence is ${recommendation.confidence}${recommendation.requires_human_review ? ", and the findings are flagged for human review" : ""}.`);
+  }
+  if (!summary && !points.length) {
+    container.hidden = true;
+    return;
+  }
+  container.hidden = false;
+  container.innerHTML = `<p class="profile-summary-label">Agent summary</p>`
+    + (summary ? `<p class="profile-summary-text">${escapeHtml(summary)}</p>` : "")
+    + (points.length ? `<ul class="profile-summary-points">${points.map(point => `<li>${escapeHtml(point)}</li>`).join("")}</ul>` : "");
+}
+
 function renderAssessmentMeta(assessment) {
   const meta = assessment.meta || {};
   const live = Boolean(meta.assessment_id);
@@ -683,6 +750,7 @@ function renderAssessment(assessment) {
     ].map(([label, value]) => `<div><span>${escapeHtml(label)}</span><b>${escapeHtml(value || "Not specified")}</b></div>`).join("");
   });
   guard(() => { $("#profile-extra").textContent = [profile.summary, profile.notes].filter(Boolean).join(" "); });
+  guard(() => renderProfileSummary(assessment));
   guard(() => renderAssessmentMeta(assessment));
   guard(() => renderRiskRadar(risks));
   guard(() => renderRiskSummary(risks));
@@ -708,21 +776,35 @@ function renderAssessment(assessment) {
 
 function showToast(message) { const toast = $("#toast"); toast.textContent = message; toast.classList.add("show"); setTimeout(() => toast.classList.remove("show"), 4200); }
 
-function showValidationError(message) {
+function clearInvalidMarks() {
+  document.querySelectorAll("#decision-form .field-invalid").forEach(element => element.classList.remove("field-invalid"));
+}
+
+function showValidationError(issues) {
+  const first = issues[0];
   const box = $("#form-error");
   if (box) {
-    box.textContent = message;
+    const rest = issues.length > 1 ? ` (${issues.length - 1} more item${issues.length === 2 ? "" : "s"} still need input.)` : "";
+    box.textContent = `${first.message}${rest}`;
     box.hidden = false;
-    box.scrollIntoView({ behavior: "smooth", block: "center" });
   }
-  showToast(message);
+  clearInvalidMarks();
+  issues.forEach(issue => issue.target?.classList?.add("field-invalid"));
+  // Jump back to the question that needs an answer.
+  first.target?.scrollIntoView({ behavior: "smooth", block: "center" });
+  if (first.target?.matches?.("input, select, textarea")) {
+    try { first.target.focus({ preventScroll: true }); } catch { first.target.focus(); }
+  }
+  showToast(first.message);
 }
 
 function clearValidationError() {
   const box = $("#form-error");
-  if (!box || box.hidden) return;
-  box.hidden = true;
-  box.textContent = "";
+  if (box && !box.hidden) {
+    box.hidden = true;
+    box.textContent = "";
+  }
+  clearInvalidMarks();
 }
 
 /* ------------------------------------------------------------ draft state */
@@ -781,9 +863,9 @@ function updateFormProgress() {
   const quickChecks = [
     form.company_name.value,
     form.products.value,
-    // The free-text box is optional, so the decision context counts as answered
-    // when the user types something or picks a decision other than the default.
-    form.decision_question.value.trim() !== "" || document.querySelector('input[name="decision_type"]:checked')?.value !== "Maintain current production structure",
+    // profile list.md: the decision question is answered as soon as the user
+    // picks any preset option — there is no pre-selected default.
+    Boolean(document.querySelector('input[name="decision_type"]:checked')) || form.decision_question.value.trim() !== "",
     state.production.some(answeredLocation),
     state.markets.some(answeredLocation),
     document.querySelectorAll("#restriction-options input:checked").length,
@@ -954,6 +1036,7 @@ document.addEventListener("change", event => {
     $("#relocate-country").hidden = changed.value !== "Relocate production";
     $("#new-site-country").hidden = changed.value !== "Establish a new production site";
     $("#decision-other").hidden = changed.value !== "Other";
+    updateFormProgress();
     return;
   }
   if (changed.closest("#restriction-options")) {
@@ -1001,10 +1084,10 @@ $("#decision-form").addEventListener("submit", event => {
   try {
     profile = readForm();
   } catch (error) {
-    return showValidationError(`Could not read the form: ${error.message}`);
+    return showValidationError([{ message: `Could not read the form: ${error.message}`, target: $("#decision-form") }]);
   }
-  const error = validateDecision(profile);
-  if (error) return showValidationError(error);
+  const issues = findValidationIssue(profile);
+  if (issues.length) return showValidationError(issues);
   clearValidationError();
   runAnalysis(profile);
 });
