@@ -114,3 +114,8 @@
 **现状**：`ScenarioResult.weighted_score` 是后端按优先级加权后的综合分（0–100），前端直接展示为 "Overall score"；五个维度来自五个 `*_score` 字段。
 **影响**：UI.md 情景页要求"综合分不是简单平均，要考虑用户优先级"，目前实现一致；但没有任何字段说明加权过程。
 **建议**：返回 `weighting` 或 `score_breakdown`（各维度权重与贡献），前端即可展示"为什么是这个分数"，而不是只写一句按优先级加权。
+
+### 21. 报告版本管理
+**现状**：`GET /api/v1/assessments/{id}/report` 每次按当时的 Assessment 生成 PDF，没有版本概念；前端现在只在项目上存一个 `report_id` / `report_url`。
+**影响**：UI.md §11 明确要求"用户回到咨询改动分析后重新生成报告，不应静默覆盖旧版本，应视为 Report v1 / v2，最新一版标记为当前版本"。
+**建议**：报告产物带上 `report_version` 与 `generated_at` 列表（例如 `Assessment.reports[]`），并保留历史版本可下载。
