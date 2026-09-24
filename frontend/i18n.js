@@ -562,7 +562,42 @@ const i18nObserver = new MutationObserver(mutations => {
 Object.assign(ZH_TEXT, {
   "Give Locus a clear picture of your business, footprint and decision. Fields marked": "把企业、生产布局与决策信息告诉 Locus。标记",
   "are required.": "的为必填项。",
+  /* My Decisions and decision records */
+  "Completed": "已完成",
+  "In progress": "进行中",
+  "Resume Decision": "继续决策",
+  "Open decision overview": "查看决策记录",
+  "Re-assess Decision": "重新决策",
+  "Delete": "删除",
+  "Decision record": "决策记录",
+  "Back to My Decisions": "返回我的决策",
+  "IN THIS RECORD": "本记录内容",
+  "Company situation": "企业情况",
+  "Scenario analysis": "情景分析",
+  "Consultation summary": "咨询小结",
+  "Final decision": "最终决策",
+  "User input": "用户输入",
+  "Report generation": "报告生成",
+  "Decision question": "决策问题",
+  "Product": "主要产品",
+  "Read-only record of how the decision was reached. The full conversation is not shown here.": "这是关于该决策如何形成的只读记录，默认不展示完整对话。",
+  "In-progress decisions resume from the stage you left off at. Completed decisions open as a read-only record of how the decision was reached.": "进行中的决策会从你上次中断的步骤继续；已完成的决策以只读记录方式打开，呈现该决策的形成过程。",
+  "The full conversation is not shown in this record.": "本记录不展示完整对话。",
+  "No risk assessment was recorded.": "没有记录风险评估。",
+  "No scenario analysis was recorded.": "没有记录情景分析。",
+  "No additional information was added during the consultation.": "咨询过程中没有补充新信息。",
+  "No final decision statement was recorded for this project.": "该项目没有记录最终决策结论。",
+  "No generated report is attached to this project.": "该项目没有附上生成的报告。",
+  "Open the decision report ↗": "打开决策报告 ↗",
+  "Decision project deleted.": "决策项目已删除。",
+  "New assessment created from this decision — review the profile and run the analysis again.": "已基于该决策创建新评估 —— 请确认企业画像后重新运行分析。",
 });
+
+ZH_PATTERNS.push(
+  [/^Added: (.+)$/, "已补充：$1"],
+  [/^Document: (.+)$/, "文档：$1"],
+);
+ZH_FRAGMENTS.push([/Updated: /g, "更新于："]);
 
 /* Meta lines are composed from several values, so they are matched by shape. */
 ZH_PATTERNS.push(

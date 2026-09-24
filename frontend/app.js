@@ -2,6 +2,8 @@ const state = {
   production: [{ country: "CN", share: "", other: "" }],
   markets: [{ country: "US", share: "", other: "" }],
   assessment: null,
+  projectId: null,
+  parentProjectId: null,
 };
 let runInFlight = false;
 const draftKey = "locus-decision-draft";
@@ -516,14 +518,14 @@ function handleStageEvent(event) {
 
 /* The submitted profile moves into My Decision, so the form is reset here and
    the next "Start New Decision" begins from a clean sheet. */
-function finishRun(assessment) {
+function finishRun(assessment, profile) {
   state.assessment = assessment;
   runInFlight = false;
   const submitButton = $("#decision-form button[type='submit']");
   if (submitButton) submitButton.disabled = false;
   try { completeStages(); } catch { /* stage list is cosmetic */ }
   try { renderAssessment(assessment); } catch (error) { showToast(`Some assessment sections could not be rendered: ${error.message}`); }
-  try { saveProject(assessment); } catch { /* project history is optional */ }
+  try { saveProject(assessment, profile || assessment.company_profile || {}); } catch { /* project history is optional */ }
   try { resetDecisionForm(); } catch { /* the form can be cleared manually */ }
   // Always move the user forward, whatever happened above.
   setTimeout(() => showScreen("assessment"), 320);
@@ -539,7 +541,7 @@ function runPreviewTimeline(profile) {
   }, 620);
   setTimeout(() => {
     clearInterval(timer);
-    finishRun(mockAssessment(profile));
+    finishRun(mockAssessment(profile), profile);
   }, 2800);
 }
 
@@ -562,7 +564,7 @@ async function runAnalysis(profile) {
   if (configured && payload && !issues.length) {
     try {
       const api = await streamAssessment(payload, handleStageEvent);
-      finishRun(mapApiAssessment(api, profile));
+      finishRun(mapApiAssessment(api, profile), profile);
       return;
     } catch (error) {
       showToast("Live agent unavailable — showing the local preview.");
@@ -1060,6 +1062,7 @@ function renderScenarios(assessment) {
     }
   }
   renderStrategicReport(assessment, scenarios);
+  advanceProjectStage("SCENARIO_SIMULATION");
 }
 
 function showToast(message) { const toast = $("#toast"); toast.textContent = message; toast.classList.add("show"); setTimeout(() => toast.classList.remove("show"), 4200); }
@@ -1089,6 +1092,8 @@ function openChat() {
   renderChatContext();
   renderChatLog();
   renderChatMeta();
+  advanceProjectStage("AI_CONSULTATION");
+  syncChatIntoProject();
   showScreen("chat");
 }
 
@@ -1393,13 +1398,28 @@ function closeReportModal() { const modal = $("#report-modal"); if (modal) modal
 function confirmReport() {
   closeReportModal();
   const meta = state.assessment?.meta || {};
+  const lastUserTurn = [...chatState.messages].reverse().find(message => message.role === "user");
+  const recommendation = state.assessment?.recommendation || {};
+  syncChatIntoProject();
+  updateCurrentProject({
+    status: "COMPLETED",
+    current_stage: "REPORT",
+    report_id: meta.assessment_id || null,
+    report_url: meta.assessment_id && window.LOCUS_API_BASE ? `${window.LOCUS_API_BASE}/api/v1/assessments/${meta.assessment_id}/report` : null,
+    final_decision: {
+      summary: recommendation.headline || lastUserTurn?.content || "Consultation ended without an additional final statement.",
+      decided_at: new Date().toISOString(),
+    },
+  });
   if (meta.assessment_id && window.LOCUS_API_BASE) {
     window.open(`${window.LOCUS_API_BASE}/api/v1/assessments/${meta.assessment_id}/report`, "_blank", "noopener");
-    appendChatMessage({ role: "assistant", content: "The decision report has been generated and opened in a new tab: company profile, evidence analysis, risk assessment, scenario comparison, consultation insights and strategic considerations." });
-    return;
+    appendChatMessage({ role: "assistant", content: "The decision report has been generated and opened in a new tab. This consultation is now saved as a completed decision project in My Decisions." });
+  } else {
+    showToast("Saved as a completed decision project. The PDF needs a live Agent assessment.");
+    appendChatMessage({ role: "assistant", content: "This consultation is now saved as a completed decision project in My Decisions. The PDF itself needs the live Agent service (see backend changes.md)." });
   }
-  showToast("The report endpoint needs a live Agent assessment.");
-  appendChatMessage({ role: "assistant", content: "I cannot generate the PDF yet: the report endpoint requires a live Agent assessment. Everything in this session is kept in My Decision, and the backend gap is recorded in backend changes.md." });
+  renderProjects();
+  setTimeout(() => { showScreen("history"); renderProjects(); }, 900);
 }
 
 function clearInvalidMarks() {
@@ -1546,25 +1566,283 @@ function resetDecisionForm() {
   setSavedLabel("Draft saves automatically as you type");
 }
 
-/* --------------------------------------------------------- decision projects */
+/* --------------------------------------------------------- decision projects
+   UI.md models My Decisions around Decision Projects with exactly two
+   user-facing states: In Progress (resume from the latest stage) and Completed
+   (read-only decision overview). */
+
+const PROJECT_STAGES = ["INPUT", "INITIAL_ASSESSMENT", "SCENARIO_SIMULATION", "AI_CONSULTATION", "REPORT"];
+const PROJECT_STAGE_LABEL = {
+  INPUT: "User input",
+  INITIAL_ASSESSMENT: "Initial assessment",
+  SCENARIO_SIMULATION: "Scenario simulation",
+  AI_CONSULTATION: "AI consultation",
+  REPORT: "Report generation",
+};
+const PROJECT_STAGE_SCREEN = {
+  INPUT: "consultation",
+  INITIAL_ASSESSMENT: "assessment",
+  SCENARIO_SIMULATION: "scenarios",
+  AI_CONSULTATION: "chat",
+  REPORT: "chat",
+};
 
 function readProjects() {
   try { return JSON.parse(localStorage.getItem(projectsKey)) || []; } catch { return []; }
 }
 
-function saveProject(assessment) {
-  try {
-    const profile = assessment.company_profile;
-    const project = {
-      project_id: `DEC-${Date.now().toString(36).toUpperCase()}`,
-      created_at: new Date().toISOString(),
-      company_name: profile.company_name,
-      decision_question: profile.decision_question,
-      risks: (assessment.risks || []).map(risk => ({ name: risk.name, severity: risk.severity })),
-      assessment,
-    };
-    localStorage.setItem(projectsKey, JSON.stringify([project, ...readProjects()].slice(0, 20)));
-  } catch { /* storage unavailable */ }
+function writeProjects(projects) {
+  try { localStorage.setItem(projectsKey, JSON.stringify(projects.slice(0, 40))); } catch { /* storage unavailable */ }
+}
+
+function projectTitle(profile) {
+  const question = String(profile.decision_question || "").replace(/^[^:]{0,60}:\s*/, "").trim();
+  if (question) return question.length > 74 ? `${question.slice(0, 71)}…` : question;
+  const type = String(profile.decision_type || "Supply chain decision");
+  return `${profile.company_name || "Untitled company"} — ${type}`;
+}
+
+function saveProject(assessment, profile) {
+  const now = new Date().toISOString();
+  const project = {
+    decision_project_id: `DP-${Date.now().toString(36).toUpperCase()}`,
+    status: "IN_PROGRESS",
+    current_stage: "INITIAL_ASSESSMENT",
+    name: projectTitle(profile),
+    company_name: profile.company_name || "",
+    industry: profile.industry || "battery_ev",
+    product: profile.products || "",
+    decision_question: profile.decision_question || "",
+    company_profile: profile,
+    user_input: profile,
+    production_footprint: profile.production_locations || [],
+    target_markets: profile.target_markets || [],
+    decision_constraints: { investment_budget: profile.investment_budget || null, time_horizon: profile.time_horizon || null, priorities: profile.priorities || [] },
+    evidence: (assessment.risks || []).flatMap(risk => risk.evidence || []),
+    risk_assessment: { risks: assessment.risks || [] },
+    scenario_results: { scenarios: assessment.scenarios || [] },
+    conversation_history: [],
+    uploaded_documents: [],
+    updated_constraints: [],
+    final_decision: null,
+    report_id: null,
+    report_url: null,
+    parent_decision_project_id: state.parentProjectId || null,
+    assessment,
+    created_at: now,
+    updated_at: now,
+  };
+  writeProjects([project, ...readProjects().filter(item => item.decision_project_id !== project.decision_project_id)]);
+  state.projectId = project.decision_project_id;
+  state.parentProjectId = null;
+}
+
+function currentProject() {
+  return readProjects().find(item => item.decision_project_id === state.projectId) || null;
+}
+
+function updateCurrentProject(patch) {
+  if (!state.projectId) return;
+  const projects = readProjects();
+  const index = projects.findIndex(item => item.decision_project_id === state.projectId);
+  if (index < 0) return;
+  projects[index] = { ...projects[index], ...patch, updated_at: new Date().toISOString() };
+  writeProjects(projects);
+}
+
+function advanceProjectStage(stage) {
+  const project = currentProject();
+  if (!project) return;
+  const current = PROJECT_STAGES.indexOf(project.current_stage || "INPUT");
+  if (PROJECT_STAGES.indexOf(stage) <= current) return;
+  updateCurrentProject({ current_stage: stage });
+}
+
+function syncChatIntoProject() {
+  updateCurrentProject({
+    conversation_history: chatState.messages.map(message => ({ role: message.role, content: message.content, at: message.at })),
+    updated_constraints: [...chatState.updated],
+    uploaded_documents: [...chatState.documents],
+  });
+}
+
+function deleteProject(id) {
+  const project = readProjects().find(item => item.decision_project_id === id);
+  if (!project) return;
+  const name = project.name || project.company_name || "this decision";
+  const message = currentLanguage() === "zh"
+    ? `删除「${name}」？此操作不可恢复。`
+    : `Delete "${name}"? This cannot be undone.`;
+  if (!window.confirm(message)) return;
+  writeProjects(readProjects().filter(item => item.decision_project_id !== id));
+  if (state.projectId === id) state.projectId = null;
+  renderProjects();
+  showToast("Decision project deleted.");
+}
+
+function formFromProfile(profile) {
+  const form = $("#decision-form");
+  if (!form || !profile) return;
+  form.company_name.value = profile.company_name || "";
+  form.products.value = profile.products || "";
+  form.decision_question.value = profile.decision_question || "";
+  form.notes.value = profile.notes || "";
+  state.production = (profile.production_locations || []).map(item => ({ country: item.country, share: item.share ?? "", other: item.other || "", touched: true }));
+  state.markets = (profile.target_markets || []).map(item => ({ country: item.country, share: item.share ?? "", other: item.other || "", touched: true }));
+  if (!state.production.length) state.production = [{ country: "CN", share: "", other: "" }];
+  if (!state.markets.length) state.markets = [{ country: "US", share: "", other: "" }];
+  renderLocations("production");
+  renderLocations("markets");
+  const type = String(profile.decision_type || "").replace(/ \(.*\)$/, "");
+  const radio = [...document.querySelectorAll('input[name="decision_type"]')].find(node => node.value === type);
+  if (radio) {
+    radio.checked = true;
+    radio.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  (profile.restrictions || []).forEach(value => {
+    const chip = document.querySelector(`#restriction-options input[value="${value}"]`);
+    if (chip) chip.checked = true;
+  });
+  updateSummaryCount();
+  updateFormProgress();
+}
+
+function restoreChatFromProject(project) {
+  chatState.messages = (project.conversation_history || []).map((turn, index) => ({ id: `saved-${index}`, ...turn }));
+  chatState.updated = [...(project.updated_constraints || [])];
+  chatState.documents = [...(project.uploaded_documents || [])];
+  chatState.seeded = chatState.messages.length > 0;
+}
+
+function openProjectById(id) {
+  const project = readProjects().find(item => item.decision_project_id === id);
+  if (!project) return;
+  if (project.status === "COMPLETED") {
+    renderDecisionOverview(project);
+    showScreen("overview");
+    return;
+  }
+  state.projectId = project.decision_project_id;
+  if (project.assessment) state.assessment = project.assessment;
+  formFromProfile(project.company_profile || {});
+  restoreChatFromProject(project);
+  const stage = project.current_stage || "INITIAL_ASSESSMENT";
+  if (stage === "INPUT") {
+    showScreen("consultation");
+  } else if (stage === "INITIAL_ASSESSMENT" && state.assessment) {
+    renderAssessment(state.assessment);
+    showScreen("assessment");
+  } else if (stage === "SCENARIO_SIMULATION" && state.assessment) {
+    renderScenarios(state.assessment);
+    showScreen("scenarios");
+  } else if (state.assessment) {
+    openChat();
+  } else {
+    showScreen("consultation");
+  }
+  const stageLabel = PROJECT_STAGE_LABEL[stage] || "the latest step";
+  showToast(currentLanguage() === "zh"
+    ? `已从「${ZH_TEXT[stageLabel] || stageLabel}」继续。`
+    : `Resumed at ${stageLabel}.`);
+}
+
+function reassessProject(id) {
+  const project = readProjects().find(item => item.decision_project_id === id);
+  if (!project) return;
+  state.parentProjectId = project.decision_project_id;
+  state.projectId = null;
+  formFromProfile(project.company_profile || {});
+  chatState.messages = [];
+  chatState.updated = [];
+  chatState.documents = [];
+  chatState.seeded = false;
+  showToast("New assessment created from this decision — review the profile and run the analysis again.");
+  showScreen("consultation");
+}
+
+function renderDecisionOverview(project) {
+  const profile = project.company_profile || {};
+  const risks = project.risk_assessment?.risks || [];
+  const rawScenarios = project.scenario_results?.scenarios || [];
+  const scenarios = rawScenarios.map(item => (item && item.scores ? item : mapScenario(item, evidenceLookupFromRisks(risks), { data_mode: "preview" })));
+  const title = $("#overview-title");
+  const meta = $("#overview-meta");
+  const body = $("#overview-body");
+  const status = $("#overview-status");
+  if (!body) return;
+  if (title) title.textContent = project.name || project.company_name || "Decision record";
+  if (status) status.textContent = "Completed";
+  const reassess = $("#overview-reassess");
+  if (reassess) reassess.dataset.projectId = project.decision_project_id;
+  if (meta) {
+    meta.textContent = [
+      project.decision_project_id,
+      project.company_name || "",
+      INDUSTRY_LABELS[project.industry] || "",
+      `Updated ${new Date(project.updated_at || project.created_at).toLocaleDateString()}`,
+      project.report_id ? `Report ${project.report_id}` : "",
+    ].filter(Boolean).join(" · ");
+  }
+  const footprint = (profile.production_locations || []).map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(" · ") || "not specified";
+  const markets = (profile.target_markets || []).map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(" · ") || "not specified";
+  const section = (id, number, heading, inner) => `<section class="assessment-section" id="${id}"><div class="section-title-row"><div><p class="section-number">${number}</p><h3>${escapeHtml(heading)}</h3></div></div>${inner}</section>`;
+  const consultation = [
+    ...(project.updated_constraints || []).map(item => `Added: ${item}`),
+    ...(project.uploaded_documents || []).map(name => `Document: ${name}`),
+  ];
+  body.innerHTML = [
+    section("overview-company", "01 / SITUATION", "Company situation", `
+      <div class="profile-grid">${[
+        ["Company", project.company_name], ["Product", project.product],
+        ["Production footprint", footprint], ["Target markets", markets],
+        ["Decision question", project.decision_question],
+      ].map(([label, value]) => `<div><span>${escapeHtml(label)}</span><b>${escapeHtml(value || "Not specified")}</b></div>`).join("")}</div>`),
+    section("overview-assessment", "02 / ASSESSMENT", "Initial assessment", risks.length
+      ? `${profile.summary ? `<p class="overview-text">${escapeHtml(profile.summary)}</p>` : ""}<ul class="overview-list">${risks.map(risk => `<li><span class="severity ${SEVERITY_LEVEL[risk.severity] || "medium"}">${escapeHtml(risk.severity)}</span> <b>${escapeHtml(risk.name)}</b> — ${escapeHtml(risk.description || "")}</li>`).join("")}</ul>`
+      : `<p class="overview-text muted">No risk assessment was recorded.</p>`),
+    section("overview-scenarios", "03 / SCENARIOS", "Scenario analysis", scenarios.length
+      ? `<table class="report-table"><thead><tr><th>Scenario</th><th>Overall</th><th>Main trade-off</th></tr></thead><tbody>${scenarios.map(item => `<tr><td>${escapeHtml(item.name)}</td><td>${item.overall_score}/100</td><td>${escapeHtml((item.risks || [])[0] || "—")}</td></tr>`).join("")}</tbody></table>`
+      : `<p class="overview-text muted">No scenario analysis was recorded.</p>`),
+    section("overview-consultation", "04 / CONSULTATION", "Consultation summary", consultation.length
+      ? `<ul class="overview-list">${consultation.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul><p class="overview-note">The full conversation is not shown in this record.</p>`
+      : `<p class="overview-text muted">No additional information was added during the consultation.</p>`),
+    section("overview-decision", "05 / DECISION", "Final decision", `
+      <p class="overview-text">${escapeHtml(project.final_decision?.summary || "No final decision statement was recorded for this project.")}</p>
+      ${project.report_url ? `<p class="overview-text"><a class="evidence-open" href="${escapeHtml(project.report_url)}" target="_blank" rel="noopener noreferrer">Open the decision report ↗</a></p>` : `<p class="overview-note">No generated report is attached to this project.</p>`}`),
+  ].join("");
+}
+
+function projectCard(project) {
+  const completed = project.status === "COMPLETED";
+  const risks = project.risk_assessment?.risks || [];
+  const artifacts = [
+    ["Profile", true],
+    ["Evidence", risks.some(risk => (risk.evidence || []).length)],
+    ["Risks", risks.length > 0],
+    ["Scenarios", (project.scenario_results?.scenarios || []).length > 0],
+    ["Conversation", (project.conversation_history || []).length > 0],
+    ["Report", Boolean(project.report_id)],
+  ];
+  const updated = new Date(project.updated_at || project.created_at).toLocaleDateString();
+  return `
+    <article class="project-card${completed ? " completed" : ""}">
+      <div class="project-main">
+        <p class="project-meta">${escapeHtml(project.decision_project_id)} · Updated: ${escapeHtml(updated)}</p>
+        <h3>${escapeHtml(project.name || project.company_name || "Untitled decision")}</h3>
+        <p class="project-sub">${escapeHtml([project.company_name, INDUSTRY_LABELS[project.industry] || ""].filter(Boolean).join(" · "))}</p>
+        <p class="project-question">${escapeHtml(project.decision_question || "")}</p>
+        <div class="project-tags">
+          <span class="project-status ${completed ? "completed" : "in-progress"}">${completed ? "Completed" : "In progress"}</span>
+          ${!completed && project.current_stage ? `<span class="project-stage">${escapeHtml(PROJECT_STAGE_LABEL[project.current_stage] || project.current_stage)}</span>` : ""}
+          ${artifacts.filter(([, present]) => present).map(([label]) => `<span class="project-artifact">${escapeHtml(label)}</span>`).join("")}
+        </div>
+      </div>
+      <div class="project-actions">
+        <button class="button button-primary" type="button" data-open-project="${escapeHtml(project.decision_project_id)}">${completed ? "Open decision overview" : "Resume Decision"} <span>→</span></button>
+        ${completed ? `<button class="button button-secondary" type="button" data-reassess-project="${escapeHtml(project.decision_project_id)}">Re-assess Decision <span>↻</span></button>` : ""}
+        <button class="text-button project-delete" type="button" data-delete-project="${escapeHtml(project.decision_project_id)}">Delete</button>
+      </div>
+    </article>`;
 }
 
 function renderProjects() {
@@ -1575,16 +1853,12 @@ function renderProjects() {
     list.innerHTML = `<p class="project-empty">No decision projects yet. Complete a consultation and the Agent stores the company profile here.</p>`;
     return;
   }
-  list.innerHTML = projects.map(project => `
-    <article class="project-card">
-      <div>
-        <p class="project-meta">${escapeHtml(new Date(project.created_at).toLocaleString())} · ${escapeHtml(project.project_id)}</p>
-        <h3>${escapeHtml(project.company_name || "Untitled company")}</h3>
-        <p class="project-question">${escapeHtml(project.decision_question || "")}</p>
-        <p class="project-risks">${(project.risks || []).map(risk => `<span class="severity ${escapeHtml(risk.severity)}">${escapeHtml(risk.severity)}</span> ${escapeHtml(risk.name)}`).join(" · ")}</p>
-      </div>
-      <button class="button button-secondary" type="button" data-open-project="${escapeHtml(project.project_id)}">Open assessment <span>→</span></button>
-    </article>`).join("");
+  const inProgress = projects.filter(project => project.status !== "COMPLETED");
+  const completed = projects.filter(project => project.status === "COMPLETED");
+  const group = (label, items) => items.length
+    ? `<section class="project-group"><p class="project-group-label">${escapeHtml(label)} <b>${items.length}</b></p>${items.map(projectCard).join("")}</section>`
+    : "";
+  list.innerHTML = group("In progress", inProgress) + group("Completed", completed);
 }
 
 function buildEstablishedYears() {
@@ -1670,14 +1944,13 @@ document.addEventListener("click", event => {
       showToast("The decision report is produced by the live Agent run after the scenario step.");
     }
   }
-  if (openProject) {
-    const project = readProjects().find(item => item.project_id === openProject.dataset.openProject);
-    if (project?.assessment) {
-      state.assessment = project.assessment;
-      renderAssessment(project.assessment);
-      showScreen("assessment");
-    }
-  }
+  if (openProject) return openProjectById(openProject.dataset.openProject);
+  const reassessButton = event.target.closest("[data-reassess-project]");
+  if (reassessButton) return reassessProject(reassessButton.dataset.reassessProject);
+  const deleteButton = event.target.closest("[data-delete-project]");
+  if (deleteButton) return deleteProject(deleteButton.dataset.deleteProject);
+  const overviewReassess = event.target.closest("#overview-reassess");
+  if (overviewReassess?.dataset.projectId) return reassessProject(overviewReassess.dataset.projectId);
 });
 
 document.addEventListener("change", event => {

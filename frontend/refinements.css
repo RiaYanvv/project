@@ -296,6 +296,34 @@ input.field-invalid,select.field-invalid,textarea.field-invalid{border-color:#d8
   .chat-bubble{max-width:100%}
 }
 
+/* My Decisions: decision projects with two user-facing states */
+.project-list{display:grid;gap:26px;margin-bottom:32px}
+.project-group{display:grid;gap:12px}
+.project-group-label{margin:0;color:#6d8ba0;font:500 10px var(--mono);letter-spacing:.11em;text-transform:uppercase}
+.project-group-label b{margin-left:6px;color:var(--ink)}
+.project-card{display:flex;justify-content:space-between;align-items:flex-start;gap:26px;padding:22px;border:1px solid var(--line);background:#fff}
+.project-card.completed{border-color:#d9e6ee;background:#fbfdfe}
+.project-main{min-width:0}
+.project-card h3{margin:9px 0 4px;font-size:19px;letter-spacing:-.03em}
+.project-sub{margin:0 0 8px;color:#6d8ba0;font-size:12.5px}
+.project-tags{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+.project-status{padding:4px 9px;border-radius:2px;font:600 9.5px var(--mono);text-transform:uppercase;letter-spacing:.06em}
+.project-status.in-progress{color:#9c691d;background:#faf3e5}
+.project-status.completed{color:#337047;background:#e9f3ec}
+.project-stage{padding:4px 9px;border:1px solid #dbe7ee;color:#5f7a8c;font:500 10px var(--mono)}
+.project-artifact{padding:4px 9px;border:1px solid #e2ecf1;background:#f8fbfd;color:#8293a0;font:500 10px var(--mono)}
+.project-actions{display:flex;flex:none;flex-direction:column;gap:9px;min-width:210px}
+.project-delete{align-self:flex-end;color:#93a5b1}
+.project-delete:hover{color:var(--high)}
+@media(max-width:800px){.project-card{flex-direction:column}.project-actions{width:100%;min-width:0}}
+
+/* Read-only decision record */
+.overview-screen{max-width:1240px;margin:auto;padding:45px 32px 80px}
+.overview-text{margin:0 0 10px;color:#5a7182;font-size:13.5px;line-height:1.75}
+.overview-list{margin:0;padding-left:18px;color:#5a7182;font-size:13.5px;line-height:1.8}
+.overview-list li{margin-bottom:6px}
+.overview-note{margin:10px 0 0;color:#8293a0;font-size:12px;line-height:1.6}
+
 .lang-toggle{padding:8px 12px;border:1px solid #cbdde7;border-radius:4px;color:#3f6b8b;font:600 12px var(--sans)}
 .lang-toggle:hover{border-color:var(--blue);color:var(--blue)}
 @media(max-width:800px){.nav-link.lang-toggle{display:inline-block}}

@@ -292,10 +292,36 @@
         </div>
       </div>
 
+      <section class="screen overview-screen" id="overview" aria-labelledby="overview-title">
+        <div class="assessment-heading">
+          <div>
+            <p class="eyebrow">Decision record <span class="live-tag" id="overview-status">Completed</span></p>
+            <h2 id="overview-title">Decision</h2>
+            <p class="assessment-meta" id="overview-meta"></p>
+          </div>
+          <div class="assessment-actions">
+            <button class="button button-secondary" type="button" data-screen-target="history">Back to My Decisions <span>↑</span></button>
+            <button class="button button-primary" type="button" id="overview-reassess">Re-assess Decision <span>↻</span></button>
+          </div>
+        </div>
+        <div class="assessment-layout">
+          <aside class="assessment-nav">
+            <p>IN THIS RECORD</p>
+            <a href="#overview-company">Company situation</a>
+            <a href="#overview-assessment">Initial assessment</a>
+            <a href="#overview-scenarios">Scenario analysis</a>
+            <a href="#overview-consultation">Consultation summary</a>
+            <a href="#overview-decision">Final decision</a>
+            <div class="assessment-disclaimer">Read-only record of how the decision was reached. The full conversation is not shown here.</div>
+          </aside>
+          <div class="assessment-content" id="overview-body"></div>
+        </div>
+      </section>
+
       <section class="screen history-screen" id="history" aria-labelledby="history-title">
         <p class="eyebrow">My decisions</p>
         <h2 id="history-title">Decision projects</h2>
-        <p class="history-lede">Every completed consultation is kept here as a decision project, together with the company profile and risk assessment the Agent produced.</p>
+        <p class="history-lede">In-progress decisions resume from the stage you left off at. Completed decisions open as a read-only record of how the decision was reached.</p>
         <div class="project-list" id="project-list"></div>
         <button class="button button-primary" type="button" data-screen-target="consultation">Start new decision <span>→</span></button>
       </section>
