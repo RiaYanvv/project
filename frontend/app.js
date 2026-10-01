@@ -79,6 +79,25 @@ if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 
 /* ------------------------------------------------------------------ screens */
 
+/* Screens are rendered on demand, so navigating "back" to a screen that was not
+   rendered in this session (for example Report -> Consultation after resuming a
+   decision) used to show it empty. Every navigation now guarantees content. */
+function ensureScreenContent(id) {
+  if (id === "history") { renderProjects(); return; }
+  if (id === "chat") {
+    renderChatCategories();
+    renderChatContext();
+    renderChatLog();
+    renderChatMeta();
+    return;
+  }
+  const assessment = state.assessment;
+  if (!assessment) return;
+  if (id === "assessment") renderAssessment(assessment);
+  else if (id === "scenarios") renderScenarios(assessment);
+  else if (id === "report") renderReportPage();
+}
+
 function showScreen(id) {
   const current = document.querySelector(".screen.active")?.id;
   const curtain = id === "consultation" && current !== "consultation";
@@ -92,7 +111,7 @@ function showScreen(id) {
     primaryNav.innerHTML = isHome ? "Start New Decision <span>↗</span>" : "Home Page";
     primaryNav.classList.toggle("nav-cta", isHome);
     window.scrollTo({ top: 0, behavior: "auto" });
-    if (id === "history") renderProjects();
+    try { ensureScreenContent(id); } catch (error) { console.error("screen render failed", error); }
   };
 
   if (!curtain) return activate();
