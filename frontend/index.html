@@ -21,6 +21,7 @@
     </div>
 
     <main id="app" class="app-shell">
+      <div class="agent-notice" id="agent-notice" hidden></div>
       <div class="page-transition" id="page-transition" aria-hidden="true">
         <div class="page-transition-inner"><span class="page-transition-brand">Locus</span><span class="page-transition-label" id="page-transition-label">Opening decision workspace</span><span class="page-transition-rule"></span></div>
       </div>
@@ -32,6 +33,7 @@
           <button type="button" class="nav-link" data-screen-target="history">My Decision</button>
           <button type="button" class="nav-link nav-cta" id="primary-nav-action" data-screen-target="consultation">Start New Decision <span>↗</span></button>
           <button type="button" class="nav-link" data-screen-target="news">News</button>
+          <button type="button" class="nav-link agent-status" id="agent-status" title="Agent connection status">Agent: checking…</button>
           <button type="button" class="nav-link lang-toggle" id="lang-toggle">中文</button>
         </nav>
       </header>

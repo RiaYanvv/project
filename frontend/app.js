@@ -569,13 +569,24 @@ async function runAnalysis(profile, thenSimulate = false) {
   if (configured && payload && !issues.length) {
     try {
       const api = await streamAssessment(payload, handleStageEvent);
+      showAgentNotice("");
       finishRun(mapApiAssessment(api, profile), profile, thenSimulate);
       return;
     } catch (error) {
+      showAgentNotice(
+        `Live agent unavailable (${error.message}). Showing the local preview for this run.`,
+        "warn"
+      );
       showToast("Live agent unavailable — showing the local preview.");
     }
   } else if (configured && issues.length) {
+    showAgentNotice(`${issues[0]} Showing the local preview instead.`, "warn");
     showToast(`${issues[0]} Showing the local preview instead.`);
+  } else if (!configured) {
+    showAgentNotice(
+      "Preview mode: this page has no LOCUS_API_BASE / LOCUS_API_KEY, so the assessment is generated locally.",
+      "warn"
+    );
   }
   runPreviewTimeline(profile, thenSimulate);
 }
@@ -1095,6 +1106,62 @@ function renderScenarios(assessment) {
 }
 
 function showToast(message) { const toast = $("#toast"); toast.textContent = message; toast.classList.add("show"); setTimeout(() => toast.classList.remove("show"), 4200); }
+
+/* ---------------------------------------------- agent connection status --
+   The page silently falls back to the local preview when the Agent service is
+   not reachable, which is hard to distinguish from a broken page. This makes
+   the connection state, and the reason for any fallback, visible. */
+
+function setAgentStatus(state, detail) {
+  const chip = $("#agent-status");
+  if (chip) {
+    chip.dataset.state = state;
+    chip.textContent = `Agent: ${state}`;
+    chip.title = detail || "";
+  }
+  if (detail) showAgentNotice(detail, state === "connected" ? "ok" : "warn");
+}
+
+function showAgentNotice(message, tone) {
+  const strip = $("#agent-notice");
+  if (!strip) return;
+  if (!message) {
+    strip.hidden = true;
+    strip.textContent = "";
+    return;
+  }
+  strip.hidden = false;
+  strip.dataset.tone = tone || "warn";
+  strip.textContent = message;
+}
+
+async function checkAgentConnection(announce = false) {
+  const chip = $("#agent-status");
+  if (!window.LOCUS_API_BASE || !window.LOCUS_API_KEY) {
+    setAgentStatus(
+      "preview mode",
+      "This page has no LOCUS_API_BASE / LOCUS_API_KEY, so every screen runs the local preview instead of the Agent service."
+    );
+    if (announce) showToast("Preview mode: the page has no Agent API settings.");
+    return;
+  }
+  if (chip) chip.textContent = "Agent: checking…";
+  try {
+    const response = await fetch(`${window.LOCUS_API_BASE}/health`, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json().catch(() => ({}));
+    setAgentStatus("connected", `Connected to ${window.LOCUS_API_BASE} (status: ${payload.status || "ok"}).`);
+    if (announce) showToast(`Agent service reachable at ${window.LOCUS_API_BASE}.`);
+  } catch (error) {
+    setAgentStatus(
+      "unreachable",
+      `Cannot reach ${window.LOCUS_API_BASE} from this browser (${error.message}). ` +
+        "Check that the backend is running, that a VPN/proxy is not blocking localhost, " +
+        "and that the page is opened via http://127.0.0.1:8123/ rather than as a file."
+    );
+    if (announce) showToast(`Agent service unreachable: ${error.message}`);
+  }
+}
 
 /* -------------------------------------------------------------- chat page */
 
@@ -2127,6 +2194,7 @@ document.addEventListener("click", event => {
   if (event.target.closest("#simulate-button")) runScenarioSimulation();
   if (event.target.closest("#consultation-button")) openChat();
   if (event.target.closest("#lang-toggle")) toggleLanguage();
+  if (event.target.closest("#agent-status")) checkAgentConnection(true);
   if (event.target.closest("#chat-update") || event.target.closest("[data-chat-update]")) runScenarioUpdate();
   if (event.target.closest("[data-chat-review]")) reviewFirst();
   if (event.target.closest("#chat-report")) openReportModal();
@@ -2289,3 +2357,4 @@ updateFormProgress();
 /* Language: translate the rendered page and keep translating anything added later. */
 i18nObserver.observe(document.body, { childList: true, subtree: true });
 applyLanguage(storedLanguage());
+checkAgentConnection();

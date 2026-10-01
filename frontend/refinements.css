@@ -350,6 +350,13 @@ input.field-invalid,select.field-invalid,textarea.field-invalid{border-color:#d8
 
 .lang-toggle{padding:8px 12px;border:1px solid #cbdde7;border-radius:4px;color:#3f6b8b;font:600 12px var(--sans)}
 .lang-toggle:hover{border-color:var(--blue);color:var(--blue)}
+.agent-status{padding:8px 10px;border:1px solid #dbe7ee;border-radius:4px;color:#5f7a8c;font:600 11px var(--mono)}
+.agent-status[data-state="connected"]{color:#337047;border-color:#b9d8ca;background:#f2f9f5}
+.agent-status[data-state="unreachable"]{color:#a33625;border-color:#e5bab1;background:#fdf3f1}
+.agent-status[data-state="preview mode"]{color:#9c691d;border-color:#e5d0a6;background:#fff9ed}
+.agent-notice{position:sticky;top:0;z-index:30;padding:11px 20px;font:600 12.5px/1.5 var(--sans);border-bottom:1px solid transparent}
+.agent-notice[data-tone="warn"]{background:#fff9ed;border-bottom-color:#e5d0a6;color:#8a5a12}
+.agent-notice[data-tone="ok"]{background:#f2f9f5;border-bottom-color:#b9d8ca;color:#337047}
 @media(max-width:800px){.nav-link.lang-toggle{display:inline-block}}
 
 /* Must stay last: author display rules such as .modal{display:grid} would
