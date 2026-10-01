@@ -131,3 +131,34 @@
 5. **首页元数据**——报告标题、决策项目名、生成时间、版本号。
 6. **语言**——按 #18 的语言参数输出。
 7. **版本**——每次重新生成产生新版本、不覆盖旧版（见 #21）。
+
+---
+
+## 状态更新（2026-10-01，backend 分支 `9aae132` / frontend 分支 `74de556`）
+
+已实现并本地联调通过：
+
+- **#1 CORS 可配置**：`CORS_ORIGINS`（逗号分隔）+ `CORS_ORIGIN_REGEX`，默认放行 localhost / 127.0.0.1 / 私有网段任意端口；实测 `Origin: http://127.0.0.1:8123` 预检通过。
+- **#2 证据原文接口**：新增 `GET /api/v1/evidence/{evidence_id}/document`（本地文件直出、仅有网页来源时 307 跳转），`RetrievedEvidence` 增加 `document_url`；前端优先使用该字段。
+- **#3 restrictions 枚举**：补 `geopolitical_uncertainty` / `market_access` / `capacity_expansion` / `other`。
+- **#4 ASEAN**：`CountryCode` 增加 `ASEAN`（后端与前端同步）。
+- **#5 decision_question 选填**：允许空串，profile 摘要自动回退到通用描述。
+- **#6 mock 模式不再强制 api_key**：`AssessmentRequest.api_key` 改为可选，仅 deepseek 模式校验。
+- **#7 生产占比不再强制 100**：只拒绝 >100；前端同步放宽（不再因为占比不足 100% 退化为预览）。
+- **#8 情景置信度**：`ScenarioResult` 增加 `confidence` / `confidence_reasons`，按关联证据的权威等级推导。
+- **#9 风险分类标准化**：`RiskItem.category_key` 输出固定六类，前端雷达优先使用它。
+- **#10 情景重跑接口**：新增 `POST /api/v1/assessments/{id}/scenarios`，复用画像与证据，只重跑情景与建议，并把咨询新增约束并入公司 notes。
+- **#11 聊天结构化返回**：`Assessment.chat_analysis`（new_constraints / new_preferences / scenario_update_required / summary）。
+- **#13/#22 报告增强（部分）**：PDF 增加 Company profile、Scenario detail（收益/风险/假设/置信度）、Consultation insights（读取 chat_history）、Evidence sources，章节标题随 `language` 切换中英。
+- **#18 语言参数**：`AssessmentRequest.language` / `ChatRequest.language`（en/zh），贯穿各阶段 prompt；`Assessment.language` 回传。
+- **#20 权重可解释**：`Assessment.scoring` 返回各维度权重。
+- 另：后端在没有 `frontend/` 目录的分支上也能启动（`/` 返回服务信息），避免与前端分支强耦合。
+
+仍待处理：
+
+- **#12 文件上传接口**（前端目前只在会话内列出文件）。
+- **#14 probability 表述**、**#15 规则兜底文案仅有中文**（LLM 路径已按语言输出，但 mock/heuristic 文本仍是中文）。
+- **#16**、**#17** 仅记录，无需改动。
+- **#19 决策项目后端存储**（当前仍在浏览器 localStorage）。
+- **#21 报告版本管理**（前端已按版本号展示，后端未留存历史版本）。
+- **#22 报告“字数不得过少”**：目前是模板化扩充（约 4 页），要达到每章几百字、全文数千字的详实度，需要让 LLM 生成正文而不是拼接模板。
