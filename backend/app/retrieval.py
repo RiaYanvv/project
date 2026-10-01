@@ -412,6 +412,7 @@ class HybridRetrievalProvider:
                     authority_level=chunk.authority_level,  # type: ignore[arg-type]
                     topic=chunk.topic,
                     document_path=chunk.document_path,
+                    document_url=f"/api/v1/evidence/EVD-{chunk.chunk_id}/document",
                     content=chunk.content,
                     relevance_score=max(
                         1, min(100, round(raw_score * 100))

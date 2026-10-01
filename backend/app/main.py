@@ -3,14 +3,22 @@ from __future__ import annotations
 import asyncio
 import html
 import json
+import mimetypes
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 
 from .agent import AgentService
-from .config import PROJECT_ROOT, Settings
+from .config import DEFAULT_CORS_ORIGIN_REGEX, PROJECT_ROOT, Settings
 from .knowledge import KnowledgeRepository
 from .llm import DeepSeekLLM, MockLLM
 from .pdf_report import build_assessment_pdf
@@ -22,6 +30,7 @@ from .schemas import (
     ChatRequest,
     CompanyInput,
     RetrievalQuery,
+    ScenarioUpdateRequest,
 )
 from .web_search import WebSearchTool
 
@@ -55,17 +64,30 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=list(settings.cors_origins),
+    allow_origin_regex=settings.cors_origin_regex,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
+# The frontend lives on its own branch, so the backend must also run without it.
+if frontend_dir.is_dir():
+    app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 
 
-@app.get("/", include_in_schema=False)
-def index() -> FileResponse:
-    return FileResponse(frontend_dir / "index.html")
+@app.get("/", include_in_schema=False, response_model=None)
+def index() -> FileResponse | JSONResponse:
+    index_file = frontend_dir / "index.html"
+    if index_file.is_file():
+        return FileResponse(index_file)
+    return JSONResponse(
+        {
+            "service": "Geopolitical Supply Chain Decision Agent",
+            "frontend": "not bundled on this branch",
+            "docs": "/docs",
+            "health": "/health",
+        }
+    )
 
 
 @app.get("/health")
@@ -100,6 +122,10 @@ def meta() -> dict[str, object]:
         ],
         "contract_version": "1.0",
         "deepseek_configured": bool(settings.deepseek_api_key),
+        "supported_languages": ["en", "zh"],
+        "cors_origins": list(settings.cors_origins),
+        "cors_origin_regex": settings.cors_origin_regex,
+        "api_key_required": settings.llm_provider == "deepseek",
     }
 
 
@@ -129,6 +155,108 @@ def knowledge_stats() -> dict[str, int | bool]:
     return knowledge_repository.stats()
 
 
+def _resolve_document_path(document_path: str | None) -> Path | None:
+    """Resolve a stored document path to a file on disk (data branch layout)."""
+    if not document_path:
+        return None
+    candidates = []
+    raw = Path(document_path)
+    candidates.append(raw if raw.is_absolute() else PROJECT_ROOT / raw)
+    candidates.append(settings.data_root / raw.name)
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    # Fall back to a filename search under the data root.
+    if settings.data_root.is_dir() and raw.name:
+        for found in settings.data_root.rglob(raw.name):
+            if found.is_file():
+                return found
+    return None
+
+
+@app.get("/api/v1/evidence/{evidence_id}/document")
+def evidence_document(evidence_id: str):
+    """Serve the original document behind one evidence item.
+
+    Local files (data branch) are streamed; web-only evidence redirects to the
+    source URL so the frontend can always open something.
+    """
+    source_id = ""
+    if evidence_id.startswith("EVD-"):
+        chunk_id = evidence_id[4:]
+        source_id = chunk_id.split("-C")[0] if "-C" in chunk_id else chunk_id
+
+    source = knowledge_repository.document_source(source_id) if source_id else None
+    if source is None:
+        mock_source = _mock_source(evidence_id)
+        if mock_source:
+            source = mock_source
+
+    if source is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "No stored document for this evidence item. Web-search evidence is "
+                "served from its original URL in the evidence `url` field."
+            ),
+        )
+
+    local_file = _resolve_document_path(source.get("document_path"))
+    if local_file:
+        media_type = mimetypes.guess_type(str(local_file))[0] or "application/octet-stream"
+        return FileResponse(local_file, media_type=media_type, filename=local_file.name)
+
+    url = source.get("url")
+    if url:
+        return RedirectResponse(url, status_code=307)
+
+    raise HTTPException(
+        status_code=404,
+        detail="This evidence item has no local document and no source URL.",
+    )
+
+
+def _mock_source(evidence_id: str) -> dict[str, str | None] | None:
+    """Mock evidence ships with the repo, so it can still be opened."""
+    try:
+        items = json.loads(settings.evidence_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    for item in items:
+        if item.get("evidence_id") == evidence_id:
+            return {
+                "source_id": item.get("evidence_id", ""),
+                "title": item.get("title", ""),
+                "publisher": item.get("publisher", ""),
+                "url": item.get("url"),
+                "document_path": item.get("document_path"),
+                "is_mock": "1",
+            }
+    return None
+
+
+@app.post("/api/v1/assessments/{assessment_id}/scenarios", response_model=Assessment)
+def update_scenarios(
+    assessment_id: str, request: ScenarioUpdateRequest
+) -> Assessment:
+    """Re-run the scenario stage with constraints gathered during consultation."""
+    assessment = repository.get(assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="assessment not found")
+    try:
+        updated = agent.resimulate(
+            assessment,
+            additional_constraints=request.additional_constraints,
+            api_key=request.api_key,
+            model_name=request.llm_model,
+            language=request.language,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    repository.save(updated)
+    return updated
+
+
 @app.post("/api/v1/assessments", response_model=Assessment)
 def create_assessment(request: AssessmentRequest) -> Assessment:
     try:
@@ -136,6 +264,7 @@ def create_assessment(request: AssessmentRequest) -> Assessment:
             request.company,
             api_key=request.api_key,
             model_name=request.llm_model,
+            language=request.language,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -159,6 +288,7 @@ async def create_assessment_stream(request: AssessmentRequest) -> StreamingRespo
                 request.api_key,
                 request.llm_model,
                 event_callback,
+                request.language,
             )
             repository.save(assessment)
             await queue.put(

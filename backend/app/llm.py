@@ -14,6 +14,21 @@ from .schemas import Assessment, CompanyInput, RetrievedEvidence
 logger = logging.getLogger(__name__)
 EventCallback = Callable[[dict[str, Any]], None]
 
+# Every stage previously forced Chinese output. The UI is bilingual (English /
+# 中文), so the requested language now drives all user-facing model text.
+LANGUAGE_PREFIX = {
+    "en": (
+        "Think and write in English. Every user-facing string (names, categories, "
+        "descriptions, impacts, uncertainty, benefits, risks, recommendations) must "
+        "be written in English. "
+    ),
+    "zh": "请全程使用中文进行深度思考和最终输出。面向用户的文字一律使用简体中文。",
+}
+
+
+def language_prefix(language: str | None) -> str:
+    return LANGUAGE_PREFIX.get((language or "en").lower(), LANGUAGE_PREFIX["en"])
+
 
 class LLMProvider(Protocol):
     mode: str
@@ -34,6 +49,7 @@ class LLMProvider(Protocol):
         company: CompanyInput,
         evidence: list[RetrievedEvidence],
         baseline: list[dict[str, Any]],
+        language: str = "en",
     ) -> dict[str, Any]:
         ...
 
@@ -43,6 +59,7 @@ class LLMProvider(Protocol):
         evidence: list[RetrievedEvidence],
         risks: list[dict[str, Any]],
         baseline: list[dict[str, Any]],
+        language: str = "en",
     ) -> dict[str, Any]:
         ...
 
@@ -53,6 +70,7 @@ class LLMProvider(Protocol):
         risks: list[dict[str, Any]],
         scenarios: list[dict[str, Any]],
         baseline: dict[str, Any],
+        language: str = "en",
     ) -> dict[str, Any]:
         ...
 
@@ -60,6 +78,7 @@ class LLMProvider(Protocol):
         self,
         assessment: Assessment,
         message: str,
+        language: str = "en",
     ) -> dict[str, Any]:
         ...
 
@@ -68,6 +87,7 @@ class LLMProvider(Protocol):
         assessment: Assessment,
         message: str,
         supplemental_evidence: list[RetrievedEvidence],
+        language: str = "en",
     ) -> str:
         ...
 
@@ -91,6 +111,7 @@ class MockLLM:
         company: CompanyInput,
         evidence: list[RetrievedEvidence],
         baseline: list[dict[str, Any]],
+        language: str = "en",
     ) -> dict[str, Any]:
         return {"risks": baseline}
 
@@ -100,6 +121,7 @@ class MockLLM:
         evidence: list[RetrievedEvidence],
         risks: list[dict[str, Any]],
         baseline: list[dict[str, Any]],
+        language: str = "en",
     ) -> dict[str, Any]:
         return {"scenarios": baseline}
 
@@ -110,6 +132,7 @@ class MockLLM:
         risks: list[dict[str, Any]],
         scenarios: list[dict[str, Any]],
         baseline: dict[str, Any],
+        language: str = "en",
     ) -> dict[str, Any]:
         return baseline
 
@@ -117,6 +140,7 @@ class MockLLM:
         self,
         assessment: Assessment,
         message: str,
+        language: str = "en",
     ) -> dict[str, Any]:
         return {"action": "answer"}
 
@@ -125,15 +149,26 @@ class MockLLM:
         assessment: Assessment,
         message: str,
         supplemental_evidence: list[RetrievedEvidence],
+        language: str = "en",
     ) -> str:
+        zh = (language or "en").lower() == "zh"
         normalized = message.lower()
         if any(term in normalized for term in ("cost", "budget", "成本", "投资", "预算")):
             return (
                 "成本约束已纳入重新评估。下一轮应补充投资预算上限、当地固定资产"
                 "沉没成本，以及中国与现有海外基地的单位成本差。"
+                if zh
+                else "The cost constraint is now part of the assessment. Useful next inputs: "
+                "the investment ceiling, the sunk cost of existing assets, and the unit-cost "
+                "gap between China and the current overseas sites."
             )
         if any(term in normalized for term in ("time", "时间", "期限")):
-            return "决策时间会改变可行方案，建议补充产能爬坡和审批周期。"
+            return (
+                "决策时间会改变可行方案，建议补充产能爬坡和审批周期。"
+                if zh
+                else "Timing changes which options stay feasible; adding capacity ramp-up and "
+                "approval lead times would sharpen the comparison."
+            )
         if any(
             term in normalized
             for term in ("tariff", "关税", "export", "出口管制", "管制")
@@ -141,10 +176,24 @@ class MockLLM:
             return (
                 "政策风险已提升为重点观察项。建议补充产品 HS/ECCN 编码、"
                 "客户所在地和关键供应商。"
+                if zh
+                else "Policy exposure has moved up the watch list. Adding HS/ECCN codes, "
+                "customer locations and critical suppliers would make this assessment "
+                "company specific."
             )
         if supplemental_evidence:
-            return "已调用证据检索工具，并找到补充材料。请继续提供具体约束以便细化分析。"
-        return "信息已记录。当前回答基于现有证据，补充约束后可重新运行评估。"
+            return (
+                "已调用证据检索工具，并找到补充材料。请继续提供具体约束以便细化分析。"
+                if zh
+                else "I searched the evidence base and found additional material. Give me the "
+                "specific constraint you care about and I will fold it into the analysis."
+            )
+        return (
+            "信息已记录。当前回答基于现有证据，补充约束后可重新运行评估。"
+            if zh
+            else "Noted. This answer is based on the evidence already retrieved; add a concrete "
+            "constraint and the scenario analysis can be re-run."
+        )
 
 
 class DeepSeekLLM:
@@ -191,12 +240,13 @@ class DeepSeekLLM:
         company: CompanyInput,
         evidence: list[RetrievedEvidence],
         baseline: list[dict[str, Any]],
+        language: str = "en",
     ) -> dict[str, Any]:
         return self._call_json(
             stage="RiskAgent",
             system=(
-                "请全程使用中文进行深度思考和最终输出。"
-                "你是供应链地缘政治风险分析师。只返回 JSON，顶层键必须为 risks。"
+                language_prefix(language)
+                + "你是供应链地缘政治风险分析师。只返回 JSON，顶层键必须为 risks。"
                 "每条风险必须包含 name, category, severity, probability, "
                 "business_impact, uncertainty, evidence_ids。severity 只能是 "
                 "low, medium, high, critical；probability 是 0-100 整数。"
@@ -218,12 +268,13 @@ class DeepSeekLLM:
         evidence: list[RetrievedEvidence],
         risks: list[dict[str, Any]],
         baseline: list[dict[str, Any]],
+        language: str = "en",
     ) -> dict[str, Any]:
         return self._call_json(
             stage="ScenarioAgent",
             system=(
-                "请全程使用中文进行深度思考和最终输出。"
-                "你是供应链情景模拟专家。只返回 JSON，顶层键必须为 scenarios，"
+                language_prefix(language)
+                + "你是供应链情景模拟专家。只返回 JSON，顶层键必须为 scenarios，"
                 "并给出恰好三个方案。每个方案必须包含 name, description, "
                 "cost_score, resilience_score, geopolitical_risk_score, "
                 "market_access_score, implementation_score, benefits, risks, "
@@ -248,12 +299,13 @@ class DeepSeekLLM:
         risks: list[dict[str, Any]],
         scenarios: list[dict[str, Any]],
         baseline: dict[str, Any],
+        language: str = "en",
     ) -> dict[str, Any]:
         return self._call_json(
             stage="AdvisorAgent",
             system=(
-                "请全程使用中文进行深度思考和最终输出。"
-                "你是企业战略顾问。只返回 JSON，顶层键必须为 recommendation 和 "
+                language_prefix(language)
+                + "你是企业战略顾问。只返回 JSON，顶层键必须为 recommendation 和 "
                 "limitations。recommendation 必须包含 recommended_scenario_id, "
                 "headline, rationale, next_actions, confidence, uncertainty, "
                 "requires_human_review。recommended_scenario_id 必须来自输入方案。"
@@ -275,6 +327,7 @@ class DeepSeekLLM:
         self,
         assessment: Assessment,
         message: str,
+        language: str = "en",
     ) -> dict[str, Any]:
         return self._call_json(
             stage="ChatAgent",
@@ -300,12 +353,13 @@ class DeepSeekLLM:
         assessment: Assessment,
         message: str,
         supplemental_evidence: list[RetrievedEvidence],
+        language: str = "en",
     ) -> str:
         result = self._call_json(
             stage="ChatAgent",
             system=(
-                "请全程使用中文进行深度思考和最终输出。"
-                "你是供应链决策顾问。只返回 JSON，顶层键为 answer，"
+                language_prefix(language)
+                + "你是供应链决策顾问。只返回 JSON，顶层键为 answer，"
                 "answer 必须是字符串。"
                 "回答必须基于已有评估和证据，明确不确定性，不得编造来源。"
                 "若新增信息改变判断，要说明影响；对高风险事项建议人工复核。"

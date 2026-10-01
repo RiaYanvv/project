@@ -12,6 +12,7 @@ from .llm import EventCallback, LLMProvider
 from .retrieval import RetrievalProvider
 from .schemas import (
     Assessment,
+    ChatAnalysis,
     ChatRequest,
     ChatTurn,
     CompanyInput,
@@ -27,9 +28,52 @@ from .schemas import (
 
 
 class AgentService:
+    # Normalised risk taxonomy so the frontend radar does not have to guess from
+    # free-text categories (UI.md risk overview).
+    RISK_CATEGORY_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+        ("trade", ("tariff", "trade", "duty", "customs", "import", "export control", "关税", "贸易")),
+        ("political", ("geopolitic", "political", "sanction", "conflict", "地缘", "政治")),
+        ("supply_chain", ("supplier", "supply", "ecosystem", "dependency", "logistics", "供应", "供应链")),
+        ("regulatory", ("regulat", "compliance", "licence", "license", "law", "policy", "监管", "合规", "政策")),
+        ("market_access", ("market access", "customer", "rules of origin", "市场准入", "客户")),
+        ("operational", ("operat", "implementation", "workforce", "labor", "labour", "cost", "ramp", "运营", "实施", "成本")),
+    )
+
     def __init__(self, retrieval: RetrievalProvider, llm: LLMProvider):
         self.retrieval = retrieval
         self.llm = llm
+
+    @classmethod
+    def _risk_category_key(cls, name: str, category: str) -> str:
+        text = f"{category} {name}".lower()
+        for key, tokens in cls.RISK_CATEGORY_KEYWORDS:
+            if any(token in text for token in tokens):
+                return key
+        return "operational"
+
+    @staticmethod
+    def _scenario_confidence(
+        evidence_ids: list[str], evidence: list[RetrievedEvidence]
+    ) -> tuple[str, list[str]]:
+        """Scenario-level confidence derived from the evidence it cites."""
+        by_id = {item.evidence_id: item for item in evidence}
+        items = [by_id[evidence_id] for evidence_id in evidence_ids if evidence_id in by_id]
+        if not items:
+            return "low", ["no evidence is linked to this scenario"]
+        strong = {
+            item.authority_level for item in items
+        } & {"S", "A+", "A", "B+"}
+        mock_only = all(item.is_mock for item in items)
+        if len(items) >= 3 and strong and not mock_only:
+            return "high", [
+                f"{len(items)} linked sources including {sorted(strong)[0]} material"
+            ]
+        if len(items) >= 2:
+            return "medium", [
+                f"{len(items)} linked sources"
+                + (" (test data only)" if mock_only else ", no top-tier authority material")
+            ]
+        return "low", ["only one linked source"]
 
     def run(
         self,
@@ -37,6 +81,7 @@ class AgentService:
         api_key: str | None = None,
         model_name: str | None = None,
         event_callback: EventCallback | None = None,
+        language: str = "en",
     ) -> Assessment:
         run_id = uuid.uuid4().hex[:10].upper()
         request_id = f"REQ-{run_id}"
@@ -67,7 +112,7 @@ class AgentService:
             event_callback,
             {"type": "stage", "agent": "ProfileAgent", "status": "started"},
         )
-        profile = self._build_profile(company, request_id)
+        profile = self._build_profile(company, request_id, language)
         trace.append(
             self._trace(
                 agent="ProfileAgent",
@@ -119,7 +164,7 @@ class AgentService:
             {"type": "stage", "agent": "RiskAgent", "status": "started"},
         )
         risk_payload = active_llm.analyze_risks(
-            company, evidence, heuristic["risks"]
+            company, evidence, heuristic["risks"], language
         )
         risks, risk_fallback = self._coerce_risks(
             risk_payload.get("risks"), heuristic["risks"], evidence
@@ -156,6 +201,7 @@ class AgentService:
             evidence,
             [item.model_dump(mode="json") for item in risks],
             heuristic["scenarios"],
+            language,
         )
         scenarios, scenario_fallback = self._coerce_scenarios(
             scenario_payload.get("scenarios"),
@@ -200,6 +246,7 @@ class AgentService:
                 "recommendation": heuristic["recommendation"],
                 "limitations": heuristic["limitations"],
             },
+            language,
         )
         recommendation, limitations, advisor_fallback = self._coerce_recommendation(
             recommendation_payload,
@@ -265,6 +312,11 @@ class AgentService:
             request_id=request_id,
             created_at=now,
             updated_at=now,
+            language=language if language in {"en", "zh"} else "en",  # type: ignore[arg-type]
+            company_input=company,
+            scoring={
+                item.dimension: item.weight for item in company.priorities
+            },
             company_profile=profile,
             evidence=evidence,
             risks=risks,
@@ -287,7 +339,8 @@ class AgentService:
             request.api_key,
             None,
         )
-        action = active_llm.choose_chat_action(assessment, request.message)
+        language = request.language
+        action = active_llm.choose_chat_action(assessment, request.message, language)
         supplemental_evidence: list[RetrievedEvidence] = []
         trace_status = "completed"
 
@@ -305,6 +358,10 @@ class AgentService:
             assessment,
             request.message,
             supplemental_evidence,
+            language,
+        )
+        chat_analysis = self._chat_analysis(
+            action, reply, request.message, supplemental_evidence
         )
         chat_trace = self._trace(
             agent="ChatAgent",
@@ -319,11 +376,150 @@ class AgentService:
         updated = assessment.model_copy(
             update={
                 "chat_history": history,
+                "chat_analysis": chat_analysis,
                 "trace": [*assessment.trace, chat_trace],
                 "updated_at": utc_now(),
             }
         )
         return updated
+
+    def resimulate(
+        self,
+        assessment: Assessment,
+        additional_constraints: list[str] | None = None,
+        api_key: str | None = None,
+        model_name: str | None = None,
+        language: str = "en",
+    ) -> Assessment:
+        """Refresh the scenario comparison with constraints from the consultation.
+
+        The company profile, evidence set and risk list are reused, so this is a
+        scenario re-run rather than a full re-assessment.
+        """
+        company = assessment.company_input
+        if company is None:
+            raise ValueError(
+                "this assessment has no stored company input, so scenarios cannot "
+                "be re-run"
+            )
+        selected_model = model_name or getattr(self.llm, "model", "mock")
+        active_llm = self.llm.with_runtime(selected_model, api_key, None)
+        if self.llm.mode == "deepseek":
+            if not api_key:
+                raise ValueError("必须填写自己的 DeepSeek API Key")
+            if not active_llm.validate_key():
+                raise ValueError("DeepSeek API Key 无效或没有模型访问权限")
+
+        constraints = [
+            item.strip()
+            for item in (additional_constraints or [])
+            if item and item.strip()
+        ]
+        if constraints:
+            addition = " | ".join(
+                f"Consultation input: {item}" for item in constraints
+            )
+            company = company.model_copy(
+                update={"notes": ((company.notes or "") + "\n" + addition).strip()[:4000]}
+            )
+
+        heuristic = self._build_heuristic(company, assessment.evidence)
+        step_started = time.perf_counter()
+        scenario_payload = active_llm.simulate_scenarios(
+            company,
+            assessment.evidence,
+            [item.model_dump(mode="json") for item in assessment.risks],
+            heuristic["scenarios"],
+            language,
+        )
+        scenarios, _ = self._coerce_scenarios(
+            scenario_payload.get("scenarios"),
+            heuristic["scenarios"],
+            assessment.evidence,
+            company,
+        )
+        scenarios = self._rank_scenarios(scenarios)
+        recommendation_payload = active_llm.generate_recommendation(
+            company,
+            assessment.evidence,
+            [item.model_dump(mode="json") for item in assessment.risks],
+            [item.model_dump(mode="json") for item in scenarios],
+            {
+                "recommendation": heuristic["recommendation"],
+                "limitations": heuristic["limitations"],
+            },
+            language,
+        )
+        recommendation, limitations, _ = self._coerce_recommendation(
+            recommendation_payload,
+            heuristic,
+            company,
+            assessment.evidence,
+            assessment.risks,
+            scenarios,
+        )
+        trace_step = self._trace(
+            agent="ScenarioAgent",
+            action="按咨询新增约束重跑情景模拟",
+            status="completed",
+            detail=(
+                f"已纳入 {len(constraints)} 条咨询新增约束并重算权重。"
+                if language == "zh"
+                else f"Re-ran the scenario comparison with {len(constraints)} "
+                "new consultation constraint(s)."
+            ),
+            started=step_started,
+        )
+        return assessment.model_copy(
+            update={
+                "scenarios": scenarios,
+                "recommendation": recommendation,
+                "limitations": limitations,
+                "company_input": company,
+                "company_profile": self._build_profile(
+                    company, assessment.request_id, language
+                ),
+                "language": language if language in {"en", "zh"} else assessment.language,
+                "trace": [*assessment.trace, trace_step],
+                "updated_at": utc_now(),
+            }
+        )
+
+    @staticmethod
+    def _chat_analysis(
+        action: dict[str, Any],
+        reply: str,
+        message: str,
+        supplemental_evidence: list[RetrievedEvidence],
+    ) -> ChatAnalysis:
+        """Structured turn outcome for the consultation workspace (UI.md §19)."""
+
+        def as_list(value: Any) -> list[str]:
+            if isinstance(value, list):
+                return [str(item) for item in value if str(item).strip()]
+            if isinstance(value, str) and value.strip():
+                return [value.strip()]
+            return []
+
+        new_constraints = as_list(action.get("new_constraints"))
+        new_preferences = as_list(action.get("new_preferences"))
+        scenario_update_required = bool(action.get("scenario_update_required"))
+        if not new_constraints and not new_preferences:
+            # Conservative fallback: a substantive message that is not a question
+            # is treated as new context worth folding into the next scenario run.
+            substantive = len(message.strip()) > 40 and "?" not in message
+            if substantive:
+                new_constraints = [message.strip()[:400]]
+            scenario_update_required = scenario_update_required or substantive
+        summary = str(action.get("summary") or "").strip()
+        if not summary:
+            summary = reply.strip().split("\n", 1)[0][:300]
+        return ChatAnalysis(
+            new_constraints=new_constraints,
+            new_preferences=new_preferences,
+            scenario_update_required=scenario_update_required,
+            summary=summary,
+        )
 
     def _search_text(self, value: str) -> list[RetrievedEvidence]:
         query = RetrievalQuery(
@@ -369,6 +565,10 @@ class AgentService:
             for index, item in enumerate(candidates[:8], start=1):
                 filtered = self._filter_fields(item, RiskItem)
                 filtered["risk_id"] = f"RSK-{index:03d}"
+                filtered["category_key"] = self._risk_category_key(
+                    str(filtered.get("name") or ""),
+                    str(filtered.get("category") or ""),
+                )
                 evidence_ids = [
                     evidence_id
                     for evidence_id in filtered.get("evidence_ids", [])
@@ -405,6 +605,10 @@ class AgentService:
                     RiskItem.model_validate(item).model_copy(
                         update={
                             "risk_id": f"RSK-{index:03d}",
+                            "category_key": self._risk_category_key(
+                                str(item.get("name") or ""),
+                                str(item.get("category") or ""),
+                            ),
                             "evidence_ids": evidence_ids
                             or [evidence_item.evidence_id for evidence_item in evidence[:2]],
                             "verification_status": "partial"
@@ -444,12 +648,17 @@ class AgentService:
                 scenario = ScenarioResult.model_validate(filtered).model_copy(
                     update={"scenario_id": f"SCN-{index:03d}"}
                 )
+                confidence_label, confidence_reasons = self._scenario_confidence(
+                    scenario.evidence_ids, evidence
+                )
                 scenarios.append(
                     scenario.model_copy(
                         update={
                             "weighted_score": self._weighted_scenario_score(
                                 scenario, company
-                            )
+                            ),
+                            "confidence": confidence_label,
+                            "confidence_reasons": confidence_reasons,
                         }
                     )
                 )
@@ -473,12 +682,17 @@ class AgentService:
                         or [evidence_item.evidence_id for evidence_item in evidence[:2]],
                     }
                 )
+                confidence_label, confidence_reasons = self._scenario_confidence(
+                    scenario.evidence_ids, evidence
+                )
                 scenarios.append(
                     scenario.model_copy(
                         update={
                             "weighted_score": self._weighted_scenario_score(
                                 scenario, company
-                            )
+                            ),
+                            "confidence": confidence_label,
+                            "confidence_reasons": confidence_reasons,
                         }
                     )
                 )
@@ -728,12 +942,31 @@ class AgentService:
             duration_ms=max(0, round((time.perf_counter() - started) * 1000)),
         )
 
-    def _build_profile(self, company: CompanyInput, request_id: str) -> CompanyProfile:
+    def _build_profile(
+        self, company: CompanyInput, request_id: str, language: str = "en"
+    ) -> CompanyProfile:
         footprint = ", ".join(
             f"{item.country} {item.production_share}%"
             for item in company.production_locations
         )
         markets = ", ".join(company.target_markets)
+        # The free-text question is optional in the UI, so fall back to a generic
+        # description instead of leaving the profile empty.
+        question = company.decision_question.strip() or (
+            "the current production layout and how to rebalance it"
+        )
+        footprint_text = footprint or "not specified"
+        markets_text = markets or "not specified"
+        if (language or "en").lower() == "zh":
+            summary = (
+                f"{company.company_name} 当前生产布局为 {footprint_text}，"
+                f"主要面向 {markets_text} 市场。核心决策问题是：{question}"
+            )
+        else:
+            summary = (
+                f"{company.company_name} currently produces in {footprint_text} "
+                f"and serves {markets_text}. The decision under review: {question}."
+            )
         return CompanyProfile(
             company_id=f"CMP-{request_id.split('-')[1]}",
             company_name=company.company_name,
@@ -742,15 +975,11 @@ class AgentService:
             home_country=company.home_country,
             production_footprint=company.production_locations,
             target_markets=company.target_markets,
-            decision_question=company.decision_question,
+            decision_question=question,
             time_horizon=company.time_horizon,
             priorities=company.priorities,
             restrictions=company.restrictions,
-            summary=(
-                f"{company.company_name} 当前生产布局为 {footprint}，"
-                f"主要面向 {markets} 市场。核心决策问题是："
-                f"{company.decision_question}"
-            ),
+            summary=summary,
         )
 
     def _build_heuristic(

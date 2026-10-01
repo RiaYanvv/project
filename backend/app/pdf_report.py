@@ -24,6 +24,67 @@ from .schemas import Assessment
 
 
 FONT_NAME = "STSong-Light"
+
+# Report labels follow the language requested for the assessment (UI.md §4).
+REPORT_LABELS: dict[str, dict[str, str]] = {
+    "zh": {
+        "document_title": "供应链迁移决策报告",
+        "title": "供应链迁移决策报告",
+        "summary": "管理层摘要",
+        "profile": "企业画像",
+        "risks": "关键风险评估",
+        "scenarios": "情景比较",
+        "detail": "情景细节与假设",
+        "consultation": "咨询洞见",
+        "actions": "建议行动",
+        "uncertainty": "不确定性与人工复核",
+        "evidence": "证据来源",
+        "trace": "Agent 执行轨迹",
+        "disclaimer": (
+            "本报告用于辅助决策，不构成法律、投资或合规意见。"
+            "高风险结论必须由企业负责人或专业顾问复核。"
+        ),
+        "human_review": "需要人工复核",
+        "yes": "是",
+        "no": "否",
+        "no_consultation": "本次咨询没有额外的对话记录。",
+        "confidence": "置信度",
+        "benefits": "潜在收益",
+        "scenario_risks": "潜在风险",
+        "assumptions": "关键假设",
+    },
+    "en": {
+        "document_title": "Supply Chain Relocation Decision Report",
+        "title": "Supply Chain Relocation Decision Report",
+        "summary": "Executive summary",
+        "profile": "Company profile",
+        "risks": "Key risk assessment",
+        "scenarios": "Scenario comparison",
+        "detail": "Scenario detail and assumptions",
+        "consultation": "Consultation insights",
+        "actions": "Recommended next actions",
+        "uncertainty": "Uncertainties and human review",
+        "evidence": "Evidence sources",
+        "trace": "Agent execution trace",
+        "disclaimer": (
+            "This report supports a decision; it is not legal, investment or "
+            "compliance advice. High-risk conclusions must be reviewed by the "
+            "responsible manager or an external adviser."
+        ),
+        "human_review": "Human review required",
+        "yes": "yes",
+        "no": "no",
+        "no_consultation": "No additional consultation turns were recorded.",
+        "confidence": "Confidence",
+        "benefits": "Potential benefits",
+        "scenario_risks": "Potential risks",
+        "assumptions": "Key assumptions",
+    },
+}
+
+
+def report_labels(assessment: Assessment) -> dict[str, str]:
+    return REPORT_LABELS.get(getattr(assessment, "language", "en"), REPORT_LABELS["en"])
 NAVY = colors.HexColor("#14324A")
 TEAL = colors.HexColor("#087F75")
 LIGHT = colors.HexColor("#EEF4F6")
@@ -36,6 +97,7 @@ GREEN = colors.HexColor("#207A4B")
 
 def build_assessment_pdf(assessment: Assessment) -> bytes:
     pdfmetrics.registerFont(UnicodeCIDFont(FONT_NAME))
+    labels = report_labels(assessment)
     buffer = BytesIO()
     document = SimpleDocTemplate(
         buffer,
@@ -44,12 +106,12 @@ def build_assessment_pdf(assessment: Assessment) -> bytes:
         leftMargin=18 * mm,
         topMargin=18 * mm,
         bottomMargin=17 * mm,
-        title=f"{assessment.company_profile.company_name} - 供应链迁移决策报告",
+        title=f"{assessment.company_profile.company_name} - {labels['document_title']}",
         author="Geopolitical Supply Chain Decision Agent",
     )
     styles = _styles()
     story = [
-        Paragraph("供应链迁移决策初步报告", styles["Title"]),
+        Paragraph(labels["title"], styles["Title"]),
         Paragraph(
             html.escape(assessment.company_profile.company_name),
             styles["Subtitle"],
@@ -59,7 +121,7 @@ def build_assessment_pdf(assessment: Assessment) -> bytes:
         Spacer(1, 5 * mm),
         _metadata_table(assessment, styles),
         Spacer(1, 7 * mm),
-        _section("管理层摘要", styles),
+        _section(labels["summary"], styles),
         Paragraph(
             html.escape(assessment.company_profile.summary),
             styles["Body"],
@@ -73,19 +135,28 @@ def build_assessment_pdf(assessment: Assessment) -> bytes:
             styles["Body"],
         ),
         Spacer(1, 5 * mm),
-        _section("主要风险", styles),
+        _section(labels["profile"], styles),
+        _profile_table(assessment, styles),
+        Spacer(1, 6 * mm),
+        _section(labels["risks"], styles),
         _risk_table(assessment, styles),
         Spacer(1, 6 * mm),
-        _section("情景比较", styles),
+        _section(labels["scenarios"], styles),
         _scenario_table(assessment, styles),
         Spacer(1, 6 * mm),
-        _section("建议行动", styles),
+        _section(labels["detail"], styles),
+        *_scenario_detail(assessment, styles, labels),
+        Spacer(1, 6 * mm),
+        _section(labels["consultation"], styles),
+        *_consultation_section(assessment, styles, labels),
+        Spacer(1, 6 * mm),
+        _section(labels["actions"], styles),
         _bullet_list(assessment.recommendation.next_actions, styles),
         Spacer(1, 5 * mm),
-        _section("不确定性与人工复核", styles),
+        _section(labels["uncertainty"], styles),
         Paragraph(
-            "需要人工复核："
-            + ("是" if assessment.recommendation.requires_human_review else "否"),
+            f"{labels['human_review']}: "
+            + (labels["yes"] if assessment.recommendation.requires_human_review else labels["no"]),
             styles["Body"],
         ),
         _bullet_list(
@@ -96,17 +167,13 @@ def build_assessment_pdf(assessment: Assessment) -> bytes:
             styles,
         ),
         Spacer(1, 8 * mm),
-        _section("证据链", styles),
+        _section(labels["evidence"], styles),
         _evidence_table(assessment, styles),
         Spacer(1, 6 * mm),
-        _section("Agent 执行轨迹", styles),
+        _section(labels["trace"], styles),
         _trace_table(assessment, styles),
         Spacer(1, 6 * mm),
-        Paragraph(
-            "本报告用于辅助决策，不构成法律、投资或合规意见。"
-            "高风险结论必须由企业负责人或专业顾问复核。",
-            styles["Disclaimer"],
-        ),
+        Paragraph(labels["disclaimer"], styles["Disclaimer"]),
     ]
     document.build(
         story,
@@ -189,6 +256,142 @@ def _styles() -> dict[str, ParagraphStyle]:
             textColor=MUTED,
         ),
     }
+
+
+def _table_style() -> TableStyle:
+    return TableStyle(
+        [
+            ("GRID", (0, 0), (-1, -1), 0.4, BORDER),
+            ("BACKGROUND", (0, 0), (0, -1), LIGHT),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 5),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]
+    )
+
+
+def _profile_table(
+    assessment: Assessment, styles: dict[str, ParagraphStyle]
+) -> Table:
+    """Compact company profile block so the report stands on its own."""
+    profile = assessment.company_profile
+    footprint = (
+        ", ".join(
+            f"{item.country} {item.production_share}%"
+            for item in profile.production_footprint
+        )
+        or "-"
+    )
+    rows = [
+        ("Company", profile.company_name),
+        ("Industry", profile.industry),
+        ("Products", ", ".join(profile.products)),
+        ("Home country", profile.home_country),
+        ("Production footprint", footprint),
+        ("Target markets", ", ".join(profile.target_markets) or "-"),
+        ("Decision question", profile.decision_question),
+        ("Time horizon", profile.time_horizon),
+        (
+            "Priorities",
+            ", ".join(
+                f"{item.dimension} (weight {item.weight})"
+                for item in profile.priorities
+            )
+            or "-",
+        ),
+        ("Restrictions", ", ".join(profile.restrictions) or "-"),
+    ]
+    data = [
+        [
+            Paragraph(html.escape(str(key)), styles["CellHeader"]),
+            Paragraph(html.escape(str(value)), styles["Cell"]),
+        ]
+        for key, value in rows
+    ]
+    table = Table(data, colWidths=[46 * mm, None])
+    table.setStyle(_table_style())
+    return table
+
+
+def _scenario_detail(
+    assessment: Assessment,
+    styles: dict[str, ParagraphStyle],
+    labels: dict[str, str],
+) -> list:
+    """Per-scenario benefits, risks and assumptions (report depth)."""
+    blocks: list = []
+    for item in assessment.scenarios:
+        blocks.append(
+            Paragraph(
+                f"<b>{html.escape(item.name)}</b> — {html.escape(item.description)}",
+                styles["Body"],
+            )
+        )
+        if item.benefits:
+            blocks.append(
+                Paragraph(f"<b>{html.escape(labels['benefits'])}</b>", styles["Body"])
+            )
+            blocks.append(_bullet_list(item.benefits, styles))
+        if item.risks:
+            blocks.append(
+                Paragraph(
+                    f"<b>{html.escape(labels['scenario_risks'])}</b>", styles["Body"]
+                )
+            )
+            blocks.append(_bullet_list(item.risks, styles))
+        if item.applicable_conditions:
+            blocks.append(
+                Paragraph(f"<b>{html.escape(labels['assumptions'])}</b>", styles["Body"])
+            )
+            blocks.append(_bullet_list(item.applicable_conditions, styles))
+        confidence = item.confidence or "low"
+        blocks.append(
+            Paragraph(
+                f"<b>{html.escape(labels['confidence'])}</b>: {html.escape(confidence)}"
+                + (
+                    f" — {html.escape('; '.join(item.confidence_reasons))}"
+                    if item.confidence_reasons
+                    else ""
+                ),
+                styles["Small"],
+            )
+        )
+        blocks.append(Spacer(1, 4 * mm))
+    return blocks
+
+
+def _consultation_section(
+    assessment: Assessment,
+    styles: dict[str, ParagraphStyle],
+    labels: dict[str, str],
+) -> list:
+    """What the consultation added and how it changed the analysis."""
+    turns = [turn for turn in assessment.chat_history if turn.role == "user"]
+    if not turns:
+        return [Paragraph(labels["no_consultation"], styles["Body"])]
+    blocks: list = []
+    for turn in turns[-6:]:
+        blocks.append(Paragraph(html.escape(turn.content[:600]), styles["Cell"]))
+    analysis = assessment.chat_analysis
+    if analysis is not None:
+        added = [*analysis.new_constraints, *analysis.new_preferences]
+        if added:
+            blocks.append(_bullet_list(added, styles))
+        if analysis.scenario_update_required:
+            blocks.append(
+                Paragraph(
+                    html.escape(
+                        "新增信息会影响情景评分，建议重新运行情景模拟。"
+                        if assessment.language == "zh"
+                        else "This input changes scenario scores, so the scenario "
+                        "analysis should be re-run."
+                    ),
+                    styles["Small"],
+                )
+            )
+    return blocks
 
 
 def _section(title: str, styles: dict[str, ParagraphStyle]) -> KeepTogether:

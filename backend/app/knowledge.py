@@ -264,6 +264,29 @@ class KnowledgeRepository:
             "ready": chunk_count > 0,
         }
 
+    def document_source(self, source_id: str) -> dict[str, str | None] | None:
+        """Source metadata for one document, used to serve original evidence."""
+        if not source_id:
+            return None
+        with closing(self._connect()) as connection, connection:
+            row = connection.execute(
+                """
+                SELECT source_id, title, publisher, url, document_path, is_mock
+                FROM knowledge_documents WHERE source_id = ?
+                """,
+                (source_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "source_id": row["source_id"],
+            "title": row["title"],
+            "publisher": row["publisher"],
+            "url": row["url"] or None,
+            "document_path": row["document_path"] or None,
+            "is_mock": "1" if row["is_mock"] else "",
+        }
+
     def all_chunks(self) -> Iterable[KnowledgeChunk]:
         with closing(self._connect()) as connection, connection:
             rows = connection.execute(

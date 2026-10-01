@@ -4,3 +4,4 @@ httpx==0.28.1
 beautifulsoup4==4.13.4
 pypdf==5.9.0
 reportlab==4.4.3
+python-dotenv==1.1.1

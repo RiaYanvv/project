@@ -6,7 +6,16 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
-CountryCode = Literal["CN", "VN", "ID", "IN", "TH", "MY", "MX", "US", "EU"]
+CountryCode = Literal["CN", "VN", "ID", "IN", "TH", "MY", "MX", "US", "EU", "ASEAN"]
+Language = Literal["en", "zh"]
+RiskCategoryKey = Literal[
+    "trade",
+    "political",
+    "supply_chain",
+    "regulatory",
+    "market_access",
+    "operational",
+]
 RiskLevel = Literal["low", "medium", "high", "critical"]
 ConfidenceLevel = Literal["low", "medium", "high"]
 
@@ -44,9 +53,11 @@ class CompanyInput(StrictModel):
     ]
     products: list[str] = Field(min_length=1)
     home_country: CountryCode = "CN"
-    production_locations: list[ProductionLocation] = Field(min_length=1)
-    target_markets: list[CountryCode] = Field(min_length=1)
-    decision_question: str = Field(min_length=5, max_length=1000)
+    production_locations: list[ProductionLocation] = Field(default_factory=list)
+    target_markets: list[CountryCode] = Field(default_factory=list)
+    # The free-text question is optional in the UI (profile list.md); the selected
+    # preset is enough when the user does not add their own wording.
+    decision_question: str = Field(default="", max_length=1000)
     time_horizon: Literal["within_6_months", "6_18_months", "2_5_years"]
     priorities: list[PriorityWeight] = Field(min_length=1)
     restrictions: list[
@@ -58,6 +69,10 @@ class CompanyInput(StrictModel):
             "supplier_dependency",
             "labor_cost_increase",
             "logistics_problems",
+            "geopolitical_uncertainty",
+            "market_access",
+            "capacity_expansion",
+            "other",
             "none",
         ]
     ] = Field(default_factory=list)
@@ -74,8 +89,10 @@ class CompanyInput(StrictModel):
         cls, locations: list[ProductionLocation]
     ) -> list[ProductionLocation]:
         total = sum(location.production_share for location in locations)
-        if total != 100:
-            raise ValueError("production shares must total exactly 100")
+        # profile list.md: shares are requested but not mandatory, so a partial
+        # or empty footprint is accepted; only an impossible total is rejected.
+        if total > 100:
+            raise ValueError("production shares cannot exceed 100")
         return locations
 
     @model_validator(mode="after")
@@ -108,6 +125,9 @@ class RetrievedEvidence(StrictModel):
     authority_level: Literal["S", "A+", "A", "B+", "B", "C", "D"]
     topic: str
     document_path: str | None = None
+    # Same-origin API path that streams the original document, when one is held
+    # locally (data branch) or reachable on the web.
+    document_url: str | None = None
     content: str
     relevance_score: int = Field(ge=0, le=100)
     is_mock: bool
@@ -132,6 +152,7 @@ class RiskItem(StrictModel):
     risk_id: str
     name: str
     category: str
+    category_key: RiskCategoryKey | None = None
     severity: RiskLevel
     probability: int = Field(ge=0, le=100)
     business_impact: str
@@ -150,6 +171,8 @@ class ScenarioResult(StrictModel):
     market_access_score: int = Field(ge=0, le=100)
     implementation_score: int = Field(ge=0, le=100)
     weighted_score: float = Field(ge=0, le=100)
+    confidence: ConfidenceLevel | None = None
+    confidence_reasons: list[str] = Field(default_factory=list)
     benefits: list[str]
     risks: list[str]
     applicable_conditions: list[str]
@@ -187,12 +210,31 @@ class ChatTurn(StrictModel):
 class ChatRequest(StrictModel):
     message: str = Field(min_length=1, max_length=4000)
     api_key: str | None = Field(default=None, min_length=10)
+    language: Language = "en"
 
 
 class AssessmentRequest(StrictModel):
     company: CompanyInput
-    api_key: str = Field(min_length=10)
+    # Only required when the backend runs in deepseek mode.
+    api_key: str | None = Field(default=None, min_length=10)
     llm_model: Literal["deepseek-flash", "deepseek-v4-pro"] = "deepseek-flash"
+    language: Language = "en"
+
+
+class ChatAnalysis(StrictModel):
+    """Structured outcome of one consultation turn (UI.md chat page §19)."""
+
+    new_constraints: list[str] = Field(default_factory=list)
+    new_preferences: list[str] = Field(default_factory=list)
+    scenario_update_required: bool = False
+    summary: str = ""
+
+
+class ScenarioUpdateRequest(StrictModel):
+    additional_constraints: list[str] = Field(default_factory=list)
+    api_key: str | None = Field(default=None, min_length=10)
+    llm_model: Literal["deepseek-flash", "deepseek-v4-pro"] = "deepseek-flash"
+    language: Language = "en"
 
 
 class Assessment(StrictModel):
@@ -201,11 +243,15 @@ class Assessment(StrictModel):
     created_at: str
     updated_at: str
     contract_version: str = "1.0"
+    language: Language = "en"
+    company_input: CompanyInput | None = None
     company_profile: CompanyProfile
     evidence: list[RetrievedEvidence]
     risks: list[RiskItem]
     scenarios: list[ScenarioResult]
     recommendation: Recommendation
+    scoring: dict[str, int] = Field(default_factory=dict)
+    chat_analysis: ChatAnalysis | None = None
     chat_history: list[ChatTurn] = Field(default_factory=list)
     trace: list[TraceStep] = Field(default_factory=list)
     limitations: list[str]
