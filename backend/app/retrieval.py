@@ -138,39 +138,268 @@ class HybridRetrievalProvider:
             *query.target_markets,
             query.home_country,
         }
-        authority_scores = {"A": 1.0, "B": 0.78, "C": 0.52, "D": 0.25}
+
+        authority_scores = {
+            "S": 1.0,
+            "A+": 0.85,
+            "A": 0.70,
+            "B+": 0.50,
+            "B": 0.40,
+            "C": 0.25,
+            "D": 0.10,
+        }
+
+        # Query-specific concepts used for direct relevance reranking.
+        industry_concepts = {
+            "battery_ev": {
+                "battery",
+                "batteries",
+                "electric vehicle",
+                "electric vehicles",
+                "ev",
+                "lithium",
+                "cell",
+                "cells",
+                "cathode",
+                "anode",
+                "850760",
+                "870380",
+            },
+            "semiconductor": {
+                "semiconductor",
+                "semiconductors",
+                "chip",
+                "chips",
+                "integrated circuit",
+                "wafer",
+            },
+            "electronics": {
+                "electronics",
+                "electronic",
+                "components",
+            },
+            "optoelectronics": {
+                "optoelectronics",
+                "photonics",
+                "optical",
+            },
+            "industrial_equipment": {
+                "industrial equipment",
+                "machinery",
+                "machine",
+            },
+        }
+
+        restriction_concepts = {
+            "tariff_pressure": {
+                "tariff",
+                "tariffs",
+                "section 301",
+                "section 232",
+                "trade remedy",
+                "customs",
+                "duty",
+                "duties",
+                "circumvention",
+                "anti-circumvention",
+                "origin",
+                "rules of origin",
+                "transshipment",
+            },
+            "export_controls": {
+                "export control",
+                "export controls",
+                "entity list",
+                "license",
+                "licensing",
+            },
+            "sanctions_concerns": {
+                "sanction",
+                "sanctions",
+                "restricted party",
+            },
+            "local_regulation": {
+                "local content",
+                "localization",
+                "domestic content",
+            },
+            "supplier_dependency": {
+                "supplier",
+                "supply chain",
+                "dependency",
+                "concentration",
+            },
+            "labor_cost_increase": {
+                "labor cost",
+                "labour cost",
+                "wage",
+                "wages",
+            },
+            "logistics_problems": {
+                "logistics",
+                "shipping",
+                "freight",
+                "port",
+                "transport",
+            },
+        }
+
+        country_aliases = {
+            "CN": {"china", "chinese"},
+            "US": {"united states", "u.s.", "u.s", "american", "america"},
+            "VN": {"vietnam", "vietnamese"},
+            "TH": {"thailand", "thai"},
+            "MY": {"malaysia", "malaysian"},
+            "MX": {"mexico", "mexican"},
+            "IN": {"india", "indian"},
+            "ID": {"indonesia", "indonesian"},
+            "EU": {"european union", "eu"},
+        }
+
+        garbage_patterns = (
+            "these cookies allow us",
+            "cookie policy",
+            "privacy policy",
+            "accept all cookies",
+            "manage cookies",
+            "javascript is disabled",
+            "enable javascript",
+            "_msttexthash",
+            "_msthidden",
+            "_msthash",
+            "skip to main content",
+        )
+
+        wanted_industry = industry_concepts.get(query.industry, set())
+
+        wanted_policy: set[str] = set()
+        for restriction in query.restrictions:
+            wanted_policy.update(
+                restriction_concepts.get(restriction, set())
+            )
+
+        wanted_countries: set[str] = set()
+        for country in country_terms:
+            wanted_countries.update(
+                country_aliases.get(country, {country.lower()})
+            )
 
         scored: list[tuple[float, KnowledgeChunk]] = []
+
         for chunk, bm25_score, token_count in zip(
             chunks, bm25_scores, token_counts
         ):
-            vector_score = cosine_similarity(query_embedding, chunk.embedding)
-            topic_bonus = 0.08 if chunk.topic in query.restrictions else 0.0
-            country_bonus = (
-                0.07
-                if any(term in chunk.country_region for term in country_terms)
+            document_length = sum(token_count.values())
+
+            if document_length < 5:
+                continue
+
+            text = " ".join(
+                [
+                    chunk.title or "",
+                    chunk.topic or "",
+                    chunk.content or "",
+                    chunk.publisher or "",
+                    chunk.country_region or "",
+                ]
+            ).lower()
+
+            # Reject obvious HTML/UI/cookie garbage.
+            if any(pattern in text for pattern in garbage_patterns):
+                continue
+
+            vector_score = max(
+                0.0,
+                cosine_similarity(query_embedding, chunk.embedding),
+            )
+
+            lexical = bm25_score / max_bm25
+            authority = authority_scores.get(
+                chunk.authority_level,
+                0.30,
+            )
+
+            industry_hits = sum(
+                1 for term in wanted_industry if term in text
+            )
+            policy_hits = sum(
+                1 for term in wanted_policy if term in text
+            )
+            country_hits = sum(
+                1 for term in wanted_countries if term in text
+            )
+
+            industry_match = min(1.0, industry_hits / 2)
+            policy_match = min(1.0, policy_hits / 2)
+            country_match = min(1.0, country_hits / 2)
+
+            topic_match = (
+                1.0
+                if chunk.topic in query.restrictions
                 else 0.0
             )
-            authority = authority_scores.get(chunk.authority_level, 0.35)
-            lexical = bm25_score / max_bm25
-            final_score = (
-                0.48 * lexical
-                + 0.32 * vector_score
-                + 0.12 * authority
-                + topic_bonus
-                + country_bonus
-            )
-            if sum(token_count.values()) >= 5:
-                scored.append((final_score, chunk))
 
-        scored.sort(key=lambda item: item[0], reverse=True)
+            # Direct decision relevance should dominate authority.
+            final_score = (
+                0.30 * lexical
+                + 0.18 * vector_score
+                + 0.12 * authority
+                + 0.16 * industry_match
+                + 0.14 * policy_match
+                + 0.07 * country_match
+                + 0.03 * topic_match
+            )
+
+            # Strong bonus when evidence simultaneously matches
+            # industry + policy.
+            if industry_hits and policy_hits:
+                final_score += 0.10
+
+            # Strongest signal for cross-border policy questions:
+            # industry + policy + relevant geography.
+            if industry_hits and policy_hits and country_hits:
+                final_score += 0.08
+
+            # Penalize generic high-authority material that does not
+            # directly match the decision problem.
+            if wanted_industry and industry_hits == 0:
+                final_score -= 0.12
+
+            if wanted_policy and policy_hits == 0:
+                final_score -= 0.10
+
+            # A document that matches neither industry nor policy
+            # should almost never occupy a scarce Top-K slot.
+            if (
+                wanted_industry
+                and wanted_policy
+                and industry_hits == 0
+                and policy_hits == 0
+            ):
+                final_score -= 0.15
+
+            scored.append((max(0.0, final_score), chunk))
+
+        scored.sort(
+            key=lambda item: (
+                item[0],
+                authority_scores.get(
+                    item[1].authority_level,
+                    0.30,
+                ),
+            ),
+            reverse=True,
+        )
+
         selected: list[RetrievedEvidence] = []
         source_counts: Counter[str] = Counter()
         live_budget = self.web_search_limit if self.web_search else 0
         local_limit = max(1, query.limit - live_budget)
+
         for raw_score, chunk in scored:
-            if source_counts[chunk.source_id] >= 2:
+            if source_counts[chunk.source_id] >= 1:
                 continue
+
             selected.append(
                 RetrievedEvidence(
                     evidence_id=f"EVD-{chunk.chunk_id}",
@@ -184,20 +413,28 @@ class HybridRetrievalProvider:
                     topic=chunk.topic,
                     document_path=chunk.document_path,
                     content=chunk.content,
-                    relevance_score=max(1, min(100, round(raw_score * 100))),
+                    relevance_score=max(
+                        1, min(100, round(raw_score * 100))
+                    ),
                     is_mock=chunk.is_mock,
                 )
             )
+
             source_counts[chunk.source_id] += 1
+
             if len(selected) >= local_limit:
                 break
 
         if self.web_search and live_budget:
             web_items = self.web_search.search(
                 self._web_query_text(query),
-                limit=min(live_budget, query.limit - len(selected)),
+                limit=min(
+                    live_budget,
+                    query.limit - len(selected),
+                ),
             )
             selected.extend(web_items)
+
         return selected[: query.limit]
 
     @staticmethod

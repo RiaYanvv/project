@@ -105,7 +105,7 @@ class RetrievedEvidence(StrictModel):
     country_region: str
     publication_date: str
     url: str | None = None
-    authority_level: Literal["A", "B", "C", "D"]
+    authority_level: Literal["S", "A+", "A", "B+", "B", "C", "D"]
     topic: str
     document_path: str | None = None
     content: str

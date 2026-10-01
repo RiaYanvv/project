@@ -86,6 +86,14 @@ class WebSearchTool:
                 ]
                 if part
             )
+            relevance_score = self._relevance_score(
+                f"{title} {abstract} {agency_names}",
+                self._english_terms(query),
+                source_type="policy",
+            )
+            if relevance_score < 45:
+                continue
+
             evidence.append(
                 self._evidence(
                     title=title,
@@ -103,7 +111,7 @@ class WebSearchTool:
                     topic="live_policy",
                     content=content or title,
                     country_region="US",
-                    relevance_score=68,
+                    relevance_score=relevance_score,
                 )
             )
             if len(evidence) >= limit:
@@ -148,9 +156,12 @@ class WebSearchTool:
             authors = self._authors(item.get("author"))
             journal = self._first_text(item.get("container-title"))
             abstract = self._clean_html(item.get("abstract") or "")
-            if not self._is_relevant(
-                f"{title} {abstract}", query_terms
-            ):
+            relevance_score = self._relevance_score(
+                f"{title} {abstract} {journal} {publisher}",
+                query_terms,
+                source_type="research",
+            )
+            if relevance_score < 65:
                 continue
             content = " ".join(
                 part
@@ -173,7 +184,7 @@ class WebSearchTool:
                     topic="live_research",
                     content=content or title,
                     country_region="GLOBAL",
-                    relevance_score=58,
+                    relevance_score=relevance_score,
                 )
             )
             if len(evidence) >= limit:
@@ -252,7 +263,7 @@ class WebSearchTool:
             if name:
                 names.append(name)
         return ", ".join(names)
-
+    
     @staticmethod
     def _english_terms(query: str) -> list[str]:
         stopwords = {
@@ -265,22 +276,134 @@ class WebSearchTool:
             "the",
             "this",
             "with",
-            "是否",
+            "whether",
+            "should",
+            "could",
+            "would",
             "以及",
+            "是否",
             "企业",
         }
+
         terms = [
             token.lower()
-            for token in re.findall(r"[A-Za-z][A-Za-z0-9-]{2,}", query)
+            for token in re.findall(
+                r"[A-Za-z][A-Za-z0-9-]{2,}",
+                query,
+            )
             if token.lower() not in stopwords
         ]
+
         return list(dict.fromkeys(terms))
 
     @staticmethod
-    def _is_relevant(content: str, query_terms: list[str]) -> bool:
-        if not query_terms:
-            return True
+    def _relevance_score(
+        content: str,
+        query_terms: list[str],
+        source_type: str,
+    ) -> int:
         normalized = content.lower()
-        overlap = sum(1 for term in query_terms if term in normalized)
-        required = 1 if len(query_terms) < 4 else 2
-        return overlap >= required
+
+        if not query_terms:
+            return 0
+
+        matched_terms = {
+            term
+            for term in query_terms
+            if term in normalized
+        }
+
+        overlap_ratio = len(matched_terms) / max(1, len(query_terms))
+
+        policy_terms = {
+            "tariff",
+            "tariffs",
+            "trade",
+            "section 301",
+            "export control",
+            "export controls",
+            "restriction",
+            "restrictions",
+            "sanction",
+            "sanctions",
+            "anti-dumping",
+            "antidumping",
+            "countervailing",
+            "circumvention",
+            "customs",
+            "origin",
+            "rules of origin",
+            "local content",
+            "subsidy",
+            "subsidies",
+            "industrial policy",
+            "supply chain",
+            "geopolitical",
+        }
+
+        industry_terms = {
+            "battery",
+            "batteries",
+            "electric vehicle",
+            "electric vehicles",
+            "ev",
+            "lithium",
+            "graphite",
+            "nickel",
+            "cobalt",
+            "critical mineral",
+            "critical minerals",
+            "automotive",
+            "vehicle",
+            "vehicles",
+        }
+
+        geography_terms = {
+            "china",
+            "chinese",
+            "united states",
+            "u.s.",
+            "us",
+            "vietnam",
+            "vietnamese",
+            "thailand",
+            "malaysia",
+            "indonesia",
+            "mexico",
+            "european union",
+            "eu",
+        }
+
+        policy_hits = sum(
+            1 for term in policy_terms if term in normalized
+        )
+        industry_hits = sum(
+            1 for term in industry_terms if term in normalized
+        )
+        geography_hits = sum(
+            1 for term in geography_terms if term in normalized
+        )
+
+        score = 20 + round(overlap_ratio * 35)
+
+        score += min(15, policy_hits * 3)
+        score += min(15, industry_hits * 3)
+        score += min(10, geography_hits * 2)
+
+        if source_type == "policy":
+            score += 5
+
+        if policy_hits and industry_hits:
+            score += 8
+
+        if policy_hits and industry_hits and geography_hits:
+            score += 7
+
+        if source_type == "research":
+            if industry_hits and policy_hits == 0:
+                score -= 15
+
+            if policy_hits and industry_hits == 0:
+                score -= 8
+
+        return max(0, min(100, score))
