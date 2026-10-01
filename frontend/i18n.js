@@ -279,7 +279,6 @@ const ZH_TEXT = {
   "UPDATED SCENARIO RESULT": "更新后的情景结果",
   "Reason:": "原因：",
   "Initial strategic assessment": "初步战略评估",
-  "Sections follow the report outline in UI.md": "章节结构遵循 UI.md 的报告大纲",
   "Executive summary": "执行摘要",
   "Current supply chain overview": "当前供应链概览",
   "Key risks identified": "已识别的关键风险",
