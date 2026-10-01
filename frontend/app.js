@@ -315,14 +315,22 @@ function buildBackendPayload(profile) {
   return { issues, payload };
 }
 
+/* A black-holed request (browser proxy, VPN, sleeping backend) would otherwise
+   leave the interface waiting forever, so every live call is time-bounded. */
+function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
 async function streamAssessment(payload, onStage) {
   // `productionTotal` is a local guard value; the API schema forbids extra keys.
   const { productionTotal, ...request } = payload;
-  const response = await fetch(`${window.LOCUS_API_BASE}/api/v1/assessments/stream`, {
+  const response = await fetchWithTimeout(`${window.LOCUS_API_BASE}/api/v1/assessments/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...request, api_key: window.LOCUS_API_KEY, llm_model: window.LOCUS_MODEL || "deepseek-flash", language: currentLanguage() === "zh" ? "zh" : "en" }),
-  });
+  }, 30000);
   if (!response.ok || !response.body) throw new Error(`Assessment service returned ${response.status}`);
 
   const reader = response.body.getReader();
@@ -1363,11 +1371,11 @@ async function sendChatMessage(text) {
   }
   const pending = appendChatMessage({ role: "assistant", content: "Reviewing your message against the evidence set…" });
   try {
-    const response = await fetch(`${window.LOCUS_API_BASE}/api/v1/assessments/${assessment.meta.assessment_id}/chat`, {
+    const response = await fetchWithTimeout(`${window.LOCUS_API_BASE}/api/v1/assessments/${assessment.meta.assessment_id}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: text, api_key: window.LOCUS_API_KEY, language: currentLanguage() === "zh" ? "zh" : "en" }),
-    });
+    }, 30000);
     if (!response.ok) throw new Error(`chat service returned ${response.status}`);
     const updated = await response.json();
     const reply = (updated.chat_history || []).filter(turn => turn.role === "assistant").slice(-1)[0];
@@ -1422,7 +1430,7 @@ async function rerunScenariosForChat() {
     ...chatState.updated,
     ...chatState.documents.map(name => `Document provided: ${name}`),
   ];
-  const response = await fetch(`${window.LOCUS_API_BASE}/api/v1/assessments/${meta.assessment_id}/scenarios`, {
+  const response = await fetchWithTimeout(`${window.LOCUS_API_BASE}/api/v1/assessments/${meta.assessment_id}/scenarios`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -1431,7 +1439,7 @@ async function rerunScenariosForChat() {
       llm_model: window.LOCUS_MODEL || "deepseek-flash",
       language: currentLanguage() === "zh" ? "zh" : "en",
     }),
-  });
+  }, 90000);
   if (!response.ok) throw new Error(`scenario service returned ${response.status}`);
   const updated = await response.json();
   return mapApiAssessment(updated, state.assessment.company_profile);
@@ -2046,6 +2054,15 @@ function openProjectById(id) {
   formFromProfile(project.company_profile || {});
   restoreChatFromProject(project);
   const stage = project.current_stage || "INITIAL_ASSESSMENT";
+  // Decisions saved before the analysis service was reachable hold indicative
+  // content only; refresh them instead of showing stale results.
+  const profile = project.company_profile || project.assessment?.company_profile;
+  const storedPreview = !(project.assessment?.meta?.assessment_id);
+  if (storedPreview && profile && window.LOCUS_API_BASE && window.LOCUS_API_KEY) {
+    showToast("Refreshing this decision with the analysis service…");
+    runAnalysis(profile, stage === "SCENARIO_SIMULATION");
+    return;
+  }
   if (stage === "INPUT") {
     showScreen("consultation");
   } else if (stage === "INITIAL_ASSESSMENT" && state.assessment) {
@@ -2054,6 +2071,9 @@ function openProjectById(id) {
   } else if (stage === "SCENARIO_SIMULATION" && state.assessment) {
     renderScenarios(state.assessment);
     showScreen("scenarios");
+  } else if (stage === "REPORT" && currentReport()) {
+    renderReportPage();
+    showScreen("report");
   } else if (state.assessment) {
     openChat();
   } else {
