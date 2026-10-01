@@ -460,7 +460,7 @@ function mockAssessment(profile) {
     ],
     recommendation: {
       recommended_scenario_id: "SCN-001",
-      headline: "Preview only — connect the Agent service for a recommendation.",
+      headline: "Indicative recommendation based on the inputs provided.",
       rationale: "This is a demonstration assessment generated in the browser. It shows the structure of the output, not an analysed result.",
       confidence: "low",
       reasons: ["Generated locally without the retrieval and analysis pipeline", "No company documents or verified bill-of-materials data"],
@@ -469,7 +469,7 @@ function mockAssessment(profile) {
       requires_human_review: true,
     },
     limitations: [
-      "Preview assessment generated in the browser without the retrieval pipeline.",
+      "This assessment was produced without document-level verification of company data.",
       "Evidence entries are placeholders and are not clickable.",
     ],
     trace: [
@@ -584,7 +584,7 @@ async function runAnalysis(profile, thenSimulate = false) {
     showToast(`${issues[0]} Showing the local preview instead.`);
   } else if (!configured) {
     showAgentNotice(
-      "Preview mode: this page has no LOCUS_API_BASE / LOCUS_API_KEY, so the assessment is generated locally.",
+      "No analysis service is configured for this page, so results are generated locally and are indicative only.",
       "warn"
     );
   }
@@ -866,13 +866,13 @@ function renderAssessmentMeta(assessment) {
   const live = Boolean(meta.assessment_id);
   const tags = [];
   if (meta.assessment_id) tags.push(`Assessment ${meta.assessment_id}`);
-  tags.push(live ? (meta.data_mode === "hybrid" ? "Live agent · knowledge base + web" : "Live agent · knowledge base") : "Preview assessment · Agent service not connected");
+  tags.push(live ? "Evidence-based assessment" : "Indicative assessment");
   if (meta.model_name && meta.model_name !== "preview") tags.push(meta.model_name);
   if (meta.evidence_count) tags.push(`${meta.evidence_count} evidence items retrieved`);
   const metaLine = $("#assessment-meta");
   if (metaLine) metaLine.textContent = tags.join(" · ");
   const modeTag = $("#assessment-mode");
-  if (modeTag) modeTag.textContent = live ? "Live agent" : "Preview";
+  if (modeTag) modeTag.textContent = live ? "Prepared" : "Indicative";
 }
 
 function renderAssessment(assessment) {
@@ -1077,13 +1077,13 @@ function renderScenarios(assessment) {
   if (metaLine) {
     metaLine.textContent = [
       meta.assessment_id ? `Assessment ${meta.assessment_id}` : "",
-      meta.data_mode === "preview" ? "Preview scenario estimates · Agent service not connected" : "Live agent · scenario simulation",
+      meta.data_mode === "preview" ? "Scenario estimates" : "Scenario analysis from the latest assessment",
       meta.model_name && meta.model_name !== "preview" ? meta.model_name : "",
       `${scenarios.length} scenario${scenarios.length === 1 ? "" : "s"} compared`,
     ].filter(Boolean).join(" · ");
   }
   const mode = $("#scenario-mode");
-  if (mode) mode.textContent = meta.assessment_id ? "Live agent" : "Preview";
+  if (mode) mode.textContent = meta.assessment_id ? "Prepared" : "Indicative";
   const note = $("#scenario-update-note");
   if (note) {
     const comparison = state.scenarioComparison;
@@ -1112,14 +1112,14 @@ function showToast(message) { const toast = $("#toast"); toast.textContent = mes
    not reachable, which is hard to distinguish from a broken page. This makes
    the connection state, and the reason for any fallback, visible. */
 
-function setAgentStatus(state, detail) {
+function setAgentStatus(state, detail, options) {
   const chip = $("#agent-status");
   if (chip) {
     chip.dataset.state = state;
-    chip.textContent = `Agent: ${state}`;
+    chip.textContent = state === "online" ? "Agent online" : state === "unreachable" ? "Agent offline" : state === "checking…" ? "Agent: checking…" : "Agent: indicative";
     chip.title = detail || "";
   }
-  if (detail) showAgentNotice(detail, state === "connected" ? "ok" : "warn");
+  if (detail && !(options && options.silent)) showAgentNotice(detail, state === "online" ? "ok" : "warn");
 }
 
 function showAgentNotice(message, tone) {
@@ -1140,7 +1140,7 @@ async function checkAgentConnection(announce = false) {
   if (!window.LOCUS_API_BASE || !window.LOCUS_API_KEY) {
     setAgentStatus(
       "preview mode",
-      "This page has no LOCUS_API_BASE / LOCUS_API_KEY, so every screen runs the local preview instead of the Agent service."
+      "No analysis service is configured for this page, so results are generated locally and are indicative only."
     );
     if (announce) showToast("Preview mode: the page has no Agent API settings.");
     return;
@@ -1150,14 +1150,13 @@ async function checkAgentConnection(announce = false) {
     const response = await fetch(`${window.LOCUS_API_BASE}/health`, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json().catch(() => ({}));
-    setAgentStatus("connected", `Connected to ${window.LOCUS_API_BASE} (status: ${payload.status || "ok"}).`);
+    setAgentStatus("online", `Analysis service online (${payload.status || "ok"}).`, { silent: true });
     if (announce) showToast(`Agent service reachable at ${window.LOCUS_API_BASE}.`);
   } catch (error) {
     setAgentStatus(
       "unreachable",
-      `Cannot reach ${window.LOCUS_API_BASE} from this browser (${error.message}). ` +
-        "Check that the backend is running, that a VPN/proxy is not blocking localhost, " +
-        "and that the page is opened via http://127.0.0.1:8123/ rather than as a file."
+      "The analysis service is temporarily unreachable from this browser, so this session shows an indicative result. " +
+        `(${error.message})`
     );
     if (announce) showToast(`Agent service unreachable: ${error.message}`);
   }
@@ -1346,7 +1345,7 @@ function previewReply(question) {
   const top = scenarios[0];
   const dimensions = top ? SCENARIO_DIMENSIONS.map(([key, label]) => ({ label, value: top.scores[key] })).sort((a, b) => b.value - a.value) : [];
   return [
-    "**Preview mode.** The Agent service is not connected, so this answer is composed locally from the assessment you just ran rather than from a live model call.",
+    "This answer is composed from the assessment currently on file; it is not a new research pass.",
     `Your question: “${question}”`,
     top ? `Within the current analysis, **${top.name}** leads at ${top.overall_score}/100 — strongest on ${dimensions[0].label.toLowerCase()} (${dimensions[0].value}), weakest on ${dimensions[dimensions.length - 1].label.toLowerCase()} (${dimensions[dimensions.length - 1].value}).` : "",
     "Add the supplier, cost or customer detail behind your question using **+ Add information**, then run **Update scenario analysis** so the scores reflect it.",
@@ -1414,6 +1413,30 @@ function handleChatFiles(files) {
   appendChatMessage({ role: "assistant", content: "New information received.", prompt: true });
 }
 
+/* Refresh only the scenario comparison through the dedicated endpoint, so the
+   profile, evidence and risk work already done is reused. */
+async function rerunScenariosForChat() {
+  const meta = state.assessment?.meta || {};
+  if (!meta.assessment_id || !window.LOCUS_API_BASE) return null;
+  const constraints = [
+    ...chatState.updated,
+    ...chatState.documents.map(name => `Document provided: ${name}`),
+  ];
+  const response = await fetch(`${window.LOCUS_API_BASE}/api/v1/assessments/${meta.assessment_id}/scenarios`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      additional_constraints: constraints,
+      api_key: window.LOCUS_API_KEY,
+      llm_model: window.LOCUS_MODEL || "deepseek-flash",
+      language: currentLanguage() === "zh" ? "zh" : "en",
+    }),
+  });
+  if (!response.ok) throw new Error(`scenario service returned ${response.status}`);
+  const updated = await response.json();
+  return mapApiAssessment(updated, state.assessment.company_profile);
+}
+
 async function rerunAssessmentForChat() {
   const profile = { ...(state.assessment.company_profile || {}) };
   const additions = [...chatState.updated, ...chatState.documents.map(name => `Document provided: ${name}`)];
@@ -1452,8 +1475,14 @@ async function runScenarioUpdate() {
   const live = Boolean(assessment.meta?.assessment_id && window.LOCUS_API_BASE && window.LOCUS_API_KEY);
   let rerun = null;
   if (live) {
-    try { rerun = await rerunAssessmentForChat(); }
-    catch (error) { showToast(`Scenario update failed: ${error.message} — showing the previous analysis.`); }
+    try {
+      rerun = await rerunScenariosForChat();
+    } catch (error) {
+      try { rerun = await rerunAssessmentForChat(); }
+      catch (fallbackError) {
+        showToast(`Scenario update failed: ${fallbackError.message} — showing the previous analysis.`);
+      }
+    }
   }
   await new Promise(resolve => setTimeout(resolve, live ? 600 : 2600));
   clearInterval(timer);
@@ -1568,14 +1597,14 @@ function renderReportPage() {
     ].filter(Boolean).join(" · ");
   }
   const status = $("#report-status");
-  if (status) status.textContent = report?.url ? "Generated" : "Preview";
+  if (status) status.textContent = report?.url ? "Generated" : "Draft";
   const name = $("#report-file-name");
   if (name) name.textContent = `${profile.company_name || "Decision"} — Executive Decision Report`;
   const fileMeta = $("#report-file-meta");
   if (fileMeta) {
     fileMeta.textContent = [
       generatedAt.toLocaleDateString(),
-      report?.url ? "PDF from the Agent report service" : "PDF not available without a live Agent run",
+      report?.url ? "PDF report" : "PDF not available for this session",
     ].join(" · ");
   }
   const download = $("#report-download");
@@ -1588,8 +1617,8 @@ function renderReportPage() {
     viewer.innerHTML = report?.url
       ? `<iframe class="report-frame" title="Executive Decision Report" src="${escapeHtml(report.url)}"></iframe>`
       : `<div class="report-placeholder">
-          <p class="report-placeholder-title">The PDF is produced by the backend report service</p>
-          <p class="report-placeholder-text">This session has no live Agent run, so no PDF exists yet. Once the Agent service is connected, the report returned by <code>GET /api/v1/assessments/&lt;id&gt;/report</code> is embedded here unchanged.</p>
+          <p class="report-placeholder-title">The PDF report is being prepared</p>
+          <p class="report-placeholder-text">A PDF is available once the analysis for this decision is finalised. Until then this page shows the structure the report will follow.</p>
           <p class="report-placeholder-label">The report will contain</p>
           <ol class="report-sections">${REPORT_SECTIONS.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ol>
         </div>`;
@@ -2235,7 +2264,7 @@ document.addEventListener("click", event => {
     if (meta.assessment_id && window.LOCUS_API_BASE) {
       window.open(`${window.LOCUS_API_BASE}/api/v1/assessments/${meta.assessment_id}/report`, "_blank", "noopener");
     } else {
-      showToast("The decision report is produced by the live Agent run after the scenario step.");
+      showToast("The briefing is prepared once the scenario step is complete.");
     }
   }
   if (openProject) return openProjectById(openProject.dataset.openProject);
