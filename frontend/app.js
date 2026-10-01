@@ -32,7 +32,7 @@ const priorities = ["Supply Chain Resilience", "Market Access", "Cost", "Complia
 
 /* Country codes, enum values and limits below mirror backend/app/schemas.py.
    Keeping them in sync is what lets the form talk to the Agent API. */
-const BACKEND_COUNTRIES = ["CN", "VN", "ID", "IN", "TH", "MY", "MX", "US", "EU"];
+const BACKEND_COUNTRIES = ["CN", "VN", "ID", "IN", "TH", "MY", "MX", "US", "EU", "ASEAN"];
 /* The product scope is the EV / battery supply chain, so industry is a fixed
    value rather than a form field (see profile list.md). */
 const FIXED_INDUSTRY = "battery_ev";
@@ -283,12 +283,11 @@ function buildBackendPayload(profile) {
   const productionTotal = production.reduce((sum, item) => sum + item.production_share, 0);
   const markets = profile.target_markets.filter(item => BACKEND_COUNTRIES.includes(item.country)).map(item => item.country);
 
-  const outsideProduction = profile.production_locations.filter(item => !BACKEND_COUNTRIES.includes(item.country)).map(locationLabel);
-  const outsideMarkets = profile.target_markets.filter(item => !BACKEND_COUNTRIES.includes(item.country)).map(locationLabel);
-  if (outsideProduction.length) issues.push(`The assessment API has no country code for: ${outsideProduction.join(", ")}.`);
-  if (outsideMarkets.length) issues.push(`The assessment API has no country code for: ${outsideMarkets.join(", ")}.`);
+  // Countries outside the API enum ("Not sure", "Other", free text) are dropped
+  // from the structured request and carried in `notes` instead of blocking the
+  // live call. Only an impossible share total is a real API limit.
   if (!markets.length) issues.push("Add at least one target market.");
-  if (production.length && productionTotal !== 100) issues.push(`Production shares total ${productionTotal}%, and the assessment API requires exactly 100%.`);
+  if (productionTotal > 100) issues.push(`Production shares total ${productionTotal}%, and the assessment API accepts at most 100%.`);
 
   const mappedPriorities = profile.priorities
     .map((item, index) => ({ dimension: BACKEND_PRIORITY_DIMENSION[item.dimension], weight: Math.max(0, 5 - index) }))
@@ -317,10 +316,12 @@ function buildBackendPayload(profile) {
 }
 
 async function streamAssessment(payload, onStage) {
+  // `productionTotal` is a local guard value; the API schema forbids extra keys.
+  const { productionTotal, ...request } = payload;
   const response = await fetch(`${window.LOCUS_API_BASE}/api/v1/assessments/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...payload, api_key: window.LOCUS_API_KEY, llm_model: window.LOCUS_MODEL || "deepseek-flash" }),
+    body: JSON.stringify({ ...request, api_key: window.LOCUS_API_KEY, llm_model: window.LOCUS_MODEL || "deepseek-flash", language: currentLanguage() === "zh" ? "zh" : "en" }),
   });
   if (!response.ok || !response.body) throw new Error(`Assessment service returned ${response.status}`);
 
@@ -359,6 +360,7 @@ function mapApiAssessment(api, profile) {
       date: item.publication_date || "",
       authority: item.authority_level ? `Authority ${item.authority_level}` : "",
       url: item.url || null,
+      document_url: item.document_url || null,
       source_type: item.source_type || "",
       country_region: item.country_region || "",
       topic: item.topic || "",
@@ -372,6 +374,7 @@ function mapApiAssessment(api, profile) {
       severity: risk.severity || "medium",
       name: risk.name,
       category: risk.category || "",
+      category_key: risk.category_key || "",
       description: risk.business_impact,
       uncertainty: risk.uncertainty || "",
       verification: risk.verification_status || "",
@@ -672,6 +675,9 @@ function levelOf(risks) {
 }
 
 function riskCategoryKey(risk) {
+  // The Agent returns a normalised taxonomy; fall back to keyword matching for
+  // older stored assessments.
+  if (risk.category_key) return risk.category_key;
   const text = `${risk.category || ""} ${risk.name || ""}`.toLowerCase();
   const found = RISK_CATEGORIES.find(category => category.match.some(token => text.includes(token)));
   return found ? found.key : "operational";
@@ -735,8 +741,9 @@ function evidenceMarkup(evidence) {
       item.country_region,
       item.topic ? item.topic.replaceAll("_", " ") : "",
     ].filter(Boolean).join(" · ");
-    const source = item.url
-      ? `<a class="evidence-open" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">Open original source ↗</a>`
+    const link = sourceLink(item);
+    const source = link
+      ? `<a class="evidence-open" href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">Open original source ↗</a>`
       : `<span class="evidence-open muted">Original document is not linked in this preview — raw files live in the <b>data</b> branch and web sources come from the Agent's search.</span>`;
     return `
       <details class="evidence-card">
@@ -748,6 +755,14 @@ function evidenceMarkup(evidence) {
         </div>
       </details>`;
   }).join("");
+}
+
+/* Prefer the backend document endpoint (which streams the original file or
+   redirects to the source URL), falling back to the raw external link. */
+function sourceLink(item) {
+  const path = item.document_url || "";
+  if (path.startsWith("/") && window.LOCUS_API_BASE) return `${window.LOCUS_API_BASE}${path}`;
+  return path || item.url || "";
 }
 
 function renderRationale(assessment) {
@@ -1285,7 +1300,7 @@ async function sendChatMessage(text) {
     const response = await fetch(`${window.LOCUS_API_BASE}/api/v1/assessments/${assessment.meta.assessment_id}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text, api_key: window.LOCUS_API_KEY }),
+      body: JSON.stringify({ message: text, api_key: window.LOCUS_API_KEY, language: currentLanguage() === "zh" ? "zh" : "en" }),
     });
     if (!response.ok) throw new Error(`chat service returned ${response.status}`);
     const updated = await response.json();
