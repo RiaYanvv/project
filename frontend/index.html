@@ -409,6 +409,46 @@
          window.LOCUS_API_KEY  = "your DeepSeek API key";
          window.LOCUS_MODEL    = "deepseek-flash";
          Without them the page runs in local preview mode. -->
+    <script>
+      /* ES5-only boot guard. If this browser cannot run the app, say so visibly
+         instead of leaving a form that silently ignores clicks. */
+      (function () {
+        function warn(message) {
+          var box = document.getElementById("boot-error");
+          if (!box) {
+            box = document.createElement("div");
+            box.id = "boot-error";
+            box.style.cssText =
+              "position:fixed;z-index:99999;left:0;right:0;bottom:0;padding:14px 20px;" +
+              "background:#8f3a2c;color:#fff;font:600 13px/1.6 system-ui,sans-serif";
+            (document.body || document.documentElement).appendChild(box);
+          }
+          box.textContent = message;
+        }
+        var missing = [];
+        if (!window.fetch) { missing.push("fetch"); }
+        if (!window.Promise) { missing.push("Promise"); }
+        if (!window.MutationObserver) { missing.push("MutationObserver"); }
+        if (!String.prototype.replaceAll) { missing.push("String.replaceAll"); }
+        if (!Array.prototype.flatMap) { missing.push("Array.flatMap"); }
+        if (!Element.prototype.closest) { missing.push("Element.closest"); }
+        if (missing.length) {
+          warn(
+            "This browser cannot run Locus (missing: " + missing.join(", ") +
+            "). Please open the page in an up-to-date Chrome, Edge, Firefox or Safari."
+          );
+          return;
+        }
+        window.addEventListener("error", function (event) {
+          var file = String(event.filename || "");
+          if (file.indexOf("app.js") === -1 && file.indexOf("i18n.js") === -1) { return; }
+          warn(
+            "Locus failed to start: " + (event.message || "unknown error") +
+            " (line " + event.lineno + "). Please send this line to the team."
+          );
+        });
+      })();
+    </script>
     <script src="./i18n.js"></script>
     <script src="./app.js"></script>
   </body>

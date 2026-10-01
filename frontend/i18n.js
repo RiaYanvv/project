@@ -641,6 +641,43 @@ Object.assign(ZH_TEXT, {
   "Back in the consultation — the generated report stays available.": "已回到咨询界面 —— 已生成的报告仍然保留。",
   "The PDF needs a live Agent run — connect the report service to download it.": "下载 PDF 需要实时 Agent 运行 —— 请先接入报告服务。",
   "Preparing the Executive Decision Report — you can review it, download it, or come back to the consultation.": "正在准备执行决策报告 —— 你可以查看、下载，也可以返回继续咨询。",
+  /* Preview (mock) analysis content shown when no Agent service is connected */
+  "Keep the existing China and Vietnam capacity and add a third qualified location for the most tariff-exposed volumes, so no single market carries the whole export book.": "保留现有的中国与越南产能，并为关税风险最高的产品增加第三个合格生产基地，避免单一市场承担全部出口。",
+  "Keep the current production distribution and manage exposure through inventory, pricing and contract terms instead of moving capacity.": "维持现有生产分布，通过库存、定价与合同条款管理风险，而不是迁移产能。",
+  "Shift a larger share of production into China to use the deeper supplier ecosystem, while keeping overseas export capacity running.": "把更多产能放回中国以利用更成熟的供应商生态，同时保留海外出口产能。",
+  "Reduces single-country tariff exposure": "降低对单一国家的关税暴露",
+  "Keeps the mature battery supplier ecosystem available": "保持成熟的电池供应商生态可用",
+  "Improves resilience if one location is disrupted": "任一基地中断时韧性更好",
+  "Higher coordination and quality overhead across sites": "多基地协调与质量管理成本上升",
+  "Extra qualification and certification effort": "额外的资格认证与客户认证工作",
+  "Investment is required before the cost benefit is proven": "需要先投入，成本收益尚未验证",
+  "Investment capacity for a third site or contract-manufacturing partner": "具备第三基地或代工伙伴的投资能力",
+  "Customer acceptance of multi-origin supply": "客户接受多产地供货",
+  "Tariff treatment of the current locations stays broadly stable": "现有基地的关税待遇大体稳定",
+  "No relocation or qualification cost": "没有迁移与重新认证成本",
+  "Existing cost base and supplier relationships preserved": "现有成本结构与供应商关系保持不变",
+  "Fastest to execute — no new site required": "执行最快，无需新建基地",
+  "Tariff exposure on the main export lane remains": "主要出口通道的关税风险仍然存在",
+  "Supplier concentration is not addressed": "供应商集中度问题没有解决",
+  "Limited room to absorb a further policy shock": "承受进一步政策冲击的空间有限",
+  "Current tariff treatment stays acceptable": "当前关税待遇仍可接受",
+  "Cost parity is the dominant decision criterion": "成本是首要决策标准",
+  "No customer requirement forces a second origin": "客户没有强制要求第二产地",
+  "Stronger supplier ecosystem and engineering support": "供应商生态与工程支持更强",
+  "Lower coordination complexity": "协调复杂度更低",
+  "Faster manufacturing scaling for new products": "新产品量产爬坡更快",
+  "Higher tariff exposure for products sold into the US": "销往美国的产品关税暴露更高",
+  "Export-control and compliance screening burden": "出口管制与合规审查负担",
+  "Customer origin requirements may restrict where output can be sold": "客户原产地要求可能限制销售去向",
+  "US tariff treatment of China-origin goods does not deteriorate further": "美国对中国原产货物的关税待遇不再恶化",
+  "Customers accept China-origin cells for the affected programmes": "客户接受受影响项目使用中国产电芯",
+  "This is a demonstration assessment generated in the browser. It shows the structure of the output, not an analysed result.": "这是浏览器内生成的演示评估，只展示输出结构，不是真实分析结果。",
+  "Generated locally without the retrieval and analysis pipeline": "在本地生成，未经过检索与分析链路",
+  "No company documents or verified bill-of-materials data": "没有企业文档或经过验证的物料清单数据",
+  "Everything shown here is illustrative until the Agent service is connected.": "在接入 Agent 服务前，这里展示的内容都是示意性的。",
+  "Connect the Agent API and re-run the assessment": "接入 Agent API 并重新运行评估",
+  "Preview assessment generated in the browser without the retrieval pipeline.": "该预览评估在浏览器内生成，未经过检索链路。",
+  "Evidence entries are placeholders and are not clickable.": "证据条目为占位内容，暂不可点击。",
 });
 
 ZH_PATTERNS.push(
@@ -661,4 +698,9 @@ ZH_PATTERNS.push(
   [/^Preview consultation · Agent service not connected · (.+)$/, "预览咨询 · 未连接 Agent 服务 · $1"],
   [/^Preview scenario estimates · Agent service not connected · (.+)$/, "预览情景估算 · 未连接 Agent 服务 · $1"],
   [/^Consultation runs against the retrieved evidence set · (.+)$/, "咨询基于已检索的证据集 · $1"],
+);
+
+ZH_PATTERNS.push(
+  [/^(.+) operates across (.+), with a decision horizon of (.+)\.$/, "$1 的生产布局为 $2，规划期限为 $3。"],
+  [/^(\d+) scenarios? compared$/, "已比较 $1 个情景"],
 );
