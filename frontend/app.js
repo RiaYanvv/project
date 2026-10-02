@@ -133,22 +133,38 @@ function optionMarkup(selected, type) {
 function renderLocations(type) {
   const items = state[type];
   const target = $(type === "production" ? "#production-list" : "#market-list");
-  target.innerHTML = items.map((item, index) => `
-    <div class="location-row">
+  target.innerHTML = items.map((item, index) => {
+    // "Not sure" means the location is unknown, so its share field is parked
+    // and excluded from the total until a concrete location is chosen.
+    const unsure = item.country === "NOT_SURE";
+    return `
+    <div class="location-row${unsure ? " is-unsure" : ""}">
       <select aria-label="${type} country" data-kind="${type}" data-index="${index}" data-field="country">${optionMarkup(item.country, type)}</select>
-      <input class="share-slider" type="range" min="0" max="100" step="10" value="${Number(item.share) || 0}" aria-label="${type} share slider" data-kind="${type}" data-index="${index}" data-field="share" />
-      <input type="number" min="0" max="100" inputmode="numeric" placeholder="Share %" value="${escapeHtml(item.share)}" aria-label="${type} share" data-kind="${type}" data-index="${index}" data-field="share" />
+      <input class="share-slider" type="range" min="0" max="100" step="10" value="${Number(item.share) || 0}" aria-label="${type} share slider" data-kind="${type}" data-index="${index}" data-field="share" ${unsure ? "disabled" : ""} />
+      <input type="number" min="0" max="100" inputmode="numeric" placeholder="${unsure ? "N/A" : "Share %"}" value="${escapeHtml(item.share)}" aria-label="${type} share" data-kind="${type}" data-index="${index}" data-field="share" ${unsure ? "disabled" : ""} />
       ${item.country === "OTHER" ? `<input class="other-location" placeholder="Enter country / region" data-kind="${type}" data-index="${index}" data-field="other" value="${escapeHtml(item.other)}" />` : ""}
       ${items.length > 1 ? `<button type="button" data-remove="${type}" data-index="${index}" aria-label="Remove location">×</button>` : "<span></span>"}
-    </div>`).join("");
+    </div>`;
+  }).join("");
   updateTotal(type);
 }
 
+/* Shares may be left blank ("recommended but not required") and "Not sure"
+   rows never contribute, so the total only reflects declared locations. */
+function locationShareTotal(type) {
+  return state[type].reduce((sum, item) => sum + (item.country === "NOT_SURE" ? 0 : (Number(item.share) || 0)), 0);
+}
+
 function updateTotal(type) {
-  const total = state[type].reduce((sum, item) => sum + (Number(item.share) || 0), 0);
+  const total = locationShareTotal(type);
   const element = $(type === "production" ? "#production-total" : "#market-total");
-  element.textContent = `Total ${total}%`;
-  element.classList.toggle("invalid-total", total > 0 && total !== 100);
+  const warning = $(type === "production" ? "#production-warning" : "#market-warning");
+  const over = total > 100;
+  const note = over ? "exceeds 100%" : total > 0 ? "not 100% yet" : "";
+  element.innerHTML = `<span>${escapeHtml(`Total ${total}%`)}</span>${note ? `<span class="total-note">${escapeHtml(note)}</span>` : ""}`;
+  element.classList.toggle("invalid-total", total > 0 && !over);
+  element.classList.toggle("over-total", over);
+  if (warning) warning.hidden = !over;
 }
 
 function addLocation(type) {
@@ -241,6 +257,7 @@ function readForm() {
     decision_question: text("decision_question"),
     restrictions,
     trigger_notes: text("trigger_notes"),
+    footprint_notes: text("footprint_notes"),
     investment_budget: data.get("investment_budget"),
     time_horizon: data.get("time_horizon"),
     notes: text("notes"),
@@ -259,6 +276,12 @@ function findValidationIssue(profile) {
   if (!profile.production_locations.length) issues.push({ message: "Add at least one production location.", target: $("#production-list") });
   if (!profile.target_markets.length) issues.push({ message: "Add at least one target market.", target: $("#market-list") });
   if (!profile.restrictions.length) issues.push({ message: "Select at least one factor driving this decision.", target: $("#restriction-options") });
+  // Shares may fall short of 100% (that is only a hint), but a total above
+  // 100% is impossible and is refused here on both sections.
+  const productionTotal = locationShareTotal("production");
+  if (productionTotal > 100) issues.push({ message: `Production shares total ${productionTotal}%. Lower them to 100% or less.`, target: $("#production-list") });
+  const marketTotal = locationShareTotal("markets");
+  if (marketTotal > 100) issues.push({ message: `Market shares total ${marketTotal}%. Lower them to 100% or less.`, target: $("#market-list") });
   return issues;
 }
 
@@ -283,6 +306,7 @@ function buildNotes(profile) {
   const unmapped = profile.restrictions.filter(value => !TRIGGER_BACKEND_VALUE[value]);
   if (unmapped.length) parts.push(`Drivers not mapped to API codes: ${unmapped.map(value => TRIGGER_LABELS[value] || value).join(", ")}.`);
   if (profile.trigger_notes) parts.push(`Driver note: ${profile.trigger_notes}`);
+  if (profile.footprint_notes) parts.push(`Footprint note: ${profile.footprint_notes}`);
   const outsideProduction = profile.production_locations.filter(item => !BACKEND_COUNTRIES.includes(item.country)).map(locationLabel);
   const outsideMarkets = profile.target_markets.filter(item => !BACKEND_COUNTRIES.includes(item.country)).map(locationLabel);
   if (outsideProduction.length) parts.push(`Production locations outside API country codes: ${outsideProduction.join(", ")}.`);
@@ -2372,7 +2396,12 @@ document.addEventListener("change", event => {
   const changed = event.target;
   if (changed.dataset.kind && changed.dataset.field === "country") {
     const item = state[changed.dataset.kind][Number(changed.dataset.index)];
-    if (item) item.touched = true;
+    if (item) {
+      item.touched = true;
+      item.country = changed.value;
+      // "Not sure" locations have no known share, so drop any value already set.
+      if (item.country === "NOT_SURE") item.share = "";
+    }
     renderLocations(changed.dataset.kind);
     updateFormProgress();
     return;
