@@ -8,7 +8,7 @@ from typing import Any, Callable, Protocol
 
 import httpx
 
-from .schemas import Assessment, CompanyInput, RetrievedEvidence
+from .schemas import Assessment, CompanyInput, CompanyProfile, RetrievedEvidence
 
 
 logger = logging.getLogger(__name__)
@@ -42,6 +42,15 @@ class LLMProvider(Protocol):
         ...
 
     def validate_key(self) -> bool:
+        ...
+
+    def build_intelligence(
+        self,
+        company: CompanyInput,
+        profile: CompanyProfile,
+        evidence: list[RetrievedEvidence],
+        language: str = "en",
+    ) -> dict[str, Any]:
         ...
 
     def analyze_risks(
@@ -105,6 +114,15 @@ class MockLLM:
 
     def validate_key(self) -> bool:
         return True
+
+    def build_intelligence(
+        self,
+        company: CompanyInput,
+        profile: CompanyProfile,
+        evidence: list[RetrievedEvidence],
+        language: str = "en",
+    ) -> dict[str, Any]:
+        return {}
 
     def analyze_risks(
         self,
@@ -234,6 +252,35 @@ class DeepSeekLLM:
             return response.status_code == 200
         except httpx.HTTPError:
             return False
+
+    def build_intelligence(
+        self,
+        company: CompanyInput,
+        profile: CompanyProfile,
+        evidence: list[RetrievedEvidence],
+        language: str = "en",
+    ) -> dict[str, Any]:
+        return self._call_json(
+            stage="IntelligenceAgent",
+            system=(
+                language_prefix(language)
+                + "你是企业情报分析师。只返回 JSON，顶层键为 overview, "
+                "production_footprint, supply_chain, strategic_context, "
+                "information_gaps。前四项是数组，每项包含 fact, source_ids, "
+                "data_status；source_ids 只能引用输入中的 evidence_id；data_status 只能是 "
+                "user_input, public_source, inferred, to_be_confirmed。"
+                "用户提供的信息以 user_input 为准；没有依据的内容不要写成事实，"
+                "放入 information_gaps 或标为 inferred / to_be_confirmed。"
+                "strategic_context 需要给出数段有深度的分析文字。"
+            ),
+            payload={
+                "task": "构建企业情报画像：企业概况、全球生产布局、供应链结构、战略情境与信息缺口",
+                "company": company.model_dump(mode="json"),
+                "profile": profile.model_dump(mode="json"),
+                "evidence": self._evidence_payload(evidence),
+            },
+            fallback={},
+        )
 
     def analyze_risks(
         self,

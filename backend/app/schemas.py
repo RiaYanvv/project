@@ -237,6 +237,24 @@ class ScenarioUpdateRequest(StrictModel):
     language: Language = "en"
 
 
+class FactItem(StrictModel):
+    """One fact in the company profile, with its own provenance (workflow.md)."""
+
+    fact: str
+    source_ids: list[str] = Field(default_factory=list)
+    data_status: Literal[
+        "user_input", "public_source", "inferred", "to_be_confirmed"
+    ] = "to_be_confirmed"
+
+
+class CompanyIntelligence(StrictModel):
+    overview: list[FactItem] = Field(default_factory=list)
+    production_footprint: list[FactItem] = Field(default_factory=list)
+    supply_chain: list[FactItem] = Field(default_factory=list)
+    strategic_context: list[FactItem] = Field(default_factory=list)
+    information_gaps: list[str] = Field(default_factory=list)
+
+
 class Assessment(StrictModel):
     assessment_id: str
     request_id: str
@@ -246,6 +264,7 @@ class Assessment(StrictModel):
     language: Language = "en"
     company_input: CompanyInput | None = None
     company_profile: CompanyProfile
+    company_intelligence: CompanyIntelligence | None = None
     evidence: list[RetrievedEvidence]
     risks: list[RiskItem]
     scenarios: list[ScenarioResult]

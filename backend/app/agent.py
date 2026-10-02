@@ -16,6 +16,7 @@ from .schemas import (
     ChatRequest,
     ChatTurn,
     CompanyInput,
+    CompanyIntelligence,
     CompanyProfile,
     Recommendation,
     RetrievalQuery,
@@ -154,6 +155,36 @@ class AgentService:
                 "agent": "ResearchAgent",
                 "status": "completed",
             },
+        )
+
+        step_started = time.perf_counter()
+        self._emit_event(
+            event_callback,
+            {"type": "stage", "agent": "IntelligenceAgent", "status": "started"},
+        )
+        intelligence_payload = active_llm.build_intelligence(
+            company, profile, evidence, language
+        )
+        intelligence, intelligence_fallback = self._coerce_intelligence(
+            intelligence_payload, company, profile, evidence, language
+        )
+        trace.append(
+            self._trace(
+                agent="IntelligenceAgent",
+                action="构建企业情报画像",
+                status="fallback" if intelligence_fallback else "completed",
+                detail=(
+                    "模型输出未通过校验，已使用规则基线。"
+                    if intelligence_fallback
+                    else f"输出 {len(intelligence.overview)} 条概况事实与 "
+                    f"{len(intelligence.information_gaps)} 项待确认信息。"
+                ),
+                started=step_started,
+            )
+        )
+        self._emit_event(
+            event_callback,
+            {"type": "stage", "agent": "IntelligenceAgent", "status": "completed"},
         )
 
         heuristic = self._build_heuristic(company, evidence)
@@ -318,6 +349,7 @@ class AgentService:
                 item.dimension: item.weight for item in company.priorities
             },
             company_profile=profile,
+            company_intelligence=intelligence,
             evidence=evidence,
             risks=risks,
             scenarios=scenarios,
@@ -941,6 +973,140 @@ class AgentService:
             started_at=utc_now(),
             duration_ms=max(0, round((time.perf_counter() - started) * 1000)),
         )
+
+
+    def _build_intelligence(
+        self,
+        company: CompanyInput,
+        profile: CompanyProfile,
+        evidence: list[RetrievedEvidence],
+        language: str = "en",
+    ) -> dict[str, Any]:
+        """Company intelligence from the given inputs plus retrieved evidence.
+
+        Facts the user stated are labelled user_input; anything supported by a
+        retrieved source is public_source; everything else is marked as inferred or
+        left in information_gaps rather than presented as fact.
+        """
+        zh = (language or "en").lower() == "zh"
+        evidence_ids = [item.evidence_id for item in evidence[:3]]
+
+        def fact(text: str, status: str, ids: list[str] | None = None) -> dict[str, Any]:
+            return {"fact": text, "source_ids": list(ids or []), "data_status": status}
+
+        products = ", ".join(company.products) or ("未提供" if zh else "not provided")
+        footprint = ", ".join(
+            f"{item.country} {item.production_share}%"
+            for item in company.production_locations
+        ) or ("未提供" if zh else "not provided")
+        markets = ", ".join(company.target_markets) or ("未提供" if zh else "not provided")
+        drivers = ", ".join(company.restrictions) or ("未提供" if zh else "not provided")
+
+        if zh:
+            overview = [
+                fact(f"{company.company_name}，主要产品：{products}", "user_input"),
+                fact(f"母国：{company.home_country}", "user_input"),
+                fact(f"检索到 {len(evidence)} 条相关公开资料，可用于交叉验证。", "public_source", evidence_ids),
+                fact("业务模式与在电池产业链中的具体环节", "to_be_confirmed"),
+            ]
+            production = [
+                fact(f"生产分布：{footprint}", "user_input"),
+                fact(f"目标市场：{markets}", "user_input"),
+                fact("各基地的实际产能与产能利用率", "to_be_confirmed"),
+                fact("各基地承担的环节（研发 / 原材料 / 零部件 / 制造 / 组装 / 出口）", "to_be_confirmed"),
+            ]
+            supply = [
+                fact("关键原材料与零部件的供应来源", "to_be_confirmed"),
+                fact("是否存在单一来源或难以替代的供应商", "to_be_confirmed"),
+                fact("公开资料对供应链结构的支持有限，需要企业数据核验。", "inferred", evidence_ids),
+            ]
+            strategic = [
+                fact(f"当前决策：{company.decision_question}", "user_input"),
+                fact(f"决策驱动因素：{drivers}", "user_input"),
+                fact("布局逻辑与关键权衡需在补齐成本、供应商与关税信息后判断；现有资料只能给出方向性判断。", "inferred"),
+            ]
+            gaps = [
+                "各基地实际产能与利用率",
+                "关键原材料与零部件来源",
+                "海外设施的股权与运营结构",
+                "产品对应的关税分类与原产地规则",
+            ]
+        else:
+            overview = [
+                fact(f"{company.company_name} — core products: {products}", "user_input"),
+                fact(f"Home country: {company.home_country}", "user_input"),
+                fact(f"{len(evidence)} related public sources were retrieved for cross-checking.", "public_source", evidence_ids),
+                fact("Business model and exact position in the battery value chain", "to_be_confirmed"),
+            ]
+            production = [
+                fact(f"Production footprint: {footprint}", "user_input"),
+                fact(f"Target markets: {markets}", "user_input"),
+                fact("Actual capacity and utilisation per site", "to_be_confirmed"),
+                fact("Which activities each site performs (R&D / materials / components / manufacturing / assembly / export)", "to_be_confirmed"),
+            ]
+            supply = [
+                fact("Origins of critical raw materials and components", "to_be_confirmed"),
+                fact("Whether any input relies on a single or hard-to-replace supplier", "to_be_confirmed"),
+                fact("Public sources give limited visibility on the supply-chain structure; company data is needed to verify it.", "inferred", evidence_ids),
+            ]
+            strategic = [
+                fact(f"Current decision: {company.decision_question}", "user_input"),
+                fact(f"Decision drivers: {drivers}", "user_input"),
+                fact("The layout logic and key trade-offs can only be judged once cost, supplier and tariff information is added; current sources support direction only.", "inferred"),
+            ]
+            gaps = [
+                "Actual production capacity and utilisation by location",
+                "Critical raw material and component supplier origins",
+                "Ownership and operational structure of overseas facilities",
+                "Product-specific tariff classification and rules of origin",
+            ]
+        return {
+            "overview": overview,
+            "production_footprint": production,
+            "supply_chain": supply,
+            "strategic_context": strategic,
+            "information_gaps": gaps,
+        }
+
+    def _coerce_intelligence(
+        self,
+        payload: Any,
+        company: CompanyInput,
+        profile: CompanyProfile,
+        evidence: list[RetrievedEvidence],
+        language: str = "en",
+    ) -> tuple[CompanyIntelligence, bool]:
+        fallback = self._build_intelligence(company, profile, evidence, language)
+        if not isinstance(payload, dict) or not payload:
+            return CompanyIntelligence.model_validate(fallback), True
+        allowed = {item.evidence_id for item in evidence}
+        valid_status = {"user_input", "public_source", "inferred", "to_be_confirmed"}
+        sections: dict[str, Any] = {}
+        used_fallback = False
+        for key in ("overview", "production_footprint", "supply_chain", "strategic_context"):
+            cleaned = []
+            for item in payload.get(key) or []:
+                if not isinstance(item, dict):
+                    continue
+                text = str(item.get("fact") or "").strip()
+                if not text:
+                    continue
+                ids = [value for value in (item.get("source_ids") or []) if value in allowed]
+                status = str(item.get("data_status") or "").strip()
+                if status not in valid_status:
+                    status = "public_source" if ids else "inferred"
+                if status == "public_source" and not ids:
+                    status = "to_be_confirmed"
+                cleaned.append({"fact": text, "source_ids": ids, "data_status": status})
+            sections[key] = cleaned or fallback[key]
+            if not cleaned:
+                used_fallback = True
+        gaps = [
+            str(item)
+            for item in (payload.get("information_gaps") or [])
+            if str(item).strip()
+        ] or fallback["information_gaps"]
+        return CompanyIntelligence.model_validate({**sections, "information_gaps": gaps}), used_fallback
 
     def _build_profile(
         self, company: CompanyInput, request_id: str, language: str = "en"
