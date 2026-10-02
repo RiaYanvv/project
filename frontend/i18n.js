@@ -640,6 +640,18 @@ Object.assign(ZH_TEXT, {
   "Back in the consultation — the generated report stays available.": "已回到咨询界面 —— 已生成的报告仍然保留。",
   "The PDF needs a live Agent run — connect the report service to download it.": "下载 PDF 需要实时 Agent 运行 —— 请先接入报告服务。",
   "Preparing the Executive Decision Report — you can review it, download it, or come back to the consultation.": "正在准备执行决策报告 —— 你可以查看、下载，也可以返回继续咨询。",
+  /* Company intelligence (workflow.md) */
+  "Company intelligence": "企业情报",
+  "Every fact shows its own source and status": "每条事实标注各自的来源与状态",
+  "Company overview": "企业概况",
+  "Global production footprint": "全球生产布局",
+  "Supply chain structure": "供应链结构",
+  "Strategic context": "战略情境",
+  "Information gaps": "信息缺口",
+  "Public source": "公开来源",
+  "AI inference": "AI 推断",
+  "To be confirmed": "待确认",
+  "Company intelligence is not available for this assessment.": "本次评估暂无企业情报。",
   /* Neutral wording that replaced build/process notes */
   "Indicative assessment": "指示性评估",
   "Evidence-based assessment": "基于证据的评估",

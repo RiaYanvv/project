@@ -359,6 +359,19 @@ input.field-invalid,select.field-invalid,textarea.field-invalid{border-color:#d8
 .agent-notice[data-tone="ok"]{background:#f2f9f5;border-bottom-color:#b9d8ca;color:#337047}
 @media(max-width:800px){.nav-link.lang-toggle{display:inline-block}}
 
+.intel-block{margin-top:22px}
+.intel-label{margin:0 0 10px;color:#345267;font-size:13px;font-weight:700}
+.intel-list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.intel-list li{display:grid;gap:5px;padding:12px 14px;border:1px solid #e2ecf1;background:#fbfdfe}
+.intel-fact{color:#3f5b70;font-size:13.5px;line-height:1.65}
+.intel-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.intel-status{padding:3px 7px;border-radius:2px;font:600 9px var(--mono);text-transform:uppercase;letter-spacing:.06em}
+.intel-status.user_input{color:#337047;background:#e9f3ec}
+.intel-status.public_source{color:#1f5f8b;background:#eaf3fa}
+.intel-status.inferred{color:#9c691d;background:#faf3e5}
+.intel-status.to_be_confirmed{color:#7b8f9e;background:#f1f5f8}
+.intel-sources{color:#8293a0;font:500 10px var(--mono)}
+
 /* Must stay last: author display rules such as .modal{display:grid} would
    otherwise override the hidden attribute and leave panels permanently open. */
 [hidden]{display:none}

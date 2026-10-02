@@ -416,6 +416,7 @@ function mapApiAssessment(api, profile) {
       next_actions: recommendation.next_actions || [],
       requires_human_review: Boolean(recommendation.requires_human_review),
     },
+    company_intelligence: api.company_intelligence || null,
     limitations: api.limitations || [],
     trace: (api.trace || []).map(step => ({ agent: step.agent, action: step.action, detail: step.detail, status: step.status })),
     scenarios: (api.scenarios || []).map(item => mapScenario(item, evidenceFor, { data_mode: api.data_mode || "" })),
@@ -803,6 +804,41 @@ function sourceLink(item) {
   return path || item.url || "";
 }
 
+/* Company intelligence (workflow.md): every fact carries its own source and
+   status, so user statements, public sources, inferences and open questions are
+   never blended together. */
+const INTELLIGENCE_BLOCKS = [
+  ["overview", "Company overview"],
+  ["production_footprint", "Global production footprint"],
+  ["supply_chain", "Supply chain structure"],
+  ["strategic_context", "Strategic context"],
+];
+const FACT_STATUS_LABEL = {
+  user_input: "User input",
+  public_source: "Public source",
+  inferred: "AI inference",
+  to_be_confirmed: "To be confirmed",
+};
+
+function renderIntelligence(assessment) {
+  const container = $("#intelligence-body");
+  if (!container) return;
+  const data = assessment.company_intelligence;
+  if (!data) {
+    container.innerHTML = `<p class="overview-text muted">Company intelligence is not available for this assessment.</p>`;
+    return;
+  }
+  const block = ([key, label]) => {
+    const items = data[key] || [];
+    if (!items.length) return "";
+    return `<div class="intel-block"><p class="intel-label">${escapeHtml(label)}</p><ul class="intel-list">${items.map(item => `
+      <li><span class="intel-fact">${escapeHtml(item.fact)}</span><span class="intel-meta"><span class="intel-status ${escapeHtml(item.data_status)}">${escapeHtml(FACT_STATUS_LABEL[item.data_status] || item.data_status)}</span>${(item.source_ids || []).length ? `<span class="intel-sources">${(item.source_ids || []).slice(0, 2).map(escapeHtml).join(" · ")}</span>` : ""}</span></li>`).join("")}</ul></div>`;
+  };
+  const gaps = data.information_gaps || [];
+  container.innerHTML = INTELLIGENCE_BLOCKS.map(block).join("")
+    + (gaps.length ? `<div class="intel-block"><p class="intel-label">Information gaps</p><ul class="intel-list">${gaps.map(gap => `<li><span class="intel-fact">${escapeHtml(gap)}</span><span class="intel-meta"><span class="intel-status to_be_confirmed">To be confirmed</span></span></li>`).join("")}</ul></div>` : "");
+}
+
 function renderRationale(assessment) {
   const container = $("#rationale-content");
   if (!container) return;
@@ -945,6 +981,7 @@ function renderAssessment(assessment) {
       </article>`;
     }).join("");
   });
+  guard(() => renderIntelligence(assessment));
   guard(() => renderRationale(assessment));
   guard(() => renderUncertainty(assessment));
 }
