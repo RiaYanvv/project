@@ -109,12 +109,13 @@ class HybridRetrievalProvider:
         self.web_search_limit = web_search_limit
 
     def search(self, query: RetrievalQuery) -> list[RetrievedEvidence]:
-        chunks = list(self.repository.all_chunks())
-        if not chunks:
-            return self.fallback.search(query)
-
         query_text = self._query_text(query)
         query_tokens = tokenize(query_text)
+        repository_ready = bool(self.repository.stats().get("ready"))
+        chunks = self.repository.search_candidates(query_tokens, limit=800)
+        if not chunks and not repository_ready:
+            return self.fallback.search(query)
+
         query_embedding = hashed_embedding(query_text)
         token_counts = [Counter(tokenize(chunk.content)) for chunk in chunks]
         document_frequency = Counter()

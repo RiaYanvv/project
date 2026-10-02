@@ -264,6 +264,12 @@ def main() -> int:
         default="metadata/evidence.xlsx",
         help="Evidence metadata workbook path relative to data-root.",
     )
+    parser.add_argument(
+        "--evidence-id",
+        action="append",
+        default=[],
+        help="Only ingest the specified evidence_id. Repeat for multiple IDs.",
+    )
 
     args = parser.parse_args()
 
@@ -278,6 +284,13 @@ def main() -> int:
     repository = KnowledgeRepository(settings.database_path)
 
     records = load_metadata(excel_path)
+    if args.evidence_id:
+        requested_ids = set(args.evidence_id)
+        records = [
+            record
+            for record in records
+            if record.get("evidence_id") in requested_ids
+        ]
 
     print(f"Loaded {len(records)} metadata records.")
     print(f"Knowledge DB: {settings.database_path}")

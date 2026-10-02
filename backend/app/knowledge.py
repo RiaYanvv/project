@@ -179,8 +179,47 @@ class KnowledgeRepository:
 
                 CREATE INDEX IF NOT EXISTS idx_chunks_source
                 ON knowledge_chunks(source_id);
+
+                CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_chunks_fts
+                USING fts5(
+                    chunk_id UNINDEXED,
+                    tokens,
+                    title_tokens,
+                    topic_tokens
+                );
                 """
             )
+            chunk_count = connection.execute(
+                "SELECT COUNT(*) FROM knowledge_chunks"
+            ).fetchone()[0]
+            fts_count = connection.execute(
+                "SELECT COUNT(*) FROM knowledge_chunks_fts"
+            ).fetchone()[0]
+            if chunk_count != fts_count:
+                connection.execute("DELETE FROM knowledge_chunks_fts")
+                rows = connection.execute(
+                    """
+                    SELECT c.chunk_id, c.content, d.title, d.topic
+                    FROM knowledge_chunks c
+                    JOIN knowledge_documents d ON d.source_id = c.source_id
+                    """
+                ).fetchall()
+                connection.executemany(
+                    """
+                    INSERT INTO knowledge_chunks_fts (
+                        chunk_id, tokens, title_tokens, topic_tokens
+                    ) VALUES (?, ?, ?, ?)
+                    """,
+                    [
+                        (
+                            row["chunk_id"],
+                            " ".join(tokenize(row["content"])),
+                            " ".join(tokenize(row["title"])),
+                            " ".join(tokenize(row["topic"])),
+                        )
+                        for row in rows
+                    ],
+                )
 
     def ingest_document(self, document: KnowledgeDocument) -> int:
         content = normalize_text(document.content)
@@ -229,6 +268,15 @@ class KnowledgeRepository:
                 ),
             )
             connection.execute(
+                """
+                DELETE FROM knowledge_chunks_fts
+                WHERE chunk_id IN (
+                    SELECT chunk_id FROM knowledge_chunks WHERE source_id = ?
+                )
+                """,
+                (document.source_id,),
+            )
+            connection.execute(
                 "DELETE FROM knowledge_chunks WHERE source_id = ?",
                 (document.source_id,),
             )
@@ -246,6 +294,19 @@ class KnowledgeRepository:
                         index,
                         content_chunk,
                         json.dumps(hashed_embedding(content_chunk)),
+                    ),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO knowledge_chunks_fts (
+                        chunk_id, tokens, title_tokens, topic_tokens
+                    ) VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        chunk_id,
+                        " ".join(tokenize(content_chunk)),
+                        " ".join(tokenize(document.title)),
+                        " ".join(tokenize(document.topic)),
                     ),
                 )
         return len(chunks)
@@ -302,20 +363,107 @@ class KnowledgeRepository:
                 """
             ).fetchall()
         for row in rows:
-            yield KnowledgeChunk(
-                chunk_id=row["chunk_id"],
-                source_id=row["source_id"],
-                chunk_index=row["chunk_index"],
-                content=row["content"],
-                embedding=json.loads(row["embedding_json"]),
-                title=row["title"],
-                source_type=row["source_type"],
-                publisher=row["publisher"],
-                country_region=row["country_region"],
-                publication_date=row["publication_date"],
-                url=row["url"],
-                authority_level=row["authority_level"],
-                topic=row["topic"],
-                document_path=row["document_path"],
-                is_mock=bool(row["is_mock"]),
+            yield self._row_to_chunk(row)
+
+    def search_candidates(
+        self,
+        terms: list[str],
+        limit: int = 800,
+    ) -> list[KnowledgeChunk]:
+        """Use SQLite to shortlist relevant chunks before BM25/vector ranking."""
+        cleaned = []
+        for term in terms:
+            normalized = term.strip().lower()
+            if len(normalized) < 2 or normalized in cleaned:
+                continue
+            cleaned.append(normalized)
+            if len(cleaned) >= 14:
+                break
+        if not cleaned:
+            return []
+
+        match_query = " OR ".join(
+            f'"{term.replace(chr(34), chr(34) * 2)}"' for term in cleaned
+        )
+        try:
+            with closing(self._connect()) as connection, connection:
+                fts_rows = connection.execute(
+                    """
+                    SELECT
+                        c.chunk_id, c.source_id, c.chunk_index, c.content,
+                        c.embedding_json, d.title, d.source_type, d.publisher,
+                        d.country_region, d.publication_date, d.url,
+                        d.authority_level, d.topic, d.document_path, d.is_mock
+                    FROM knowledge_chunks_fts f
+                    JOIN knowledge_chunks c ON c.chunk_id = f.chunk_id
+                    JOIN knowledge_documents d ON d.source_id = c.source_id
+                    WHERE knowledge_chunks_fts MATCH ?
+                    ORDER BY bm25(
+                        knowledge_chunks_fts, 1.0, 3.0, 2.0
+                    )
+                    LIMIT ?
+                    """,
+                    (match_query, limit),
+                ).fetchall()
+            if fts_rows:
+                return [self._row_to_chunk(row) for row in fts_rows]
+        except sqlite3.OperationalError:
+            # Older SQLite builds can lack FTS5. The LIKE fallback below keeps
+            # the application functional, only slower.
+            pass
+
+        score_parts: list[str] = []
+        params: list[str] = []
+        for term in cleaned:
+            escaped = (
+                term.replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_")
             )
+            pattern = f"%{escaped}%"
+            score_parts.append(
+                "(CASE WHEN lower(c.content) LIKE ? ESCAPE '\\' THEN 1 ELSE 0 END"
+                " + CASE WHEN lower(d.title) LIKE ? ESCAPE '\\' THEN 3 ELSE 0 END"
+                " + CASE WHEN lower(d.topic) LIKE ? ESCAPE '\\' THEN 2 ELSE 0 END)"
+            )
+            params.extend([pattern, pattern, pattern])
+
+        score_sql = " + ".join(score_parts)
+        with closing(self._connect()) as connection, connection:
+            rows = connection.execute(
+                f"""
+                SELECT
+                    c.chunk_id, c.source_id, c.chunk_index, c.content,
+                    c.embedding_json, d.title, d.source_type, d.publisher,
+                    d.country_region, d.publication_date, d.url,
+                    d.authority_level, d.topic, d.document_path, d.is_mock,
+                    ({score_sql}) AS match_score
+                FROM knowledge_chunks c
+                JOIN knowledge_documents d ON d.source_id = c.source_id
+                WHERE ({score_sql}) > 0
+                ORDER BY match_score DESC, d.authority_level ASC
+                LIMIT ?
+                """,
+                [*params, *params, limit],
+            ).fetchall()
+        return [self._row_to_chunk(row) for row in rows]
+
+    @staticmethod
+    def _row_to_chunk(row: sqlite3.Row) -> KnowledgeChunk:
+        return KnowledgeChunk(
+            chunk_id=row["chunk_id"],
+            source_id=row["source_id"],
+            chunk_index=row["chunk_index"],
+            content=row["content"],
+            embedding=json.loads(row["embedding_json"]),
+            title=row["title"],
+            source_type=row["source_type"],
+            publisher=row["publisher"],
+            country_region=row["country_region"],
+            publication_date=row["publication_date"],
+            url=row["url"],
+            authority_level=row["authority_level"],
+            topic=row["topic"],
+            document_path=row["document_path"],
+            is_mock=bool(row["is_mock"]),
+        )
