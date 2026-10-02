@@ -68,7 +68,7 @@ const TIME_HORIZON_BACKEND_VALUE = {
   more_than_3y: "2_5_years",
 };
 const INDUSTRY_LABELS = { battery_ev: "Battery & EV", semiconductor: "Semiconductor", electronics: "Electronics", optoelectronics: "Optoelectronics", industrial_equipment: "Industrial equipment", other: "Other manufacturing" };
-const STAGE_BY_AGENT = { ProfileAgent: 0, ResearchAgent: 1, IntelligenceAgent: 2, RiskAgent: 3, ScenarioAgent: 4, AdvisorAgent: 4, VerificationAgent: 4 };
+const STAGE_BY_AGENT = { ProfileAgent: 0, ResearchAgent: 1, RiskAgent: 2, ScenarioAgent: 3, AdvisorAgent: 3, VerificationAgent: 3 };
 const TRANSITION_LABEL = { consultation: "Opening decision workspace", home: "Returning to overview", history: "Opening my decisions", news: "Opening news", analysis: "Preparing assessment", assessment: "Opening initial assessment" };
 
 const $ = (selector) => document.querySelector(selector);
@@ -419,8 +419,6 @@ function mapApiAssessment(api, profile) {
     company_intelligence: api.company_intelligence || null,
     limitations: api.limitations || [],
     trace: (api.trace || []).map(step => ({ agent: step.agent, action: step.action, detail: step.detail, status: step.status })),
-    evidence: library,
-    company_intelligence: api.company_intelligence || null,
     scenarios: (api.scenarios || []).map(item => mapScenario(item, evidenceFor, { data_mode: api.data_mode || "" })),
     meta: {
       assessment_id: api.assessment_id || "",
@@ -962,7 +960,7 @@ function renderAssessment(assessment) {
       ["Planning horizon", (profile.time_horizon || "").replaceAll("_", " ")],
     ].map(([label, value]) => `<div><span>${escapeHtml(label)}</span><b>${escapeHtml(value || "Not specified")}</b></div>`).join("");
   });
-  guard(() => renderCompanyIntelligence(assessment));
+  guard(() => { $("#profile-extra").textContent = [profile.summary, profile.notes].filter(Boolean).join(" "); });
   guard(() => renderProfileSummary(assessment));
   guard(() => renderAssessmentMeta(assessment));
   guard(() => renderRiskRadar(risks));
@@ -986,71 +984,6 @@ function renderAssessment(assessment) {
   guard(() => renderIntelligence(assessment));
   guard(() => renderRationale(assessment));
   guard(() => renderUncertainty(assessment));
-}
-
-/* workflow.md: COMPANY INTELLIGENCE & PROFILE
-   Render confirmed facts, public evidence, AI inferences, unknowns and the
-   sources attached to each individual fact. */
-function renderCompanyIntelligence(assessment) {
-  const container = $("#profile-extra");
-  if (!container) return;
-  const intelligence = assessment.company_intelligence;
-  const profile = assessment.company_profile || {};
-  if (!intelligence) {
-    container.textContent = [profile.summary, profile.notes].filter(Boolean).join(" ");
-    return;
-  }
-  const riskEvidenceFor = evidenceLookupFromRisks(assessment.risks || []);
-  const evidenceFor = id => (assessment.evidence || []).find(item => item.evidence_id === id)
-    || riskEvidenceFor(id);
-  const statusLabel = {
-    user_input: "User input",
-    public_source: "Public source",
-    inferred: "AI inferred",
-    to_be_confirmed: "To be confirmed",
-  };
-  const statusMarkup = status => `<span class="profile-status ${escapeHtml(status || "to_be_confirmed")}">${escapeHtml(statusLabel[status] || "To be confirmed")}</span>`;
-  const sourceMarkup = ids => {
-    const unique = [...new Set(ids || [])];
-    if (!unique.length) return "";
-    return `<div class="profile-sources">${unique.map(id => {
-      const item = evidenceFor(id);
-      const link = sourceLink(item);
-      const label = `${item.publisher || "Source"} — ${item.title || id}`;
-      return link
-        ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`
-        : `<span>${escapeHtml(label)}</span>`;
-    }).join("")}</div>`;
-  };
-  const factList = items => (items || []).length
-    ? `<div class="profile-fact-list">${items.map(item => `
-        <article class="profile-fact">
-          <p>${escapeHtml(item.fact || "")}</p>
-          <div class="profile-fact-meta">${statusMarkup(item.data_status)}${sourceMarkup(item.source_ids)}</div>
-        </article>`).join("")}</div>`
-    : `<p class="muted">No information was recorded for this section.</p>`;
-  const gaps = intelligence.information_gaps || [];
-  container.innerHTML = `
-    <section class="profile-intel-section">
-      <div class="profile-intel-title"><div><p class="section-number">01 / COMPANY OVERVIEW</p><h4>Company overview</h4></div></div>
-      ${factList(intelligence.overview)}
-    </section>
-    <section class="profile-intel-section">
-      <div class="profile-intel-title"><div><p class="section-number">02 / GLOBAL PRODUCTION FOOTPRINT</p><h4>Global production footprint</h4></div></div>
-      ${factList(intelligence.production_footprint)}
-    </section>
-    <section class="profile-intel-section">
-      <div class="profile-intel-title"><div><p class="section-number">03 / SUPPLY CHAIN STRUCTURE</p><h4>Supply chain structure</h4></div></div>
-      ${factList(intelligence.supply_chain)}
-    </section>
-    <section class="profile-intel-section">
-      <div class="profile-intel-title"><div><p class="section-number">04 / STRATEGIC CONTEXT</p><h4>Strategic context</h4></div></div>
-      ${factList(intelligence.strategic_context)}
-    </section>
-    <section class="profile-intel-section">
-      <div class="profile-intel-title"><div><p class="section-number">05 / INFORMATION GAPS</p><h4>Information gaps</h4></div></div>
-      ${gaps.length ? `<ul class="profile-gap-list">${gaps.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : `<p class="muted">No information gaps were recorded.</p>`}
-    </section>`;
 }
 
 /* ----------------------------------------------------- scenario simulation */

@@ -186,8 +186,6 @@ const ZH_TEXT = {
   "We're building a decision view around your footprint, priorities and current exposure.": "我们正在围绕你的生产布局、优先级与当前风险构建决策视图。",
   "Understanding company profile": "理解企业画像",
   "Gathering relevant evidence": "收集相关证据",
-  "Researching company and evidence": "调查企业与证据",
-  "Building company intelligence": "构建企业情报画像",
   "Assessing geopolitical risks": "评估地缘政治风险",
   "Simulating strategic scenarios": "推演战略情景",
   "Waiting": "等待中",
