@@ -319,19 +319,19 @@ class HybridRetrievalProvider:
                     "battery",
                     "batteries",
                     "lithium",
-                    "cell",
+                    "battery cell",
+                    "battery cells",
+                    "lithium-ion cell",
                     "cathode",
                     "anode",
-                    "ev",
                     "electric vehicle",
+                    "ev battery",
                 )
-                solar_terms = (
-                    "photovoltaic",
-                    "solar cell",
-                    "solar panel",
-                    "silicon wafer",
+                solar_pattern = re.compile(
+                    r"\b(solar|photovoltaic|silicon wafer|solar panel)\b",
+                    flags=re.IGNORECASE,
                 )
-                if any(term in text for term in solar_terms) and not any(
+                if solar_pattern.search(text) and not any(
                     term in text for term in battery_terms
                 ):
                     continue
@@ -517,6 +517,12 @@ class HybridRetrievalProvider:
             for restriction in query.restrictions
             if restriction_terms.get(restriction)
         ]
+        company_terms = [
+            query.company_name,
+            *query.aliases,
+        ]
+        if any(company_terms):
+            parts.append(" ".join(dict.fromkeys(company_terms)))
         parts.append(
             industry_terms.get(
                 query.industry,

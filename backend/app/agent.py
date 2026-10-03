@@ -25,6 +25,7 @@ from .schemas import (
     RetrievalQuery,
     RetrievedEvidence,
     RiskItem,
+    ScenarioScoreBreakdown,
     ScenarioResult,
     TraceStep,
     utc_now,
@@ -114,6 +115,31 @@ class AgentService:
                 + (" (test data only)" if mock_only else ", no top-tier authority material")
             ]
         return "low", ["only one linked source"]
+
+    @staticmethod
+    def _resolve_data_mode(evidence: list[RetrievedEvidence]) -> str:
+        if not evidence:
+            return "unavailable"
+        if all(item.is_mock for item in evidence):
+            return "mock"
+        has_live = any(
+            item.source_type.startswith("live_")
+            or item.evidence_scope == "company"
+            for item in evidence
+        )
+        has_rag = any(
+            not item.is_mock
+            and not item.source_type.startswith("live_")
+            and item.evidence_scope != "company"
+            for item in evidence
+        )
+        if has_live and has_rag:
+            return "hybrid"
+        if has_live:
+            return "live"
+        if has_rag:
+            return "rag_only"
+        return "unavailable"
 
     def run(
         self,
@@ -210,7 +236,7 @@ class AgentService:
             {"type": "stage", "agent": "ResearchAgent", "status": "started"},
         )
         evidence = self._retrieve(company, entity.aliases)
-        data_mode = "mock" if all(item.is_mock for item in evidence) else "hybrid"
+        data_mode = self._resolve_data_mode(evidence)
         trace.append(
             self._trace(
                 agent="ResearchAgent",
@@ -774,8 +800,6 @@ class AgentService:
                     for evidence_id in filtered.get("evidence_ids", [])
                     if evidence_id in allowed_ids
                 ]
-                if not evidence_ids:
-                    evidence_ids = [item.evidence_id for item in evidence[:2]]
                 filtered["evidence_ids"] = evidence_ids
                 verification_status = (
                     "unverified"
@@ -784,6 +808,28 @@ class AgentService:
                     if set(evidence_ids).issubset(mock_ids)
                     else "verified"
                 )
+                probability = int(filtered.get("probability") or 0)
+                filtered["likelihood"] = filtered.get("likelihood") or (
+                    "very_high"
+                    if probability >= 85
+                    else "high"
+                    if probability >= 70
+                    else "medium"
+                    if probability >= 50
+                    else "low"
+                    if probability >= 25
+                    else "very_low"
+                )
+                filtered["likelihood_basis"] = str(
+                    filtered.get("likelihood_basis")
+                    or (
+                        "Linked evidence and user constraints support this likelihood."
+                        if evidence_ids
+                        else "No qualifying evidence was linked; likelihood is indicative."
+                    )
+                )
+                filtered["basis"] = "evidence" if evidence_ids else "inference"
+                filtered["insufficient_evidence"] = not bool(evidence_ids)
                 filtered["verification_status"] = verification_status
                 risks.append(
                     RiskItem.model_validate(filtered).model_copy(
@@ -809,12 +855,16 @@ class AgentService:
                                 str(item.get("name") or ""),
                                 str(item.get("category") or ""),
                             ),
-                            "evidence_ids": evidence_ids
-                            or [evidence_item.evidence_id for evidence_item in evidence[:2]],
-                            "verification_status": "partial"
-                            if evidence_ids
-                            and set(evidence_ids).issubset(mock_ids)
-                            else "verified",
+                            "evidence_ids": evidence_ids,
+                            "verification_status": (
+                                "unverified"
+                                if not evidence_ids
+                                else "partial"
+                                if set(evidence_ids).issubset(mock_ids)
+                                else "verified"
+                            ),
+                            "basis": "evidence" if evidence_ids else "inference",
+                            "insufficient_evidence": not bool(evidence_ids),
                         }
                     )
                 )
@@ -841,10 +891,19 @@ class AgentService:
                     for evidence_id in filtered.get("evidence_ids", [])
                     if evidence_id in allowed_ids
                 ]
-                filtered["evidence_ids"] = evidence_ids or [
-                    item.evidence_id for item in evidence[:2]
-                ]
+                filtered["evidence_ids"] = evidence_ids
+                filtered["insufficient_evidence"] = not bool(evidence_ids)
                 filtered["weighted_score"] = 0
+                filtered["dimension_bands"] = {
+                    key: self._score_band(int(filtered.get(key) or 0))
+                    for key in (
+                        "cost_score",
+                        "resilience_score",
+                        "geopolitical_risk_score",
+                        "market_access_score",
+                        "implementation_score",
+                    )
+                }
                 scenario = ScenarioResult.model_validate(filtered).model_copy(
                     update={"scenario_id": f"SCN-{index:03d}"}
                 )
@@ -855,6 +914,9 @@ class AgentService:
                     scenario.model_copy(
                         update={
                             "weighted_score": self._weighted_scenario_score(
+                                scenario, company
+                            ),
+                            "score_breakdown": self._scenario_score_breakdown(
                                 scenario, company
                             ),
                             "confidence": confidence_label,
@@ -878,8 +940,8 @@ class AgentService:
                 scenario = ScenarioResult.model_validate(item).model_copy(
                     update={
                         "scenario_id": f"SCN-{index:03d}",
-                        "evidence_ids": evidence_ids
-                        or [evidence_item.evidence_id for evidence_item in evidence[:2]],
+                        "evidence_ids": evidence_ids,
+                        "insufficient_evidence": not bool(evidence_ids),
                     }
                 )
                 confidence_label, confidence_reasons = self._scenario_confidence(
@@ -889,6 +951,9 @@ class AgentService:
                     scenario.model_copy(
                         update={
                             "weighted_score": self._weighted_scenario_score(
+                                scenario, company
+                            ),
+                            "score_breakdown": self._scenario_score_breakdown(
                                 scenario, company
                             ),
                             "confidence": confidence_label,
@@ -1096,6 +1161,52 @@ class AgentService:
             for metric, (dimension, factor) in metric_weights.items()
         )
         return round(score, 1)
+
+    @staticmethod
+    def _score_band(score: int) -> str:
+        if score >= 85:
+            return "very_favourable"
+        if score >= 70:
+            return "favourable"
+        if score >= 45:
+            return "neutral"
+        if score >= 30:
+            return "unfavourable"
+        return "very_unfavourable"
+
+    @staticmethod
+    def _scenario_score_breakdown(
+        scenario: ScenarioResult,
+        company: CompanyInput,
+    ) -> list[ScenarioScoreBreakdown]:
+        weights = {item.dimension: item.weight for item in company.priorities}
+        metric_weights = {
+            "cost_score": ("cost_reduction", 1.0),
+            "resilience_score": ("supply_chain_resilience", 1.0),
+            "geopolitical_risk_score": ("political_stability", 1.0),
+            "market_access_score": ("market_access", 1.0),
+            "implementation_score": ("compliance", 0.5),
+        }
+        total = sum(
+            weights.get(dimension, 3) * factor
+            for dimension, factor in metric_weights.values()
+        )
+        breakdown = []
+        for metric, (dimension, factor) in metric_weights.items():
+            weight = weights.get(dimension, 3) * factor
+            score = float(getattr(scenario, metric))
+            breakdown.append(
+                {
+                    "dimension": metric,
+                    "score": score,
+                    "weight": weight,
+                    "contribution": round(score * weight / total, 2),
+                }
+            )
+        return [
+            ScenarioScoreBreakdown.model_validate(item)
+            for item in breakdown
+        ]
 
     @staticmethod
     def _filter_fields(item: Any, model: Any) -> dict[str, Any]:
@@ -1673,8 +1784,6 @@ class AgentService:
     def _build_heuristic(
         self, company: CompanyInput, evidence: list[Any]
     ) -> dict[str, Any]:
-        evidence_ids = [item.evidence_id for item in evidence]
-        top_evidence = evidence_ids[:4]
         has_mock_evidence = any(item.is_mock for item in evidence)
         all_mock_evidence = bool(evidence) and all(item.is_mock for item in evidence)
         evidence_uncertainty = (
@@ -1748,7 +1857,9 @@ class AgentService:
                     "probability": probability,
                     "business_impact": impact,
                     "uncertainty": evidence_uncertainty,
-                    "evidence_ids": top_evidence[:2],
+                    "evidence_ids": [],
+                    "basis": "inference",
+                    "insufficient_evidence": True,
                 }
             )
 
@@ -1834,7 +1945,8 @@ class AgentService:
                     "benefits": item["benefits"],
                     "risks": item["risks"],
                     "applicable_conditions": item["applicable_conditions"],
-                    "evidence_ids": top_evidence[:2],
+                    "evidence_ids": [],
+                    "insufficient_evidence": True,
                 }
             )
 

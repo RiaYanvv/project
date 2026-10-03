@@ -14,6 +14,10 @@ from .schemas import CompanyInput, RetrievedEvidence
 WIKIDATA_API = "https://www.wikidata.org/w/api.php"
 WIKIDATA_ENTITY = "https://www.wikidata.org/wiki/Special:EntityData/{entity_id}.json"
 WIKIPEDIA_SUMMARY = "https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
+USER_AGENT = (
+    "LocusBot/1.0 "
+    "(https://github.com/RiaYanvv/project; contact@example.org)"
+)
 
 
 class CompanyResearchTool:
@@ -74,7 +78,7 @@ class CompanyResearchTool:
                         "format": "json",
                         "limit": 5,
                     },
-                    headers={"User-Agent": "LocusCompanyResearch/1.0"},
+                    headers={"User-Agent": USER_AGENT},
                 )
                 response.raise_for_status()
                 results = response.json().get("search") or []
@@ -116,7 +120,7 @@ class CompanyResearchTool:
             with httpx.Client(timeout=self.timeout, follow_redirects=True) as client:
                 response = client.get(
                     WIKIDATA_ENTITY.format(entity_id=entity_id),
-                    headers={"User-Agent": "LocusCompanyResearch/1.0"},
+                    headers={"User-Agent": USER_AGENT},
                 )
                 response.raise_for_status()
                 payload = response.json()
@@ -216,7 +220,7 @@ class CompanyResearchTool:
             with httpx.Client(timeout=self.timeout, follow_redirects=True) as client:
                 response = client.get(
                     WIKIPEDIA_SUMMARY.format(title=safe_title),
-                    headers={"User-Agent": "LocusCompanyResearch/1.0"},
+                    headers={"User-Agent": USER_AGENT},
                 )
                 response.raise_for_status()
                 payload = response.json()
@@ -254,7 +258,7 @@ class CompanyResearchTool:
             with httpx.Client(
                 timeout=self.timeout,
                 follow_redirects=True,
-                headers={"User-Agent": "LocusCompanyResearch/1.0"},
+                headers={"User-Agent": USER_AGENT},
             ) as client:
                 response = client.get(url)
                 response.raise_for_status()
@@ -299,7 +303,7 @@ class CompanyResearchTool:
                         "languages": "en|zh",
                         "format": "json",
                     },
-                    headers={"User-Agent": "LocusCompanyResearch/1.0"},
+                    headers={"User-Agent": USER_AGENT},
                 )
                 response.raise_for_status()
                 entities = response.json().get("entities") or {}

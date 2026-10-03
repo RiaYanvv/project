@@ -18,6 +18,7 @@ RiskCategoryKey = Literal[
 ]
 RiskLevel = Literal["low", "medium", "high", "critical"]
 ConfidenceLevel = Literal["low", "medium", "high"]
+Likelihood = Literal["very_low", "low", "medium", "high", "very_high"]
 
 
 class StrictModel(BaseModel):
@@ -89,10 +90,9 @@ class CompanyInput(StrictModel):
         cls, locations: list[ProductionLocation]
     ) -> list[ProductionLocation]:
         total = sum(location.production_share for location in locations)
-        # profile list.md: shares are requested but not mandatory, so a partial
-        # or empty footprint is accepted; only an impossible total is rejected.
-        if total > 100:
-            raise ValueError("production shares cannot exceed 100")
+        # If locations are supplied, their production shares must be complete.
+        if locations and total != 100:
+            raise ValueError("production shares must total 100")
         return locations
 
     @model_validator(mode="after")
@@ -164,6 +164,17 @@ class RiskItem(StrictModel):
     uncertainty: str
     evidence_ids: list[str]
     verification_status: Literal["verified", "partial", "unverified"] = "unverified"
+    likelihood: Likelihood = "medium"
+    likelihood_basis: str = ""
+    basis: Literal["evidence", "user_input", "inference"] = "inference"
+    insufficient_evidence: bool = False
+
+
+class ScenarioScoreBreakdown(StrictModel):
+    dimension: str
+    score: float
+    weight: float
+    contribution: float
 
 
 class ScenarioResult(StrictModel):
@@ -182,6 +193,9 @@ class ScenarioResult(StrictModel):
     risks: list[str]
     applicable_conditions: list[str]
     evidence_ids: list[str]
+    dimension_bands: dict[str, str] = Field(default_factory=dict)
+    score_breakdown: list[ScenarioScoreBreakdown] = Field(default_factory=list)
+    insufficient_evidence: bool = False
 
 
 class Recommendation(StrictModel):
@@ -323,7 +337,7 @@ class Assessment(StrictModel):
     limitations: list[str]
     model_mode: Literal["mock", "deepseek"]
     model_name: str = "mock"
-    data_mode: Literal["mock", "live", "hybrid"]
+    data_mode: Literal["mock", "live", "hybrid", "rag_only", "unavailable"]
     llm_calls: list[LLMCallRecord] = Field(default_factory=list)
     degraded: bool = False
 

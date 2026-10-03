@@ -353,6 +353,10 @@ class DeepSeekLLM:
                 "每条风险必须包含 name, category, severity, probability, "
                 "business_impact, uncertainty, evidence_ids。severity 只能是 "
                 "low, medium, high, critical；probability 是 0-100 整数。"
+                "同时返回 likelihood（very_low/low/medium/high/very_high）、"
+                "likelihood_basis 和 basis（evidence/user_input/inference）。"
+                "critical 必须有至少一条 S/A+ 证据；无证据且无用户约束时不得"
+                "给 high/critical，应标记 insufficient_evidence=true。"
                 "evidence_ids 只能引用输入中的 evidence_id。"
                 "不得把 Mock 证据描述为真实事实。"
             ),
@@ -444,6 +448,10 @@ class DeepSeekLLM:
             payload={
                 "company": assessment.company_profile.model_dump(mode="json"),
                 "user_message": message,
+                "chat_history": [
+                    turn.model_dump(mode="json")
+                    for turn in assessment.chat_history[-10:]
+                ],
                 "current_risks": [
                     item.model_dump(mode="json") for item in assessment.risks
                 ],
@@ -482,6 +490,10 @@ class DeepSeekLLM:
                 "supplemental_evidence": self._evidence_payload(
                     supplemental_evidence
                 ),
+                "chat_history": [
+                    turn.model_dump(mode="json")
+                    for turn in assessment.chat_history[-10:]
+                ],
                 "user_message": message,
             },
             fallback={"answer": "当前模型未能生成回答，请稍后重试。"},
