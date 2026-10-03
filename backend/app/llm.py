@@ -236,7 +236,10 @@ class DeepSeekLLM:
         event_callback: EventCallback | None = None,
     ) -> "DeepSeekLLM":
         return DeepSeekLLM(
-            api_key=api_key or self.api_key,
+            # A server-side key configured in .env is authoritative. This keeps
+            # the shared backend on DeepSeek even when a browser supplies no key
+            # or still contains a stale frontend placeholder.
+            api_key=self.api_key or api_key,
             base_url=self.base_url,
             model=model or self.model,
             event_callback=event_callback,

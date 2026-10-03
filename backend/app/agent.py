@@ -95,8 +95,8 @@ class AgentService:
             event_callback,
         )
         if self.llm.mode == "deepseek":
-            if not api_key:
-                raise ValueError("必须填写自己的 DeepSeek API Key")
+            if not getattr(active_llm, "api_key", None):
+                raise ValueError("Backend DeepSeek API Key is not configured")
             self._emit_event(
                 event_callback,
                 {
@@ -362,8 +362,6 @@ class AgentService:
         )
 
     def chat(self, assessment: Assessment, request: ChatRequest) -> Assessment:
-        if self.llm.mode == "deepseek" and not request.api_key:
-            raise ValueError("DeepSeek API Key is required for chat")
         user_turn = ChatTurn(role="user", content=request.message, created_at=utc_now())
         step_started = time.perf_counter()
         active_llm = self.llm.with_runtime(
@@ -371,6 +369,8 @@ class AgentService:
             request.api_key,
             None,
         )
+        if self.llm.mode == "deepseek" and not getattr(active_llm, "api_key", None):
+            raise ValueError("Backend DeepSeek API Key is not configured")
         language = request.language
         action = active_llm.choose_chat_action(assessment, request.message, language)
         supplemental_evidence: list[RetrievedEvidence] = []
@@ -437,8 +437,8 @@ class AgentService:
         selected_model = model_name or getattr(self.llm, "model", "mock")
         active_llm = self.llm.with_runtime(selected_model, api_key, None)
         if self.llm.mode == "deepseek":
-            if not api_key:
-                raise ValueError("必须填写自己的 DeepSeek API Key")
+            if not getattr(active_llm, "api_key", None):
+                raise ValueError("Backend DeepSeek API Key is not configured")
             if not active_llm.validate_key():
                 raise ValueError("DeepSeek API Key 无效或没有模型访问权限")
 

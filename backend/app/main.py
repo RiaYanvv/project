@@ -45,14 +45,24 @@ retrieval = HybridRetrievalProvider(
     web_search=WebSearchTool(enabled=settings.web_search_enabled),
 )
 
-if settings.llm_provider == "deepseek" and settings.deepseek_api_key:
+if settings.llm_provider == "deepseek":
+    if not settings.deepseek_api_key:
+        raise RuntimeError(
+            "LLM_PROVIDER=deepseek but DEEPSEEK_API_KEY is missing. "
+            "Configure backend/.env or set LLM_PROVIDER=mock explicitly."
+        )
     llm = DeepSeekLLM(
         api_key=settings.deepseek_api_key,
         base_url=settings.deepseek_base_url,
         model=settings.deepseek_model,
     )
-else:
+elif settings.llm_provider == "mock":
     llm = MockLLM()
+else:
+    raise RuntimeError(
+        f"Unsupported LLM_PROVIDER={settings.llm_provider!r}. "
+        "Use 'deepseek' or 'mock'."
+    )
 
 agent = AgentService(retrieval=retrieval, llm=llm)
 frontend_dir = PROJECT_ROOT / "frontend"
@@ -92,7 +102,11 @@ def index() -> FileResponse | JSONResponse:
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "llm_provider": llm.mode,
+        "model": getattr(llm, "model", "mock"),
+    }
 
 
 @app.get("/api/v1/meta")
@@ -125,7 +139,9 @@ def meta() -> dict[str, object]:
         "supported_languages": ["en", "zh"],
         "cors_origins": list(settings.cors_origins),
         "cors_origin_regex": settings.cors_origin_regex,
-        "api_key_required": settings.llm_provider == "deepseek",
+        # The backend-owned key is sufficient. The browser key is only optional
+        # when no server key is configured.
+        "api_key_required": not bool(settings.deepseek_api_key),
     }
 
 

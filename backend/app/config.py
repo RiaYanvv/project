@@ -71,7 +71,7 @@ class Settings:
             deepseek_base_url=os.getenv(
                 "DEEPSEEK_BASE_URL", "https://api.deepseek.com"
             ).rstrip("/"),
-            deepseek_model=os.getenv("DEEPSEEK_MODEL", "deepseek-chat"),
+            deepseek_model=os.getenv("DEEPSEEK_MODEL", "deepseek-flash"),
             database_path=_resolve_path(
                 os.getenv("DATABASE_PATH", ""),
                 PROJECT_ROOT / "backend" / "test_data" / "app.db",
