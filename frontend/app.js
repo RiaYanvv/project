@@ -448,6 +448,9 @@ function mapApiAssessment(api, profile) {
       assessment_id: api.assessment_id || "",
       model_name: api.model_name || "",
       data_mode: api.data_mode || "",
+      // Which language the Agent wrote this analysis in. Kept so the UI can tell
+      // the user when the content no longer matches the interface language.
+      language: api.language || "",
       evidence_count: library.length,
     },
   };
@@ -679,14 +682,15 @@ function evidenceConfidence(item) {
    evidence linked to the scenario and whether a real retrieval run happened. */
 function scenarioConfidence(scenario, meta) {
   const items = scenario.evidence || [];
+  const zh = currentLanguage() === "zh";
   if (meta?.data_mode === "preview") {
-    return { label: "Low", reason: "preview estimate — no retrieval or model run happened" };
+    return { label: zh ? "低" : "Low", reason: zh ? "预览估算——未经过检索或模型运行" : "preview estimate — no retrieval or model run happened" };
   }
-  if (!items.length) return { label: "Low", reason: "no evidence is linked to this scenario" };
+  if (!items.length) return { label: zh ? "低" : "Low", reason: zh ? "该情景未关联任何证据" : "no evidence is linked to this scenario" };
   const strong = items.some(item => String(item.authority).includes("A"));
-  if (items.length >= 3 && strong) return { label: "High", reason: `${items.length} linked sources including authority A material` };
-  if (items.length >= 2) return { label: "Medium", reason: `${items.length} linked sources, no authority A material` };
-  return { label: "Low", reason: "only one linked source" };
+  if (items.length >= 3 && strong) return { label: zh ? "高" : "High", reason: zh ? `关联 ${items.length} 条来源，含 A 级权威材料` : `${items.length} linked sources including authority A material` };
+  if (items.length >= 2) return { label: zh ? "中" : "Medium", reason: zh ? `关联 ${items.length} 条来源，无 A 级权威材料` : `${items.length} linked sources, no authority A material` };
+  return { label: zh ? "低" : "Low", reason: zh ? "仅关联 1 条来源" : "only one linked source" };
 }
 
 function mapScenario(item, evidenceFor, meta) {
@@ -951,15 +955,43 @@ function renderProfileSummary(assessment) {
 function renderAssessmentMeta(assessment) {
   const meta = assessment.meta || {};
   const live = Boolean(meta.assessment_id);
+  const zh = currentLanguage() === "zh";
   const tags = [];
   if (meta.assessment_id) tags.push(`Assessment ${meta.assessment_id}`);
-  tags.push(live ? "Evidence-based assessment" : "Indicative assessment");
+  tags.push(live ? (zh ? "基于证据的评估" : "Evidence-based assessment") : (zh ? "示意性评估" : "Indicative assessment"));
   if (meta.model_name && meta.model_name !== "preview") tags.push(meta.model_name);
-  if (meta.evidence_count) tags.push(`${meta.evidence_count} evidence items retrieved`);
+  if (meta.evidence_count) tags.push(zh ? `已检索 ${meta.evidence_count} 条证据` : `${meta.evidence_count} evidence items retrieved`);
+  // Make the content language explicit: switching the interface language does not
+  // translate an analysis that was already generated.
+  if (meta.language) {
+    const contentZh = String(meta.language).toLowerCase() === "zh";
+    tags.push(
+      contentZh
+        ? (zh ? "分析语言：中文" : "Analysis language: Chinese")
+        : (zh ? "分析语言：英文" : "Analysis language: English")
+    );
+  }
   const metaLine = $("#assessment-meta");
   if (metaLine) metaLine.textContent = tags.join(" · ");
   const modeTag = $("#assessment-mode");
-  if (modeTag) modeTag.textContent = live ? "Prepared" : "Indicative";
+  if (modeTag) modeTag.textContent = live ? (zh ? "已生成" : "Prepared") : (zh ? "示意" : "Indicative");
+}
+
+/* Switching the interface language does not translate an analysis the Agent has
+   already produced. Tell the user which language the content is in rather than
+   leaving them with English text in a Chinese interface. */
+function announceContentLanguage() {
+  const assessment = state.assessment;
+  if (!assessment) return;
+  const generated = String(assessment.meta?.language || "").toLowerCase();
+  const ui = currentLanguage();
+  try { renderAssessmentMeta(assessment); } catch { /* meta line is cosmetic */ }
+  if (!generated || generated === ui) return;
+  showToast(
+    ui === "zh"
+      ? "这份分析是用英文生成的，切换界面语言不会自动翻译。重新运行分析即可得到中文结果。"
+      : "This analysis was generated in Chinese. Switching the interface does not translate it — re-run the analysis for an English version."
+  );
 }
 
 function renderAssessment(assessment) {
@@ -2322,7 +2354,10 @@ document.addEventListener("click", event => {
   if (event.target.closest("#profile-expand")) { const extra = $("#profile-extra"); extra.hidden = !extra.hidden; $("#profile-expand").innerHTML = extra.hidden ? "View full profile <span>↓</span>" : "Hide full profile <span>↑</span>"; }
   if (event.target.closest("#simulate-button")) runScenarioSimulation();
   if (event.target.closest("#consultation-button")) openChat();
-  if (event.target.closest("#lang-toggle")) toggleLanguage();
+  if (event.target.closest("#lang-toggle")) {
+    toggleLanguage();
+    announceContentLanguage();
+  }
   if (event.target.closest("#agent-status")) checkAgentConnection(true);
   if (event.target.closest("#chat-update") || event.target.closest("[data-chat-update]")) runScenarioUpdate();
   if (event.target.closest("[data-chat-review]")) reviewFirst();

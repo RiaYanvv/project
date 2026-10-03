@@ -550,7 +550,16 @@ function applyLanguage(lang) {
 }
 
 function storedLanguage() {
-  try { return localStorage.getItem("locus-lang") || "en"; } catch { return "en"; }
+  // First visit: follow the browser so a Chinese-speaking user does not land on
+  // an English interface (and therefore an English analysis) by default.
+  try {
+    const saved = localStorage.getItem("locus-lang");
+    if (saved) return saved;
+    const navigatorLanguage = (navigator.language || "").toLowerCase();
+    return navigatorLanguage.startsWith("zh") ? "zh" : "en";
+  } catch {
+    return "en";
+  }
 }
 
 function toggleLanguage() {
