@@ -1296,7 +1296,64 @@ class AgentService:
         )
 
     @staticmethod
-    def _unwrap_list(value: Any) -> list[Any]:
+    def _text_of(value: Any) -> str:
+        """Flatten one model field to plain text.
+
+        Models sometimes answer with a nested object (`{"narrative": "..."}`)
+        where the schema expects a string. Converting that with `str()` leaks
+        Python dict syntax into the UI, so the known text keys are unwrapped
+        explicitly and anything else becomes an empty string.
+        """
+        if isinstance(value, str):
+            return value.strip()
+        if isinstance(value, dict):
+            for key in (
+                "fact",
+                "narrative",
+                "text",
+                "summary",
+                "statement",
+                "content",
+                "value",
+            ):
+                candidate = value.get(key)
+                if isinstance(candidate, str) and candidate.strip():
+                    return candidate.strip()
+            return ""
+        if isinstance(value, (int, float)):
+            return str(value)
+        return ""
+
+    # The four required strategic-context paragraphs are labelled by the backend,
+    # so the labels must follow the requested output language instead of leaking
+    # the English prompt wording into a Chinese report.
+    STRATEGIC_SECTION_LABELS = {
+        "en": (
+            "Current Position",
+            "Supply-chain structure and dependencies",
+            "Market and geopolitical exposure",
+            "Decision tension",
+        ),
+        "zh": (
+            "公司现状",
+            "供应链结构与依赖",
+            "市场与地缘政治暴露",
+            "决策取舍",
+        ),
+    }
+    STRATEGIC_SECTION_KEYS = (
+        "Current Position",
+        "current_position",
+        "Supply-chain structure and dependencies",
+        "supply_chain_structure",
+        "Market and geopolitical exposure",
+        "market_geopolitical_exposure",
+        "Decision tension",
+        "decision_tension",
+    )
+
+    @classmethod
+    def _unwrap_list(cls, value: Any, language: str = "en") -> list[Any]:
         if isinstance(value, list):
             return value
         if isinstance(value, dict):
@@ -1311,32 +1368,25 @@ class AgentService:
                 candidate = value.get(key)
                 if isinstance(candidate, list):
                     return candidate
-            strategic_order = (
-                "Current Position",
-                "Supply-chain structure and dependencies",
-                "Market and geopolitical exposure",
-                "Decision tension",
-                "current_position",
-                "supply_chain_structure",
-                "market_geopolitical_exposure",
-                "decision_tension",
-            )
+            zh = (language or "en").lower() == "zh"
+            labels = cls.STRATEGIC_SECTION_LABELS["zh" if zh else "en"]
+            separator = "：" if zh else ": "
             strategic_items = []
-            for key in strategic_order:
-                if key in value and value[key]:
-                    strategic_items.append(
-                        {
-                            "fact": f"{key}: {value[key]}"
-                            if key in strategic_order[:4]
-                            else str(value[key])
-                        }
-                    )
+            for index, key in enumerate(cls.STRATEGIC_SECTION_KEYS):
+                if key not in value or not value[key]:
+                    continue
+                text = cls._text_of(value[key])
+                if not text:
+                    continue
+                strategic_items.append(
+                    {"fact": f"{labels[min(index // 2, 3)]}{separator}{text}"}
+                )
             if strategic_items:
                 return strategic_items
             string_items = [
-                {"fact": str(candidate)}
+                {"fact": text}
                 for candidate in value.values()
-                if isinstance(candidate, str) and candidate.strip()
+                if (text := cls._text_of(candidate))
             ]
             if string_items:
                 return string_items
@@ -1381,13 +1431,13 @@ class AgentService:
             "market_position",
         ):
             cleaned = []
-            for item in self._unwrap_list(payload.get(key)):
+            for item in self._unwrap_list(payload.get(key), language):
                 if not isinstance(item, dict):
                     continue
                 nested = item.get("fact")
                 if isinstance(nested, dict):
                     item = {**item, **nested}
-                text = str(item.get("fact") or "").strip()
+                text = self._text_of(item.get("fact"))
                 if not text:
                     continue
                 ids = [
@@ -1436,9 +1486,9 @@ class AgentService:
         if provided_sections == 0:
             used_fallback = True
         gaps = [
-            str(item)
-            for item in self._unwrap_list(payload.get("information_gaps"))
-            if str(item).strip()
+            text
+            for item in self._unwrap_list(payload.get("information_gaps"), language)
+            if (text := self._text_of(item))
         ] or fallback["information_gaps"]
         entity_payload = self._unwrap_dict(payload.get("entity"))
         resolved_entity = self._coerce_entity(

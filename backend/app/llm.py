@@ -285,18 +285,22 @@ class DeepSeekLLM:
                 + "你是企业情报分析师。只返回 JSON，顶层键必须为 executive_summary, "
                 "entity, overview, production_footprint, supply_chain, "
                 "strategic_context, market_position, information_gaps。"
+                "所有面向用户的文字（包括段落小标题）必须使用目标语言。"
                 "事实数组每项包含 fact_id, fact, source_ids, data_status, "
                 "confidence, as_of, derived_from, conflict；source_ids 只能引用"
                 "输入中的 evidence_id。data_status 只能是 user_input, "
                 "public_source, inferred, to_be_confirmed。"
+                "fact 必须是一个字符串，不要返回对象。"
                 "public_source 只允许承载具体公司事实，而且 source_ids 必须来自"
                 "原文中包含该事实要素的公司证据；不得写“检索到 N 条资料”。"
                 "用户输入是 Baseline，不能被公开推断覆盖；冲突时保留两方并置 "
                 "conflict=true。"
-                "strategic_context 必须恰好覆盖四段：Current Position、"
-                "Supply-chain structure and dependencies、Market and geopolitical "
-                "exposure、Decision tension。至少要引用 2 条公司事实和 2 条政策"
-                "证据；无法确认就明确写 unknown，不能只复述表单。"
+                "strategic_context 必须恰好覆盖四段：公司现状、供应链结构与依赖、"
+                "市场与地缘政治暴露、决策取舍。段落标题必须使用目标语言"
+                "（中文输出用中文标题，英文输出用英文标题），不得直接照抄英文小标题。"
+                "每段至少引用 2 条公司事实和 2 条政策证据；无法确认就明确写 unknown，"
+                "不能只复述表单。"
+                "information_gaps 必须是字符串数组，每项一句话，不要返回对象。"
                 "产能、产能利用率、客户名单、供应商名单、单位成本、订单积压等"
                 "无法确认的信息必须进入 information_gaps。"
             ),
@@ -431,8 +435,8 @@ class DeepSeekLLM:
         return self._call_json(
             stage="ChatAgent",
             system=(
-                "请全程使用中文进行思考。"
-                "你是 Agent 的决策器。只返回 JSON。若回答需要补充检索，返回 "
+                language_prefix(language)
+                + "你是 Agent 的决策器。只返回 JSON。若回答需要补充检索，返回 "
                 '{"action":"search_evidence","query":"检索词"}；'
                 '若现有证据足够，返回 {"action":"answer"}。'
                 "不要直接回答问题，只选择下一步动作。"
