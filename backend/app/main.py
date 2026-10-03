@@ -18,12 +18,13 @@ from fastapi.responses import (
 from fastapi.staticfiles import StaticFiles
 
 from .agent import AgentService
+from .company_research import CompanyResearchTool
 from .config import DEFAULT_CORS_ORIGIN_REGEX, PROJECT_ROOT, Settings
 from .knowledge import KnowledgeRepository
 from .llm import DeepSeekLLM, MockLLM
 from .pdf_report import build_assessment_pdf
 from .repository import AssessmentRepository
-from .retrieval import HybridRetrievalProvider, MockRetrievalProvider
+from .retrieval import HybridRetrievalProvider
 from .schemas import (
     Assessment,
     AssessmentRequest,
@@ -38,10 +39,8 @@ from .web_search import WebSearchTool
 settings = Settings.from_env()
 repository = AssessmentRepository(settings.database_path)
 knowledge_repository = KnowledgeRepository(settings.database_path)
-mock_retrieval = MockRetrievalProvider(settings.evidence_path)
 retrieval = HybridRetrievalProvider(
     repository=knowledge_repository,
-    fallback=mock_retrieval,
     web_search=WebSearchTool(enabled=settings.web_search_enabled),
 )
 
@@ -57,6 +56,11 @@ if settings.llm_provider == "deepseek":
         model=settings.deepseek_model,
     )
 elif settings.llm_provider == "mock":
+    if settings.llm_required:
+        raise RuntimeError(
+            "LLM_REQUIRED=true but LLM_PROVIDER=mock. "
+            "Configure DeepSeek or set LLM_REQUIRED=false explicitly."
+        )
     llm = MockLLM()
 else:
     raise RuntimeError(
@@ -64,7 +68,11 @@ else:
         "Use 'deepseek' or 'mock'."
     )
 
-agent = AgentService(retrieval=retrieval, llm=llm)
+agent = AgentService(
+    retrieval=retrieval,
+    llm=llm,
+    company_research=CompanyResearchTool(),
+)
 frontend_dir = PROJECT_ROOT / "frontend"
 
 app = FastAPI(
@@ -136,6 +144,8 @@ def meta() -> dict[str, object]:
         ],
         "contract_version": "1.0",
         "deepseek_configured": bool(settings.deepseek_api_key),
+        "llm_configured": llm.mode == "deepseek" and bool(settings.deepseek_api_key),
+        "llm_required": settings.llm_required,
         "supported_languages": ["en", "zh"],
         "cors_origins": list(settings.cors_origins),
         "cors_origin_regex": settings.cors_origin_regex,
@@ -203,10 +213,6 @@ def evidence_document(evidence_id: str):
         source_id = chunk_id.split("-C")[0] if "-C" in chunk_id else chunk_id
 
     source = knowledge_repository.document_source(source_id) if source_id else None
-    if source is None:
-        mock_source = _mock_source(evidence_id)
-        if mock_source:
-            source = mock_source
 
     if source is None:
         raise HTTPException(
@@ -230,25 +236,6 @@ def evidence_document(evidence_id: str):
         status_code=404,
         detail="This evidence item has no local document and no source URL.",
     )
-
-
-def _mock_source(evidence_id: str) -> dict[str, str | None] | None:
-    """Mock evidence ships with the repo, so it can still be opened."""
-    try:
-        items = json.loads(settings.evidence_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return None
-    for item in items:
-        if item.get("evidence_id") == evidence_id:
-            return {
-                "source_id": item.get("evidence_id", ""),
-                "title": item.get("title", ""),
-                "publisher": item.get("publisher", ""),
-                "url": item.get("url"),
-                "document_path": item.get("document_path"),
-                "is_mock": "1",
-            }
-    return None
 
 
 @app.post("/api/v1/assessments/{assessment_id}/scenarios", response_model=Assessment)

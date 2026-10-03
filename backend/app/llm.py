@@ -53,6 +53,13 @@ class LLMProvider(Protocol):
     ) -> dict[str, Any]:
         ...
 
+    def understand_entity(
+        self,
+        company: CompanyInput,
+        language: str = "en",
+    ) -> dict[str, Any]:
+        ...
+
     def analyze_risks(
         self,
         company: CompanyInput,
@@ -123,6 +130,13 @@ class MockLLM:
         language: str = "en",
     ) -> dict[str, Any]:
         return {}
+
+    def understand_entity(
+        self,
+        company: CompanyInput,
+        language: str = "en",
+    ) -> dict[str, Any]:
+        return {"entity": {}}
 
     def analyze_risks(
         self,
@@ -228,6 +242,7 @@ class DeepSeekLLM:
         self.base_url = base_url
         self.model = model
         self.event_callback = event_callback
+        self.last_call_meta: dict[str, Any] | None = None
 
     def with_runtime(
         self,
@@ -267,14 +282,23 @@ class DeepSeekLLM:
             stage="IntelligenceAgent",
             system=(
                 language_prefix(language)
-                + "你是企业情报分析师。只返回 JSON，顶层键为 overview, "
-                "production_footprint, supply_chain, strategic_context, "
-                "information_gaps。前四项是数组，每项包含 fact, source_ids, "
-                "data_status；source_ids 只能引用输入中的 evidence_id；data_status 只能是 "
-                "user_input, public_source, inferred, to_be_confirmed。"
-                "用户提供的信息以 user_input 为准；没有依据的内容不要写成事实，"
-                "放入 information_gaps 或标为 inferred / to_be_confirmed。"
-                "strategic_context 需要给出数段有深度的分析文字。"
+                + "你是企业情报分析师。只返回 JSON，顶层键必须为 executive_summary, "
+                "entity, overview, production_footprint, supply_chain, "
+                "strategic_context, market_position, information_gaps。"
+                "事实数组每项包含 fact_id, fact, source_ids, data_status, "
+                "confidence, as_of, derived_from, conflict；source_ids 只能引用"
+                "输入中的 evidence_id。data_status 只能是 user_input, "
+                "public_source, inferred, to_be_confirmed。"
+                "public_source 只允许承载具体公司事实，而且 source_ids 必须来自"
+                "原文中包含该事实要素的公司证据；不得写“检索到 N 条资料”。"
+                "用户输入是 Baseline，不能被公开推断覆盖；冲突时保留两方并置 "
+                "conflict=true。"
+                "strategic_context 必须恰好覆盖四段：Current Position、"
+                "Supply-chain structure and dependencies、Market and geopolitical "
+                "exposure、Decision tension。至少要引用 2 条公司事实和 2 条政策"
+                "证据；无法确认就明确写 unknown，不能只复述表单。"
+                "产能、产能利用率、客户名单、供应商名单、单位成本、订单积压等"
+                "无法确认的信息必须进入 information_gaps。"
             ),
             payload={
                 "task": "构建企业情报画像：企业概况、全球生产布局、供应链结构、战略情境与信息缺口",
@@ -283,6 +307,31 @@ class DeepSeekLLM:
                 "evidence": self._evidence_payload(evidence),
             },
             fallback={},
+        )
+
+    def understand_entity(
+        self,
+        company: CompanyInput,
+        language: str = "en",
+    ) -> dict[str, Any]:
+        return self._call_json(
+            stage="EntityAgent",
+            system=(
+                language_prefix(language)
+                + "你是企业实体消歧节点。只返回 JSON，顶层键必须为 entity。"
+                "entity 必须包含 legal_name, aliases, headquarters, listing, "
+                "founded_year, size, source_ids, data_status。"
+                "listing 包含 exchange, ticker；size 包含 revenue_range, "
+                "employees_range, factories_count。"
+                "用户提供的公司名称和母国是 Baseline，不得因公开资料无法核实"
+                "而否定它。aliases 用于后续公司检索，可包含英文名、中文名、"
+                "简称和常见别名；无法确认的字段留空并标 to_be_confirmed。"
+            ),
+            payload={
+                "task": "识别企业实体并生成检索别名",
+                "company": company.model_dump(mode="json"),
+            },
+            fallback={"entity": {}},
         )
 
     def analyze_risks(
@@ -472,7 +521,10 @@ class DeepSeekLLM:
             ],
         }
         last_error: Exception | None = None
+        started = time.perf_counter()
+        attempts = 0
         for attempt in range(3):
+            attempts += 1
             try:
                 if self.event_callback:
                     content = self._stream_completion(
@@ -480,7 +532,7 @@ class DeepSeekLLM:
                         request_payload=request_payload,
                     )
                 else:
-                    with httpx.Client(timeout=90.0) as client:
+                    with httpx.Client(timeout=240.0) as client:
                         response = client.post(
                             f"{self.base_url}/chat/completions",
                             headers=self._headers(),
@@ -491,6 +543,17 @@ class DeepSeekLLM:
                 result = self._parse_json_content(content)
                 if not isinstance(result, dict):
                     raise TypeError("model JSON is not an object")
+                meta = {
+                    "stage": stage,
+                    "provider": self.mode,
+                    "model": self.model,
+                    "latency_ms": int((time.perf_counter() - started) * 1000),
+                    "attempts": attempts,
+                    "ok": True,
+                    "error": "",
+                }
+                self.last_call_meta = meta
+                result["__llm_meta__"] = meta
                 return result
             except (
                 httpx.HTTPError,
@@ -511,7 +574,19 @@ class DeepSeekLLM:
                     time.sleep(1.0 + attempt)
 
         logger.warning("DeepSeek JSON call failed after retries: %s", last_error)
-        return fallback
+        result = dict(fallback)
+        meta = {
+            "stage": stage,
+            "provider": self.mode,
+            "model": self.model,
+            "latency_ms": int((time.perf_counter() - started) * 1000),
+            "attempts": attempts,
+            "ok": False,
+            "error": f"{type(last_error).__name__}: {last_error}",
+        }
+        self.last_call_meta = meta
+        result["__llm_meta__"] = meta
+        return result
 
     def _stream_completion(
         self,
@@ -519,7 +594,7 @@ class DeepSeekLLM:
         request_payload: dict[str, Any],
     ) -> str:
         content_parts: list[str] = []
-        with httpx.Client(timeout=120.0) as client:
+        with httpx.Client(timeout=240.0) as client:
             with client.stream(
                 "POST",
                 f"{self.base_url}/chat/completions",

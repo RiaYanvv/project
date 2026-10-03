@@ -8,6 +8,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from .company_research import CompanyResearchTool
 from .llm import EventCallback, LLMProvider
 from .retrieval import RetrievalProvider
 from .schemas import (
@@ -16,8 +17,10 @@ from .schemas import (
     ChatRequest,
     ChatTurn,
     CompanyInput,
+    CompanyEntity,
     CompanyIntelligence,
     CompanyProfile,
+    LLMCallRecord,
     Recommendation,
     RetrievalQuery,
     RetrievedEvidence,
@@ -40,9 +43,15 @@ class AgentService:
         ("operational", ("operat", "implementation", "workforce", "labor", "labour", "cost", "ramp", "运营", "实施", "成本")),
     )
 
-    def __init__(self, retrieval: RetrievalProvider, llm: LLMProvider):
+    def __init__(
+        self,
+        retrieval: RetrievalProvider,
+        llm: LLMProvider,
+        company_research: CompanyResearchTool | None = None,
+    ):
         self.retrieval = retrieval
         self.llm = llm
+        self.company_research = company_research
 
     @classmethod
     def _risk_category_key(cls, name: str, category: str) -> str:
@@ -51,6 +60,36 @@ class AgentService:
             if any(token in text for token in tokens):
                 return key
         return "operational"
+
+    @staticmethod
+    def _consume_llm_result(
+        payload: Any,
+        stage: str,
+        llm: LLMProvider,
+    ) -> tuple[Any, LLMCallRecord]:
+        if not isinstance(payload, dict):
+            return payload, LLMCallRecord(
+                stage=stage,
+                provider=getattr(llm, "mode", "unknown"),
+                model=getattr(llm, "model", "unknown"),
+                latency_ms=0,
+                attempts=0,
+                ok=False,
+                error="model payload is not an object",
+            )
+        data = dict(payload)
+        meta = data.pop("__llm_meta__", None)
+        if isinstance(meta, dict):
+            return data, LLMCallRecord.model_validate(meta)
+        return data, LLMCallRecord(
+            stage=stage,
+            provider=getattr(llm, "mode", "unknown"),
+            model=getattr(llm, "model", "unknown"),
+            latency_ms=0,
+            attempts=0,
+            ok=getattr(llm, "mode", "unknown") != "mock",
+            error="LLM call metadata missing",
+        )
 
     @staticmethod
     def _scenario_confidence(
@@ -88,6 +127,8 @@ class AgentService:
         request_id = f"REQ-{run_id}"
         assessment_id = f"ASM-{run_id}"
         trace: list[TraceStep] = []
+        llm_calls: list[LLMCallRecord] = []
+        degraded_stages: list[str] = []
         selected_model = model_name or getattr(self.llm, "model", "mock")
         active_llm = self.llm.with_runtime(
             selected_model,
@@ -135,9 +176,40 @@ class AgentService:
         step_started = time.perf_counter()
         self._emit_event(
             event_callback,
+            {"type": "stage", "agent": "EntityAgent", "status": "started"},
+        )
+        entity_payload = active_llm.understand_entity(company, language)
+        entity_payload, entity_call = self._consume_llm_result(
+            entity_payload, "EntityAgent", active_llm
+        )
+        llm_calls.append(entity_call)
+        entity = self._coerce_entity(entity_payload.get("entity"), company)
+        entity_degraded = not entity_call.ok
+        if entity_degraded:
+            degraded_stages.append("EntityAgent")
+        trace.append(
+            self._trace(
+                agent="EntityAgent",
+                action="企业实体识别与别名解析",
+                status="fallback" if entity_degraded else "completed",
+                detail=(
+                    f"法律实体：{entity.legal_name or company.company_name}；"
+                    f"别名：{', '.join(entity.aliases[:5]) or '未提供'}"
+                ),
+                started=step_started,
+            )
+        )
+        self._emit_event(
+            event_callback,
+            {"type": "stage", "agent": "EntityAgent", "status": "completed"},
+        )
+
+        step_started = time.perf_counter()
+        self._emit_event(
+            event_callback,
             {"type": "stage", "agent": "ResearchAgent", "status": "started"},
         )
-        evidence = self._retrieve(company)
+        evidence = self._retrieve(company, entity.aliases)
         data_mode = "mock" if all(item.is_mock for item in evidence) else "hybrid"
         trace.append(
             self._trace(
@@ -165,17 +237,29 @@ class AgentService:
         intelligence_payload = active_llm.build_intelligence(
             company, profile, evidence, language
         )
-        intelligence, intelligence_fallback = self._coerce_intelligence(
-            intelligence_payload, company, profile, evidence, language
+        intelligence_payload, intelligence_call = self._consume_llm_result(
+            intelligence_payload, "IntelligenceAgent", active_llm
         )
+        llm_calls.append(intelligence_call)
+        intelligence, intelligence_fallback = self._coerce_intelligence(
+            intelligence_payload,
+            company,
+            profile,
+            evidence,
+            language,
+            entity=entity,
+        )
+        intelligence_degraded = intelligence_fallback or not intelligence_call.ok
+        if intelligence_degraded:
+            degraded_stages.append("IntelligenceAgent")
         trace.append(
             self._trace(
                 agent="IntelligenceAgent",
                 action="构建企业情报画像",
-                status="fallback" if intelligence_fallback else "completed",
+                status="fallback" if intelligence_degraded else "completed",
                 detail=(
                     "模型输出未通过校验，已使用规则基线。"
-                    if intelligence_fallback
+                    if intelligence_degraded
                     else f"输出 {len(intelligence.overview)} 条概况事实与 "
                     f"{len(intelligence.information_gaps)} 项待确认信息。"
                 ),
@@ -197,17 +281,24 @@ class AgentService:
         risk_payload = active_llm.analyze_risks(
             company, evidence, heuristic["risks"], language
         )
+        risk_payload, risk_call = self._consume_llm_result(
+            risk_payload, "RiskAgent", active_llm
+        )
+        llm_calls.append(risk_call)
         risks, risk_fallback = self._coerce_risks(
             risk_payload.get("risks"), heuristic["risks"], evidence
         )
+        risk_degraded = risk_fallback or not risk_call.ok
+        if risk_degraded:
+            degraded_stages.append("RiskAgent")
         trace.append(
             self._trace(
                 agent="RiskAgent",
                 action="识别与验证地缘政治风险",
-                status="fallback" if risk_fallback else "completed",
+                status="fallback" if risk_degraded else "completed",
                 detail=(
                     "模型输出未通过校验，已使用规则基线。"
-                    if risk_fallback
+                    if risk_degraded
                     else f"生成并校验 {len(risks)} 条风险。"
                 ),
                 started=step_started,
@@ -234,6 +325,10 @@ class AgentService:
             heuristic["scenarios"],
             language,
         )
+        scenario_payload, scenario_call = self._consume_llm_result(
+            scenario_payload, "ScenarioAgent", active_llm
+        )
+        llm_calls.append(scenario_call)
         scenarios, scenario_fallback = self._coerce_scenarios(
             scenario_payload.get("scenarios"),
             heuristic["scenarios"],
@@ -241,14 +336,17 @@ class AgentService:
             company,
         )
         scenarios = self._rank_scenarios(scenarios)
+        scenario_degraded = scenario_fallback or not scenario_call.ok
+        if scenario_degraded:
+            degraded_stages.append("ScenarioAgent")
         trace.append(
             self._trace(
                 agent="ScenarioAgent",
                 action="模拟迁移方案并重算权重",
-                status="fallback" if scenario_fallback else "completed",
+                status="fallback" if scenario_degraded else "completed",
                 detail=(
                     "模型输出未通过校验，已使用规则基线。"
-                    if scenario_fallback
+                    if scenario_degraded
                     else f"生成并校验 {len(scenarios)} 个情景，并按综合分从高到低编号。"
                 ),
                 started=step_started,
@@ -279,6 +377,10 @@ class AgentService:
             },
             language,
         )
+        recommendation_payload, advisor_call = self._consume_llm_result(
+            recommendation_payload, "AdvisorAgent", active_llm
+        )
+        llm_calls.append(advisor_call)
         recommendation, limitations, advisor_fallback = self._coerce_recommendation(
             recommendation_payload,
             heuristic,
@@ -287,14 +389,17 @@ class AgentService:
             risks,
             scenarios,
         )
+        advisor_degraded = advisor_fallback or not advisor_call.ok
+        if advisor_degraded:
+            degraded_stages.append("AdvisorAgent")
         trace.append(
             self._trace(
                 agent="AdvisorAgent",
                 action="生成建议与人工复核标记",
-                status="fallback" if advisor_fallback else "completed",
+                status="fallback" if advisor_degraded else "completed",
                 detail=(
                     "模型输出未通过校验，已使用规则基线。"
-                    if advisor_fallback
+                    if advisor_degraded
                     else "建议已关联方案、风险和人工复核条件。"
                 ),
                 started=step_started,
@@ -337,6 +442,14 @@ class AgentService:
             },
         )
 
+        degraded = bool(degraded_stages)
+        if degraded:
+            limitations = [
+                *limitations,
+                "以下阶段未获得有效模型输出，已显式降级为规则基线："
+                + ", ".join(dict.fromkeys(degraded_stages)),
+            ]
+
         now = utc_now()
         return Assessment(
             assessment_id=assessment_id,
@@ -359,6 +472,8 @@ class AgentService:
             model_mode=active_llm.mode,
             model_name=selected_model,
             data_mode=data_mode,
+            llm_calls=llm_calls,
+            degraded=degraded,
         )
 
     def chat(self, assessment: Assessment, request: ChatRequest) -> Assessment:
@@ -373,8 +488,12 @@ class AgentService:
             raise ValueError("Backend DeepSeek API Key is not configured")
         language = request.language
         action = active_llm.choose_chat_action(assessment, request.message, language)
+        action, action_call = self._consume_llm_result(
+            action, "ChatActionAgent", active_llm
+        )
+        chat_calls = [*assessment.llm_calls, action_call]
         supplemental_evidence: list[RetrievedEvidence] = []
-        trace_status = "completed"
+        trace_status = "completed" if action_call.ok else "fallback"
 
         if action.get("action") == "search_evidence":
             query = str(action.get("query") or request.message)[:500]
@@ -392,6 +511,12 @@ class AgentService:
             supplemental_evidence,
             language,
         )
+        answer_meta = getattr(active_llm, "last_call_meta", None)
+        if isinstance(answer_meta, dict):
+            answer_call = LLMCallRecord.model_validate(answer_meta)
+            chat_calls.append(answer_call)
+            if not answer_call.ok:
+                trace_status = "fallback"
         chat_analysis = self._chat_analysis(
             action, reply, request.message, supplemental_evidence
         )
@@ -410,6 +535,10 @@ class AgentService:
                 "chat_history": history,
                 "chat_analysis": chat_analysis,
                 "trace": [*assessment.trace, chat_trace],
+                "llm_calls": chat_calls,
+                "degraded": assessment.degraded or any(
+                    not item.ok for item in chat_calls
+                ),
                 "updated_at": utc_now(),
             }
         )
@@ -464,7 +593,10 @@ class AgentService:
             heuristic["scenarios"],
             language,
         )
-        scenarios, _ = self._coerce_scenarios(
+        scenario_payload, scenario_call = self._consume_llm_result(
+            scenario_payload, "ScenarioAgent", active_llm
+        )
+        scenarios, scenario_fallback = self._coerce_scenarios(
             scenario_payload.get("scenarios"),
             heuristic["scenarios"],
             assessment.evidence,
@@ -482,6 +614,14 @@ class AgentService:
             },
             language,
         )
+        recommendation_payload, advisor_call = self._consume_llm_result(
+            recommendation_payload, "AdvisorAgent", active_llm
+        )
+        resim_calls = [
+            *assessment.llm_calls,
+            scenario_call,
+            advisor_call,
+        ]
         recommendation, limitations, _ = self._coerce_recommendation(
             recommendation_payload,
             heuristic,
@@ -493,7 +633,11 @@ class AgentService:
         trace_step = self._trace(
             agent="ScenarioAgent",
             action="按咨询新增约束重跑情景模拟",
-            status="completed",
+            status=(
+                "completed"
+                if scenario_call.ok and advisor_call.ok and not scenario_fallback
+                else "fallback"
+            ),
             detail=(
                 f"已纳入 {len(constraints)} 条咨询新增约束并重算权重。"
                 if language == "zh"
@@ -513,6 +657,10 @@ class AgentService:
                 ),
                 "language": language if language in {"en", "zh"} else assessment.language,
                 "trace": [*assessment.trace, trace_step],
+                "llm_calls": resim_calls,
+                "degraded": assessment.degraded or any(
+                    not item.ok for item in resim_calls
+                ),
                 "updated_at": utc_now(),
             }
         )
@@ -566,10 +714,16 @@ class AgentService:
         )
         return self.retrieval.search(query)
 
-    def _retrieve(self, company: CompanyInput):
+    def _retrieve(
+        self,
+        company: CompanyInput,
+        aliases: list[str] | None = None,
+    ) -> list[RetrievedEvidence]:
         query = RetrievalQuery(
             industry=company.industry,
             products=company.products,
+            company_name=company.company_name,
+            aliases=list(aliases or []),
             home_country=company.home_country,
             production_countries=[
                 location.country for location in company.production_locations
@@ -579,7 +733,21 @@ class AgentService:
             restrictions=company.restrictions,
             limit=10,
         )
-        return self.retrieval.search(query)
+        policy_evidence = self.retrieval.search(query)
+        company_evidence = (
+            self.company_research.search(company, aliases)
+            if self.company_research
+            else []
+        )
+        combined: list[RetrievedEvidence] = []
+        seen: set[str] = set()
+        for item in [*company_evidence, *policy_evidence]:
+            identity = item.url or item.evidence_id
+            if identity in seen:
+                continue
+            seen.add(identity)
+            combined.append(item)
+        return combined[: max(query.limit, 12)]
 
     def _coerce_risks(
         self,
@@ -1006,7 +1174,7 @@ class AgentService:
             overview = [
                 fact(f"{company.company_name}，主要产品：{products}", "user_input"),
                 fact(f"母国：{company.home_country}", "user_input"),
-                fact(f"检索到 {len(evidence)} 条相关公开资料，可用于交叉验证。", "public_source", evidence_ids),
+                fact("公司官网、年报或其他权威公司资料中的实体与业务信息", "to_be_confirmed", evidence_ids),
                 fact("业务模式与在电池产业链中的具体环节", "to_be_confirmed"),
             ]
             production = [
@@ -1021,9 +1189,20 @@ class AgentService:
                 fact("公开资料对供应链结构的支持有限，需要企业数据核验。", "inferred", evidence_ids),
             ]
             strategic = [
-                fact(f"当前决策：{company.decision_question}", "user_input"),
-                fact(f"决策驱动因素：{drivers}", "user_input"),
-                fact("布局逻辑与关键权衡需在补齐成本、供应商与关税信息后判断；现有资料只能给出方向性判断。", "inferred"),
+                fact(
+                    f"Current Position：{company.company_name} 当前以 {footprint} "
+                    f"的布局服务 {markets}。",
+                    "user_input",
+                ),
+                fact("Supply-chain structure and dependencies：关键供应商与物料依赖仍待确认。", "inferred"),
+                fact("Market and geopolitical exposure：需要结合政策证据核验关税、原产地和准入暴露。", "inferred"),
+                fact(
+                    f"Decision tension：{company.decision_question}；驱动因素为 {drivers}。",
+                    "user_input",
+                ),
+            ]
+            market_position = [
+                fact("公司在目标市场的份额、客户认证和市场地位", "to_be_confirmed"),
             ]
             gaps = [
                 "各基地实际产能与利用率",
@@ -1035,7 +1214,7 @@ class AgentService:
             overview = [
                 fact(f"{company.company_name} — core products: {products}", "user_input"),
                 fact(f"Home country: {company.home_country}", "user_input"),
-                fact(f"{len(evidence)} related public sources were retrieved for cross-checking.", "public_source", evidence_ids),
+                fact("Entity and business facts available from authoritative company sources", "to_be_confirmed", evidence_ids),
                 fact("Business model and exact position in the battery value chain", "to_be_confirmed"),
             ]
             production = [
@@ -1050,9 +1229,20 @@ class AgentService:
                 fact("Public sources give limited visibility on the supply-chain structure; company data is needed to verify it.", "inferred", evidence_ids),
             ]
             strategic = [
-                fact(f"Current decision: {company.decision_question}", "user_input"),
-                fact(f"Decision drivers: {drivers}", "user_input"),
-                fact("The layout logic and key trade-offs can only be judged once cost, supplier and tariff information is added; current sources support direction only.", "inferred"),
+                fact(
+                    f"Current Position: {company.company_name} operates {footprint} "
+                    f"and serves {markets}.",
+                    "user_input",
+                ),
+                fact("Supply-chain structure and dependencies: critical supplier and material dependencies remain to be confirmed.", "inferred"),
+                fact("Market and geopolitical exposure: tariff, origin and market-access exposure must be validated against policy evidence.", "inferred"),
+                fact(
+                    f"Decision tension: {company.decision_question}; decision drivers: {drivers}.",
+                    "user_input",
+                ),
+            ]
+            market_position = [
+                fact("Market share, customer certifications and competitive position", "to_be_confirmed"),
             ]
             gaps = [
                 "Actual production capacity and utilisation by location",
@@ -1061,12 +1251,109 @@ class AgentService:
                 "Product-specific tariff classification and rules of origin",
             ]
         return {
+            "executive_summary": (
+                f"{company.company_name} 的企业画像需基于用户 Baseline、公司实体证据和"
+                "政策证据形成，优先解决实体确认、供应链依赖和市场准入问题。"
+                if zh
+                else f"{company.company_name}'s intelligence profile must combine the "
+                "user baseline, company entity evidence and policy evidence, prioritizing "
+                "entity confirmation, supply-chain dependencies and market access."
+            ),
+            "entity": self._coerce_entity(None, company).model_dump(mode="json"),
             "overview": overview,
             "production_footprint": production,
             "supply_chain": supply,
             "strategic_context": strategic,
+            "market_position": market_position,
             "information_gaps": gaps,
         }
+
+    @staticmethod
+    def _coerce_entity(payload: Any, company: CompanyInput) -> CompanyEntity:
+        fallback = CompanyEntity(
+            legal_name=company.company_name,
+            aliases=[company.company_name],
+            headquarters=company.home_country,
+            data_status="user_input",
+        )
+        if not isinstance(payload, dict):
+            return fallback
+        payload = AgentService._unwrap_dict(payload)
+        try:
+            entity = CompanyEntity.model_validate(payload)
+        except (ValidationError, TypeError, ValueError):
+            return fallback
+        return entity.model_copy(
+            update={
+                "legal_name": entity.legal_name or company.company_name,
+                "aliases": list(
+                    dict.fromkeys(
+                        [company.company_name, *entity.aliases]
+                    )
+                ),
+                "headquarters": entity.headquarters or company.home_country,
+            }
+        )
+
+    @staticmethod
+    def _unwrap_list(value: Any) -> list[Any]:
+        if isinstance(value, list):
+            return value
+        if isinstance(value, dict):
+            for key in (
+                "items",
+                "facts",
+                "entries",
+                "results",
+                "gaps",
+                "value",
+            ):
+                candidate = value.get(key)
+                if isinstance(candidate, list):
+                    return candidate
+            strategic_order = (
+                "Current Position",
+                "Supply-chain structure and dependencies",
+                "Market and geopolitical exposure",
+                "Decision tension",
+                "current_position",
+                "supply_chain_structure",
+                "market_geopolitical_exposure",
+                "decision_tension",
+            )
+            strategic_items = []
+            for key in strategic_order:
+                if key in value and value[key]:
+                    strategic_items.append(
+                        {
+                            "fact": f"{key}: {value[key]}"
+                            if key in strategic_order[:4]
+                            else str(value[key])
+                        }
+                    )
+            if strategic_items:
+                return strategic_items
+            string_items = [
+                {"fact": str(candidate)}
+                for candidate in value.values()
+                if isinstance(candidate, str) and candidate.strip()
+            ]
+            if string_items:
+                return string_items
+            for candidate in value.values():
+                if isinstance(candidate, list):
+                    return candidate
+        return []
+
+    @staticmethod
+    def _unwrap_dict(value: Any) -> dict[str, Any]:
+        if not isinstance(value, dict):
+            return {}
+        for key in ("entity", "data", "result", "value"):
+            candidate = value.get(key)
+            if isinstance(candidate, dict):
+                return candidate
+        return value
 
     def _coerce_intelligence(
         self,
@@ -1075,38 +1362,223 @@ class AgentService:
         profile: CompanyProfile,
         evidence: list[RetrievedEvidence],
         language: str = "en",
+        entity: CompanyEntity | None = None,
     ) -> tuple[CompanyIntelligence, bool]:
         fallback = self._build_intelligence(company, profile, evidence, language)
         if not isinstance(payload, dict) or not payload:
             return CompanyIntelligence.model_validate(fallback), True
         allowed = {item.evidence_id for item in evidence}
+        evidence_by_id = {item.evidence_id: item for item in evidence}
         valid_status = {"user_input", "public_source", "inferred", "to_be_confirmed"}
         sections: dict[str, Any] = {}
         used_fallback = False
-        for key in ("overview", "production_footprint", "supply_chain", "strategic_context"):
+        provided_sections = 0
+        for key in (
+            "overview",
+            "production_footprint",
+            "supply_chain",
+            "strategic_context",
+            "market_position",
+        ):
             cleaned = []
-            for item in payload.get(key) or []:
+            for item in self._unwrap_list(payload.get(key)):
                 if not isinstance(item, dict):
                     continue
+                nested = item.get("fact")
+                if isinstance(nested, dict):
+                    item = {**item, **nested}
                 text = str(item.get("fact") or "").strip()
                 if not text:
                     continue
-                ids = [value for value in (item.get("source_ids") or []) if value in allowed]
+                ids = [
+                    value
+                    for value in (item.get("source_ids") or [])
+                    if value in allowed
+                ]
                 status = str(item.get("data_status") or "").strip()
                 if status not in valid_status:
                     status = "public_source" if ids else "inferred"
-                if status == "public_source" and not ids:
-                    status = "to_be_confirmed"
-                cleaned.append({"fact": text, "source_ids": ids, "data_status": status})
+                if status == "public_source" and not self._fact_source_supports(
+                    text, ids, evidence_by_id
+                ):
+                    status = "inferred" if ids else "to_be_confirmed"
+                confidence = str(item.get("confidence") or "").strip()
+                if confidence not in {"low", "medium", "high"}:
+                    confidence = (
+                        "high"
+                        if status == "user_input"
+                        else "medium"
+                        if status == "public_source"
+                        else "low"
+                    )
+                cleaned.append(
+                    {
+                        "fact_id": str(
+                            item.get("fact_id")
+                            or f"FCT-{key.upper()}-{len(cleaned) + 1:03d}"
+                        ),
+                        "fact": text,
+                        "source_ids": ids,
+                        "data_status": status,
+                        "confidence": confidence,
+                        "as_of": str(item.get("as_of") or ""),
+                        "derived_from": [
+                            str(value)
+                            for value in (item.get("derived_from") or [])
+                            if str(value).strip()
+                        ],
+                        "conflict": bool(item.get("conflict")),
+                    }
+                )
             sections[key] = cleaned or fallback[key]
-            if not cleaned:
-                used_fallback = True
+            if cleaned:
+                provided_sections += 1
+        if provided_sections == 0:
+            used_fallback = True
         gaps = [
             str(item)
-            for item in (payload.get("information_gaps") or [])
+            for item in self._unwrap_list(payload.get("information_gaps"))
             if str(item).strip()
         ] or fallback["information_gaps"]
-        return CompanyIntelligence.model_validate({**sections, "information_gaps": gaps}), used_fallback
+        entity_payload = self._unwrap_dict(payload.get("entity"))
+        resolved_entity = self._coerce_entity(
+            entity_payload if isinstance(entity_payload, dict) else None,
+            company,
+        )
+        if entity is not None:
+            resolved_entity = entity.model_copy(
+                update={
+                    "aliases": list(
+                        dict.fromkeys([*entity.aliases, *resolved_entity.aliases])
+                    )
+                }
+            )
+        resolved_entity = resolved_entity.model_copy(
+            update={
+                "source_ids": [
+                    item for item in resolved_entity.source_ids if item in allowed
+                ]
+            }
+        )
+        resolved_entity = self._enrich_entity_from_evidence(
+            resolved_entity, evidence
+        )
+        raw_executive_summary = payload.get("executive_summary")
+        if isinstance(raw_executive_summary, dict):
+            summary_text = str(
+                raw_executive_summary.get("summary")
+                or raw_executive_summary.get("headline")
+                or raw_executive_summary.get("text")
+                or ""
+            ).strip()
+            findings = raw_executive_summary.get("key_findings") or []
+            finding_text = " ".join(
+                str(item.get("fact") or "")
+                for item in findings
+                if isinstance(item, dict)
+            ).strip()
+            raw_executive_summary = " ".join(
+                item for item in (summary_text, finding_text) if item
+            )
+        executive_summary = str(
+            raw_executive_summary
+            or fallback.get("executive_summary")
+            or ""
+        ).strip()
+        return (
+            CompanyIntelligence.model_validate(
+                {
+                    **sections,
+                    "executive_summary": executive_summary,
+                    "entity": resolved_entity.model_dump(mode="json"),
+                    "information_gaps": gaps,
+                }
+            ),
+            used_fallback,
+        )
+
+    @staticmethod
+    def _enrich_entity_from_evidence(
+        entity: CompanyEntity,
+        evidence: list[RetrievedEvidence],
+    ) -> CompanyEntity:
+        company_evidence = [
+            item for item in evidence if item.evidence_scope == "company"
+        ]
+        if not company_evidence:
+            return entity
+        content = "\n".join(item.content for item in company_evidence)
+
+        def capture(pattern: str) -> str:
+            match = re.search(pattern, content, flags=re.IGNORECASE)
+            return match.group(1).strip() if match else ""
+
+        legal_name = capture(r"Legal entity:\s*([^\n]+)")
+        headquarters = capture(r"Headquarters:\s*([^\n]+)")
+        founded = capture(r"Founded:\s*([^\n]+)")
+        exchange = capture(r"Stock exchange:\s*([^\n]+)")
+        ticker = capture(r"Ticker:\s*([^\n]+)")
+        aliases = capture(r"Aliases:\s*([^\n]+)")
+        alias_values = [
+            value.strip()
+            for value in aliases.split(",")
+            if value.strip()
+        ]
+        return entity.model_copy(
+            update={
+                "legal_name": legal_name or entity.legal_name,
+                "aliases": list(
+                    dict.fromkeys([*entity.aliases, *alias_values])
+                ),
+                "headquarters": entity.headquarters
+                if entity.headquarters not in {"", "CN"}
+                else headquarters or entity.headquarters,
+                "founded_year": entity.founded_year or founded,
+                "listing": entity.listing.model_copy(
+                    update={
+                        "exchange": entity.listing.exchange or exchange,
+                        "ticker": entity.listing.ticker or ticker,
+                    }
+                ),
+                "source_ids": list(
+                    dict.fromkeys(
+                        [
+                            *entity.source_ids,
+                            *[
+                                item.evidence_id
+                                for item in company_evidence
+                            ],
+                        ]
+                    )
+                ),
+                "data_status": "public_source",
+            }
+        )
+
+    def _fact_source_supports(
+        self,
+        fact: str,
+        source_ids: list[str],
+        evidence_by_id: dict[str, RetrievedEvidence],
+    ) -> bool:
+        if not source_ids:
+            return False
+        fact_terms = self._terms(fact)
+        if not fact_terms:
+            return False
+        source_text = " ".join(
+            evidence_by_id[source_id].content
+            for source_id in source_ids
+            if source_id in evidence_by_id
+        )
+        source_terms = self._terms(source_text)
+        overlap = fact_terms & source_terms
+        numeric_terms = {
+            term for term in fact_terms if any(char.isdigit() for char in term)
+        }
+        return len(overlap) >= 2 and (
+            not numeric_terms or numeric_terms.issubset(source_terms)
+        )
 
     def _build_profile(
         self, company: CompanyInput, request_id: str, language: str = "en"

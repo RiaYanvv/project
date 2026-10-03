@@ -99,7 +99,7 @@ class HybridRetrievalProvider:
     def __init__(
         self,
         repository: KnowledgeRepository,
-        fallback: RetrievalProvider,
+        fallback: RetrievalProvider | None = None,
         web_search: WebSearchTool | None = None,
         web_search_limit: int = 3,
     ):
@@ -114,6 +114,11 @@ class HybridRetrievalProvider:
         repository_ready = bool(self.repository.stats().get("ready"))
         chunks = self.repository.search_candidates(query_tokens, limit=800)
         if not chunks and not repository_ready:
+            if self.fallback is None:
+                raise RuntimeError(
+                    "RAG knowledge base is empty or unavailable. "
+                    "Run backend/scripts/ingest_dataset.py before starting the Agent."
+                )
             return self.fallback.search(query)
 
         query_embedding = hashed_embedding(query_text)
@@ -309,6 +314,28 @@ class HybridRetrievalProvider:
             if any(pattern in text for pattern in garbage_patterns):
                 continue
 
+            if query.industry == "battery_ev":
+                battery_terms = (
+                    "battery",
+                    "batteries",
+                    "lithium",
+                    "cell",
+                    "cathode",
+                    "anode",
+                    "ev",
+                    "electric vehicle",
+                )
+                solar_terms = (
+                    "photovoltaic",
+                    "solar cell",
+                    "solar panel",
+                    "silicon wafer",
+                )
+                if any(term in text for term in solar_terms) and not any(
+                    term in text for term in battery_terms
+                ):
+                    continue
+
             vector_score = max(
                 0.0,
                 cosine_similarity(query_embedding, chunk.embedding),
@@ -419,6 +446,7 @@ class HybridRetrievalProvider:
                         1, min(100, round(raw_score * 100))
                     ),
                     is_mock=chunk.is_mock,
+                    evidence_scope="policy",
                 )
             )
 
@@ -445,6 +473,8 @@ class HybridRetrievalProvider:
             [
                 query.industry,
                 *query.products,
+                query.company_name,
+                *query.aliases,
                 query.home_country,
                 *query.production_countries,
                 *query.target_markets,

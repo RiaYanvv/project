@@ -106,6 +106,9 @@ class CompanyInput(StrictModel):
 class RetrievalQuery(StrictModel):
     industry: str
     products: list[str]
+    company_name: str = ""
+    aliases: list[str] = Field(default_factory=list)
+    evidence_scope: Literal["all", "company", "policy"] = "all"
     home_country: str
     production_countries: list[str]
     target_markets: list[str]
@@ -131,6 +134,8 @@ class RetrievedEvidence(StrictModel):
     content: str
     relevance_score: int = Field(ge=0, le=100)
     is_mock: bool
+    evidence_scope: Literal["company", "policy", "market", "unknown"] = "unknown"
+    is_self_reported: bool = False
 
 
 class CompanyProfile(StrictModel):
@@ -241,6 +246,35 @@ class FactItem(StrictModel):
     """One fact in the company profile, with its own provenance (workflow.md)."""
 
     fact: str
+    fact_id: str = ""
+    source_ids: list[str] = Field(default_factory=list)
+    data_status: Literal[
+        "user_input", "public_source", "inferred", "to_be_confirmed"
+    ] = "to_be_confirmed"
+    confidence: ConfidenceLevel = "low"
+    as_of: str = ""
+    derived_from: list[str] = Field(default_factory=list)
+    conflict: bool = False
+
+
+class CompanyListing(StrictModel):
+    exchange: str = ""
+    ticker: str = ""
+
+
+class CompanySize(StrictModel):
+    revenue_range: str = ""
+    employees_range: str = ""
+    factories_count: int | None = None
+
+
+class CompanyEntity(StrictModel):
+    legal_name: str = ""
+    aliases: list[str] = Field(default_factory=list)
+    headquarters: str = ""
+    listing: CompanyListing = Field(default_factory=CompanyListing)
+    founded_year: str = ""
+    size: CompanySize = Field(default_factory=CompanySize)
     source_ids: list[str] = Field(default_factory=list)
     data_status: Literal[
         "user_input", "public_source", "inferred", "to_be_confirmed"
@@ -248,11 +282,24 @@ class FactItem(StrictModel):
 
 
 class CompanyIntelligence(StrictModel):
+    executive_summary: str = ""
+    entity: CompanyEntity = Field(default_factory=CompanyEntity)
     overview: list[FactItem] = Field(default_factory=list)
     production_footprint: list[FactItem] = Field(default_factory=list)
     supply_chain: list[FactItem] = Field(default_factory=list)
     strategic_context: list[FactItem] = Field(default_factory=list)
+    market_position: list[FactItem] = Field(default_factory=list)
     information_gaps: list[str] = Field(default_factory=list)
+
+
+class LLMCallRecord(StrictModel):
+    stage: str
+    provider: str
+    model: str
+    latency_ms: int = Field(ge=0)
+    attempts: int = Field(ge=0)
+    ok: bool
+    error: str = ""
 
 
 class Assessment(StrictModel):
@@ -277,6 +324,8 @@ class Assessment(StrictModel):
     model_mode: Literal["mock", "deepseek"]
     model_name: str = "mock"
     data_mode: Literal["mock", "live", "hybrid"]
+    llm_calls: list[LLMCallRecord] = Field(default_factory=list)
+    degraded: bool = False
 
 
 def utc_now() -> str:

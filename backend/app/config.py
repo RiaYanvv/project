@@ -45,6 +45,7 @@ class Settings:
     deepseek_api_key: str | None
     deepseek_base_url: str
     deepseek_model: str
+    llm_required: bool
     database_path: Path
     evidence_path: Path
     web_search_enabled: bool
@@ -72,6 +73,8 @@ class Settings:
                 "DEEPSEEK_BASE_URL", "https://api.deepseek.com"
             ).rstrip("/"),
             deepseek_model=os.getenv("DEEPSEEK_MODEL", "deepseek-flash"),
+            llm_required=os.getenv("LLM_REQUIRED", "true").lower()
+            in {"1", "true", "yes", "on"},
             database_path=_resolve_path(
                 os.getenv("DATABASE_PATH", ""),
                 PROJECT_ROOT / "backend" / "test_data" / "app.db",

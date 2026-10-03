@@ -233,6 +233,7 @@ class WebSearchTool:
             content=content[:3000],
             relevance_score=relevance_score,
             is_mock=False,
+            evidence_scope="policy",
         )
 
     @staticmethod
