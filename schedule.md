@@ -161,3 +161,87 @@ Frontend Shell + Mock Data
 evaluation
 制定评估计划
 建立evaluation dataset
+
+
+Agent Quality Improvement10.1-10.7
+Locus Agent Workflow v1
+1. Input Understanding
+解析用户表单、企业信息、决策问题、目标与约束
+2. Company Profile
+整合用户输入和公开信息，生成企业结构化画像，标出缺失项
+3. Evidence Research
+通过 RAG、网络搜索及结构化数据检索政策、贸易、行业报告和案例
+4. Risk Assessment
+将证据与企业实际情况关联，识别风险、评估影响并说明不确定性
+5. Initial Assessment → User Triggered Simulation
+先展示企业画像和风险评估；用户点击模拟按钮后，生成并比较三类战略方案
+6. Consultation & Report
+将已有分析带入对话，处理新增信息、按需更新研究与推演，最终生成决策报告
+
+
+
+在每个节点至少需要一个prompt详细说明
+Prompt 标准模板
+部分
+具体要求
+Role
+模型在该节点扮演什么角色
+Objective
+本节点唯一的核心目标
+Input
+可接收的字段和数据
+Task
+必须完成的具体任务
+Rules
+业务规则、分析标准、不可做的事情
+Evidence Policy
+如何引用证据，证据不足时怎么办
+Output Schema
+必须返回哪些字段、字段类型
+Failure Handling
+缺失数据、冲突证据、检索失败时如何处理
+例如，Risk Assessment 的 Prompt 不能只写：
+Analyze geopolitical risks for this company.
+而应该明确要求模型：
+根据公司生产地、母国、目标市场、产品和供应链依赖识别适用风险。
+区分已核实事实、基于事实的推断、假设和未知信息。
+每项主要风险必须说明适用原因、潜在业务影响、支持证据 ID 和不确定性。
+不得将宏观国家风险直接等同于该企业的实际风险。
+缺少关键数据时，明确列出信息缺口，不得臆造数据。
+输出符合 Risk Schema 的 JSON。
+
+
+数据优化
+1、evaluation
+用于evaluation的Test Set数据库应该包括
+（1）historical case benchmark
+议最终形成：
+
+> 10–14 个真实企业历史案例
+
+优先覆盖：
+
+* China → Southeast Asia；
+* China +1；
+* Southeast Asia → China / partial return；
+* diversification；
+* new manufacturing site；
+* tariff / trade-policy driven decisions；
+* geopolitical-risk driven decisions。
+
+每个 Case 至少记录：
+
+| Field               | 内容                                   |
+| ------------------- | ------------------------------------ |
+| case_id             | CASE-xxx                             |
+| company             | 企业名称                                 |
+| industry            | EV / Battery / related manufacturing |
+| original_footprint  | 原生产布局                                |
+| decision_trigger    | 为什么需要做决策                             |
+| target_market       | 主要市场                                 |
+| key_constraints     | 预算、资产、时间、监管等                         |
+| major_known_risks   | 历史上可识别的主要风险                          |
+| historical_decision | 企业实际采取的行动                            |
+| outcome             | 后续结果                                 |
+| evidence_ids        | 支撑案例事实的来源                            |
+（2）retrieval Evaluation Set
