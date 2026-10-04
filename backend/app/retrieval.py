@@ -260,6 +260,21 @@ class HybridRetrievalProvider:
             "IN": {"india", "indian"},
             "ID": {"indonesia", "indonesian"},
             "EU": {"european union", "eu"},
+            # Countries users type under "Other". Without an alias the country
+            # name is still used as a search term, but it would not match the
+            # spellings and abbreviations used in the documents.
+            "JP": {"japan", "japanese"},
+            "KR": {"south korea", "korea", "korean"},
+            "DE": {"germany", "german"},
+            "PL": {"poland", "polish"},
+            "HU": {"hungary", "hungarian"},
+            "FR": {"france", "french"},
+            "ES": {"spain", "spanish"},
+            "IT": {"italy", "italian"},
+            "TR": {"turkey", "turkiye", "turkish"},
+            "BR": {"brazil", "brazilian"},
+            "PH": {"philippines", "philippine"},
+            "SG": {"singapore", "singaporean"},
         }
 
         garbage_patterns = (

@@ -26,7 +26,11 @@ class StrictModel(BaseModel):
 
 
 class ProductionLocation(StrictModel):
-    country: CountryCode
+    # A location may be a code the API knows or the readable country the user
+    # typed under "Other". Those entries used to be dropped from the structured
+    # payload and only survived as free text in `notes`, so the profile, the
+    # summary and the scenarios never saw the real country.
+    country: str = Field(min_length=1, max_length=100)
     production_share: int = Field(ge=0, le=100)
     capacity_note: str | None = None
 
@@ -58,7 +62,9 @@ class CompanyInput(StrictModel):
     # be rejected. Known country codes still pass through unchanged.
     home_country: str = Field(default="CN", min_length=1, max_length=100)
     production_locations: list[ProductionLocation] = Field(default_factory=list)
-    target_markets: list[CountryCode] = Field(default_factory=list)
+    # Same rule as production locations: a market entered under "Other" is kept
+    # as the country the user typed instead of being discarded.
+    target_markets: list[str] = Field(default_factory=list)
     # The free-text question is optional in the UI (profile list.md); the selected
     # preset is enough when the user does not add their own wording.
     decision_question: str = Field(default="", max_length=1000)
