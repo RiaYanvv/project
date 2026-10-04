@@ -366,6 +366,27 @@ function fetchWithTimeout(url, options, timeoutMs) {
   return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
 }
 
+/* Turns an API error body into one readable line. Without this a rejected
+   request only showed "Assessment service returned 422", which hid the actual
+   reason (for example a validation rule on the submitted profile). */
+async function describeApiError(response) {
+  try {
+    const body = await response.clone().json();
+    const detail = body && body.detail;
+    if (typeof detail === "string" && detail.trim()) return `: ${detail.trim()}`;
+    if (Array.isArray(detail) && detail.length) {
+      const parts = detail.slice(0, 2).map(entry => {
+        const where = Array.isArray(entry.loc)
+          ? entry.loc.filter(part => part !== "body").join(".")
+          : "";
+        return [where, entry.msg].filter(Boolean).join(": ");
+      });
+      return `: ${parts.join("; ")}`;
+    }
+  } catch { /* the body was not JSON — fall back to the status code alone */ }
+  return "";
+}
+
 async function streamAssessment(payload, onStage) {
   // `productionTotal` is a local guard value; the API schema forbids extra keys.
   const { productionTotal, ...request } = payload;
@@ -374,7 +395,11 @@ async function streamAssessment(payload, onStage) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...request, api_key: window.LOCUS_API_KEY, llm_model: window.LOCUS_MODEL || "deepseek-flash", language: currentLanguage() === "zh" ? "zh" : "en" }),
   }, 30000);
-  if (!response.ok || !response.body) throw new Error(`Assessment service returned ${response.status}`);
+  if (!response.ok || !response.body) {
+    throw new Error(
+      `Assessment service returned ${response.status}${await describeApiError(response)}`
+    );
+  }
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
