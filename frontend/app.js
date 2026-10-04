@@ -1325,19 +1325,25 @@ function setAgentStatus(state, detail, options) {
     chip.textContent = state === "online" ? "Agent online" : state === "unreachable" ? "Agent offline" : state === "checking…" ? "Agent: checking…" : "Agent: indicative";
     chip.title = detail || "";
   }
-  if (detail && !(options && options.silent)) showAgentNotice(detail, state === "online" ? "ok" : "warn");
+  if (detail && !(options && options.silent)) {
+    showAgentNotice(detail, state === "online" ? "ok" : "warn", { kind: "connection" });
+  }
 }
 
-function showAgentNotice(message, tone) {
+function showAgentNotice(message, tone, options) {
   const strip = $("#agent-notice");
   if (!strip) return;
   if (!message) {
     strip.hidden = true;
     strip.textContent = "";
+    delete strip.dataset.kind;
     return;
   }
   strip.hidden = false;
   strip.dataset.tone = tone || "warn";
+  // Connectivity warnings are tagged so a later successful check can clear them
+  // without wiping warnings that belong to a specific run.
+  strip.dataset.kind = (options && options.kind) || "run";
   strip.textContent = message;
 }
 
@@ -1356,11 +1362,11 @@ async function checkAgentConnection(announce = false) {
     const response = await fetch(`${window.LOCUS_API_BASE}/health`, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json().catch(() => ({}));
-    const wasOffline = chip?.dataset.state === "unreachable";
     setAgentStatus("online", `Analysis service online (${payload.status || "ok"}).`, { silent: true });
-    // Clear the warning strip left behind by an earlier failed connection check
-    // (other warnings, e.g. a failed run, are left alone).
-    if (wasOffline) showAgentNotice("");
+    // Clear a warning strip left behind by an earlier failed connection check.
+    // Warnings that belong to a specific run are tagged differently and stay.
+    const strip = $("#agent-notice");
+    if (strip && strip.dataset.kind === "connection") showAgentNotice("");
     clearAgentRetry();
     if (announce) showToast(`Agent service reachable at ${window.LOCUS_API_BASE}.`);
   } catch (error) {
