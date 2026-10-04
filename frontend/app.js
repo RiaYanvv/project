@@ -93,6 +93,16 @@ const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#039;","\"":"&quot;"})[c]);
 const countryName = (code) => ([...productionCountries, ...marketCountries].find(([value]) => value === code) || [code, code])[1];
 
+/* A location row set to "Other" carries the country the user typed, so show that
+   name instead of the literal word "Other" (profile list.md). */
+function locationName(item) {
+  if (item && typeof item === "object") {
+    if (item.country === "OTHER") return String(item.other || "").trim() || "Other";
+    return countryName(item.country);
+  }
+  return countryName(item);
+}
+
 /* Home country may be a code the API knows, a name for countries outside its
    enum, or free text typed under "Other". */
 function homeCountryLabel(value) {
@@ -337,8 +347,8 @@ function findValidationIssue(profile) {
 /* ------------------------------------------------- backend API contract */
 
 function locationLabel(item) {
-  const name = countryName(item.country);
-  return item.country === "OTHER" && item.other ? `${name} (${item.other})` : name;
+  // locationName already resolves "Other" to the country the user typed.
+  return locationName(item);
 }
 
 function buildDecisionQuestion(profile) {
@@ -356,10 +366,12 @@ function buildNotes(profile) {
   if (unmapped.length) parts.push(`Drivers not mapped to API codes: ${unmapped.map(value => TRIGGER_LABELS[value] || value).join(", ")}.`);
   if (profile.trigger_notes) parts.push(`Driver note: ${profile.trigger_notes}`);
   if (profile.footprint_notes) parts.push(`Footprint note: ${profile.footprint_notes}`);
-  const outsideProduction = profile.production_locations.filter(item => !BACKEND_COUNTRIES.includes(item.country)).map(locationLabel);
-  const outsideMarkets = profile.target_markets.filter(item => !BACKEND_COUNTRIES.includes(item.country)).map(locationLabel);
-  if (outsideProduction.length) parts.push(`Production locations outside API country codes: ${outsideProduction.join(", ")}.`);
-  if (outsideMarkets.length) parts.push(`Target markets outside API country codes: ${outsideMarkets.join(", ")}.`);
+  // "Other" rows now travel as structured countries, so only genuinely
+  // unplaceable entries ("Not sure") are listed here.
+  const unmappedProduction = profile.production_locations.filter(item => item.country !== "OTHER" && !BACKEND_COUNTRIES.includes(item.country)).map(locationLabel);
+  const unmappedMarkets = profile.target_markets.filter(item => item.country !== "OTHER" && !BACKEND_COUNTRIES.includes(item.country)).map(locationLabel);
+  if (unmappedProduction.length) parts.push(`Production locations not specified: ${unmappedProduction.join(", ")}.`);
+  if (unmappedMarkets.length) parts.push(`Target markets not specified: ${unmappedMarkets.join(", ")}.`);
   if (profile.notes) parts.push(profile.notes);
   return parts.join("\n").slice(0, 4000) || null;
 }
@@ -369,15 +381,19 @@ function buildNotes(profile) {
    page falls back to the local preview instead of sending a broken request. */
 function buildBackendPayload(profile) {
   const issues = [];
+  // A row set to "Other" carries the country the user typed. It used to be
+  // dropped from the structured request and only survived as free text inside
+  // `notes`, so the profile, summary and scenarios never saw the real country.
   const production = profile.production_locations
-    .filter(item => BACKEND_COUNTRIES.includes(item.country))
-    .map(item => ({ country: item.country, production_share: Number(item.share) || 0 }));
+    .filter(item => item.country === "OTHER" ? Boolean(String(item.other || "").trim()) : BACKEND_COUNTRIES.includes(item.country))
+    .map(item => ({ country: item.country === "OTHER" ? String(item.other).trim() : item.country, production_share: Number(item.share) || 0 }));
   const productionTotal = production.reduce((sum, item) => sum + item.production_share, 0);
-  const markets = profile.target_markets.filter(item => BACKEND_COUNTRIES.includes(item.country)).map(item => item.country);
+  const markets = profile.target_markets
+    .filter(item => item.country === "OTHER" ? Boolean(String(item.other || "").trim()) : BACKEND_COUNTRIES.includes(item.country))
+    .map(item => (item.country === "OTHER" ? String(item.other).trim() : item.country));
 
-  // Countries outside the API enum ("Not sure", "Other", free text) are dropped
-  // from the structured request and carried in `notes` instead of blocking the
-  // live call. Only an impossible share total is a real API limit.
+  // "Not sure" is not a place, so it still travels in `notes`. Only an
+  // impossible share total is a real API limit.
   if (!markets.length) issues.push("Add at least one target market.");
   if (productionTotal > 100) issues.push(`Production shares total ${productionTotal}%, and the assessment API accepts at most 100%.`);
 
@@ -554,7 +570,7 @@ function mapApiAssessment(api, profile) {
 
 function mockAssessment(profile) {
   const isUsMarket = profile.target_markets.some(item => item.country === "US");
-  const locations = profile.production_locations.map(item => countryName(item.country)).join(" and ");
+  const locations = profile.production_locations.map(item => locationName(item)).join(" and ");
   const horizon = (profile.time_horizon || "6_18_months").replaceAll("_", " ");
   return {
     company_profile: { ...profile, summary: `${profile.company_name} operates across ${locations}, with a decision horizon of ${horizon}.` },
@@ -1024,8 +1040,8 @@ function renderRationale(assessment) {
     if (!sources.some(source => source.title === item.title && source.publisher === item.publisher)) sources.push(item);
   }));
   const factors = [
-    `Production footprint: ${profile.production_locations.map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(", ") || "not specified"}`,
-    `Export markets: ${profile.target_markets.map(item => countryName(item.country)).join(", ") || "not specified"}`,
+    `Production footprint: ${profile.production_locations.map(item => `${locationName(item)}${item.share ? ` ${item.share}%` : ""}`).join(", ") || "not specified"}`,
+    `Export markets: ${profile.target_markets.map(item => locationName(item)).join(", ") || "not specified"}`,
     `Decision priorities: ${(profile.priorities || []).slice(0, 3).map(item => item.dimension).join(" > ") || "not ranked"}`,
     `Declared drivers: ${profile.restrictions.map(value => TRIGGER_LABELS[value] || value.replaceAll("_", " ")).join(", ") || "none selected"}`,
   ];
@@ -1146,8 +1162,8 @@ function renderAssessment(assessment) {
   const guard = (render) => { try { render(); } catch (error) { console.error("Assessment section failed:", error); } };
   const profile = assessment.company_profile || {};
   const risks = assessment.risks || [];
-  const production = (profile.production_locations || []).map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(" · ");
-  const markets = (profile.target_markets || []).map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(" · ");
+  const production = (profile.production_locations || []).map(item => `${locationName(item)}${item.share ? ` ${item.share}%` : ""}`).join(" · ");
+  const markets = (profile.target_markets || []).map(item => `${locationName(item)}${item.share ? ` ${item.share}%` : ""}`).join(" · ");
   guard(() => {
     $("#profile-grid").innerHTML = [
       ["Company", profile.company_name],
@@ -1321,8 +1337,8 @@ function renderStrategicReport(assessment, scenarioList) {
   const recommendation = assessment.recommendation || {};
   const best = scenarios[0];
   const runnerUp = scenarios[1];
-  const footprint = (profile.production_locations || []).map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(" · ") || "not specified";
-  const markets = (profile.target_markets || []).map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(" · ") || "not specified";
+  const footprint = (profile.production_locations || []).map(item => `${locationName(item)}${item.share ? ` ${item.share}%` : ""}`).join(" · ") || "not specified";
+  const markets = (profile.target_markets || []).map(item => `${locationName(item)}${item.share ? ` ${item.share}%` : ""}`).join(" · ") || "not specified";
   const sources = [];
   scenarios.forEach(scenario => (scenario.evidence || []).forEach(item => {
     if (!sources.some(existing => existing.title === item.title && existing.publisher === item.publisher)) sources.push(item);
@@ -1570,8 +1586,8 @@ function renderChatContext() {
   const profile = assessment.company_profile || {};
   const risks = assessment.risks || [];
   const scenarios = normalizeScenarios(assessment);
-  const footprint = (profile.production_locations || []).map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(" · ") || "not specified";
-  const markets = (profile.target_markets || []).map(item => countryName(item.country)).join(" · ") || "not specified";
+  const footprint = (profile.production_locations || []).map(item => `${locationName(item)}${item.share ? ` ${item.share}%` : ""}`).join(" · ") || "not specified";
+  const markets = (profile.target_markets || []).map(item => locationName(item)).join(" · ") || "not specified";
   container.innerHTML = `
     <div class="context-block">
       <p class="context-label">Company profile</p>
@@ -1610,7 +1626,7 @@ function chatExplainPanel() {
     <details class="chat-explain">
       <summary>Why this assessment? <span>+</span></summary>
       <div class="chat-explain-body">
-        <p><b>Factors considered.</b> ${escapeHtml(`Footprint ${(profile.production_locations || []).map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(", ") || "not specified"}; markets ${(profile.target_markets || []).map(item => countryName(item.country)).join(", ") || "not specified"}; priorities ${(profile.priorities || []).map(item => item.dimension).join(" > ") || "not ranked"}.`)}</p>
+        <p><b>Factors considered.</b> ${escapeHtml(`Footprint ${(profile.production_locations || []).map(item => `${locationName(item)}${item.share ? ` ${item.share}%` : ""}`).join(", ") || "not specified"}; markets ${(profile.target_markets || []).map(item => locationName(item)).join(", ") || "not specified"}; priorities ${(profile.priorities || []).map(item => item.dimension).join(" > ") || "not ranked"}.`)}</p>
         <p><b>Evidence used.</b> ${escapeHtml(sources.length ? sources.slice(0, 4).map(item => `${item.publisher} — ${item.title}`).join("; ") : "no evidence was attached")}</p>
         <p><b>Assumptions.</b> Production shares reflect the current model; country-level public sources may not reflect company-specific contracts.</p>
         <p><b>Uncertainty.</b> ${escapeHtml([...new Set(risks.map(risk => risk.uncertainty).filter(Boolean))].slice(0, 2).join(" ") || "no specific uncertainties were reported")}</p>
@@ -2463,8 +2479,8 @@ function renderDecisionOverview(project) {
       project.report_id ? `Report ${project.report_id}` : "",
     ].filter(Boolean).join(" · ");
   }
-  const footprint = (profile.production_locations || []).map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(" · ") || "not specified";
-  const markets = (profile.target_markets || []).map(item => `${countryName(item.country)}${item.share ? ` ${item.share}%` : ""}`).join(" · ") || "not specified";
+  const footprint = (profile.production_locations || []).map(item => `${locationName(item)}${item.share ? ` ${item.share}%` : ""}`).join(" · ") || "not specified";
+  const markets = (profile.target_markets || []).map(item => `${locationName(item)}${item.share ? ` ${item.share}%` : ""}`).join(" · ") || "not specified";
   const section = (id, number, heading, inner) => `<section class="assessment-section" id="${id}"><div class="section-title-row"><div><p class="section-number">${number}</p><h3>${escapeHtml(heading)}</h3></div></div>${inner}</section>`;
   const consultation = [
     ...(project.updated_constraints || []).map(item => `Added: ${item}`),
