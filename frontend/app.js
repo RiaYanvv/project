@@ -1356,7 +1356,12 @@ async function checkAgentConnection(announce = false) {
     const response = await fetch(`${window.LOCUS_API_BASE}/health`, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json().catch(() => ({}));
+    const wasOffline = chip?.dataset.state === "unreachable";
     setAgentStatus("online", `Analysis service online (${payload.status || "ok"}).`, { silent: true });
+    // Clear the warning strip left behind by an earlier failed connection check
+    // (other warnings, e.g. a failed run, are left alone).
+    if (wasOffline) showAgentNotice("");
+    clearAgentRetry();
     if (announce) showToast(`Agent service reachable at ${window.LOCUS_API_BASE}.`);
   } catch (error) {
     setAgentStatus(
@@ -1364,9 +1369,37 @@ async function checkAgentConnection(announce = false) {
       "The analysis service is temporarily unreachable from this browser, so this session shows an indicative result. " +
         `(${error.message})`
     );
+    scheduleAgentRetry();
     if (announce) showToast(`Agent service unreachable: ${error.message}`);
   }
 }
+
+/* The Agent service is restarted often during development. Without a retry, a
+   tab that loaded while it was down stays "Agent offline" until a manual
+   reload, even after the service comes back. */
+let agentRetryTimer = null;
+
+function clearAgentRetry() {
+  if (agentRetryTimer) {
+    clearTimeout(agentRetryTimer);
+    agentRetryTimer = null;
+  }
+}
+
+function scheduleAgentRetry() {
+  if (agentRetryTimer) return;
+  agentRetryTimer = setTimeout(() => {
+    agentRetryTimer = null;
+    checkAgentConnection();
+  }, 15000);
+}
+
+// Coming back to the tab is a good moment to re-check, so a stale "offline"
+// never survives a switch back to the page.
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) return;
+  if ($("#agent-status")?.dataset.state === "unreachable") checkAgentConnection();
+});
 
 /* -------------------------------------------------------------- chat page */
 
