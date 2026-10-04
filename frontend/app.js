@@ -416,6 +416,11 @@ function mapApiAssessment(api, profile) {
       country_region: item.country_region || "",
       topic: item.topic || "",
       content: item.content || "",
+      // Phase 3 evidence-chain fields, used by the badges below.
+      scope: item.evidence_scope || "",
+      freshness: item.freshness || "",
+      verification: item.verification_status || "",
+      self_reported: Boolean(item.is_self_reported),
     };
   };
   const recommendation = api.recommendation || {};
@@ -429,7 +434,16 @@ function mapApiAssessment(api, profile) {
       description: risk.business_impact,
       uncertainty: risk.uncertainty || "",
       verification: risk.verification_status || "",
-      evidence: (risk.evidence_ids || []).map(evidenceFor),
+      basis: risk.basis || "",
+      likelihood: risk.likelihood || "",
+      insufficient: Boolean(risk.insufficient_evidence),
+      // Attach the relation the Agent recorded for each source so the card can
+      // show whether it supports, contextualises or contradicts the risk.
+      evidence: (risk.evidence_ids || []).map(id => {
+        const item = evidenceFor(id);
+        const link = (risk.evidence_links || []).find(entry => entry.evidence_id === id);
+        return { ...item, relation: link ? link.relation : "" };
+      }),
     })),
     recommendation: {
       headline: recommendation.headline || "",
@@ -709,6 +723,10 @@ function mapScenario(item, evidenceFor, meta) {
     benefits: item.benefits || [],
     risks: item.risks || [],
     assumptions: item.applicable_conditions || [],
+    breakdown: item.score_breakdown || [],
+    bands: item.dimension_bands || {},
+    insufficient: Boolean(item.insufficient_evidence),
+    links: item.evidence_links || [],
     evidence: (item.evidence_ids || []).map(evidenceFor),
   };
   scenario.confidence = scenarioConfidence(scenario, meta);
@@ -799,6 +817,53 @@ function renderRiskSummary(risks) {
     + `<p class="muted">Levels show direction based on available evidence — not a prediction or a legal conclusion.</p>`;
 }
 
+/* The i18n dictionary translates static markup by matching English strings.
+   Text this file composes itself (badges, counts, hints) is localised here. */
+function L(en, zh) {
+  return currentLanguage() === "zh" ? zh : en;
+}
+
+const EVIDENCE_SCOPE_LABEL = {
+  company: () => L("company source", "公司来源"),
+  policy: () => L("policy source", "政策来源"),
+  market: () => L("market data", "市场数据"),
+};
+
+const FRESHNESS_LABEL = {
+  current: () => L("current", "时效最新"),
+  aging: () => L("aging", "时效下降"),
+  stale: () => L("stale", "已过时"),
+};
+
+const VERIFICATION_LABEL = {
+  verified: () => L("verified", "已验证"),
+  partial: () => L("partial", "部分验证"),
+  unverified: () => L("unverified", "未验证"),
+  contested: () => L("contested", "证据冲突"),
+  outdated: () => L("outdated", "已过期"),
+};
+
+const RELATION_LABEL = {
+  supports: () => L("supports", "支持"),
+  context: () => L("context", "背景"),
+  contradicts: () => L("contradicts", "相悖"),
+};
+
+/* Phase 3 provenance badges: where a source came from, whether it still holds
+   up, and how it relates to the risk or scenario that cites it. */
+function evidenceBadges(item) {
+  const badges = [];
+  const add = (label, cls) => {
+    if (label) badges.push(`<span class="ev-badge ${cls}">${escapeHtml(label)}</span>`);
+  };
+  if (item.relation && RELATION_LABEL[item.relation]) add(RELATION_LABEL[item.relation](), `relation-${item.relation}`);
+  if (item.scope && EVIDENCE_SCOPE_LABEL[item.scope]) add(EVIDENCE_SCOPE_LABEL[item.scope](), `scope-${item.scope}`);
+  if (item.self_reported) add(L("self-reported", "企业自述"), "self-reported");
+  if (item.freshness && FRESHNESS_LABEL[item.freshness]) add(FRESHNESS_LABEL[item.freshness](), `freshness-${item.freshness}`);
+  if (item.verification && VERIFICATION_LABEL[item.verification]) add(VERIFICATION_LABEL[item.verification](), `verify-${item.verification}`);
+  return badges.join("");
+}
+
 function evidenceMarkup(evidence) {
   return (evidence || []).map(item => {
     const meta = [item.date, item.authority].filter(Boolean).join(" · ");
@@ -814,7 +879,7 @@ function evidenceMarkup(evidence) {
       : `<span class="evidence-open muted">Original document is not linked in this preview — raw files live in the <b>data</b> branch and web sources come from the Agent's search.</span>`;
     return `
       <details class="evidence-card">
-        <summary class="evidence-link"><span class="evidence-main"><b>${escapeHtml(item.publisher)}</b> — ${escapeHtml(item.title)}</span><span class="evidence-meta">${escapeHtml(meta)}</span></summary>
+        <summary class="evidence-link"><span class="evidence-main"><b>${escapeHtml(item.publisher)}</b> — ${escapeHtml(item.title)}</span><span class="evidence-meta">${escapeHtml(meta)}</span>${evidenceBadges(item) ? `<span class="evidence-badges">${evidenceBadges(item)}</span>` : ""}</summary>
         <div class="evidence-preview">
           ${facts ? `<p class="evidence-facts">${escapeHtml(facts)}</p>` : ""}
           ${item.content ? `<p class="evidence-excerpt">${escapeHtml(item.content)}</p>` : `<p class="evidence-excerpt muted">No retrieved text is attached to this source.</p>`}
@@ -1027,12 +1092,15 @@ function renderAssessment(assessment) {
       const check = risk.verification && risk.verification !== "verified"
         ? `<span class="evidence-check ${escapeHtml(risk.verification)}">${escapeHtml(risk.verification)}</span>`
         : "";
+      const evidenceLabel = risk.insufficient
+        ? `<p class="evidence-label warn">${L("Insufficient evidence", "证据不足")} — ${L("no source supports this risk, so it is treated as an inference and capped at medium severity.", "没有证据支撑该风险，已按推断处理，严重度上限为中等。")}</p>`
+        : `<p class="evidence-label">${L("Supporting evidence", "支撑证据")} ${check}</p>`;
       return `
       <article class="risk-item" id="risk-${index}">
         <div class="risk-title"><span class="severity ${level}">${escapeHtml(risk.severity)}</span><h4>${escapeHtml(risk.name)}</h4>${risk.category ? `<span class="risk-category">${escapeHtml(risk.category)}</span>` : ""}</div>
         <p class="risk-description">${escapeHtml(risk.description)}</p>
-        <p class="evidence-label">Supporting evidence ${check}</p>
-        ${evidenceMarkup(risk.evidence) || `<div class="evidence-link static"><span class="evidence-main">No linked evidence for this risk.</span></div>`}
+        ${evidenceLabel}
+        ${evidenceMarkup(risk.evidence) || `<div class="evidence-link static"><span class="evidence-main">${L("No linked evidence for this risk.", "该风险未关联任何证据。")}</span></div>`}
         ${risk.uncertainty ? `<p class="risk-uncertainty"><b>Uncertainty</b> · ${escapeHtml(risk.uncertainty)}</p>` : ""}
       </article>`;
     }).join("");
@@ -1082,10 +1150,28 @@ function runScenarioSimulation() {
   }, 3100);
 }
 
-function dimensionList(scores) {
+/* Maps a display dimension to the Agent's score-breakdown key so each bar can
+   say whether that dimension was scored from evidence or inferred. */
+const SCENARIO_BREAKDOWN_KEY = {
+  cost: "cost_score",
+  resilience: "resilience_score",
+  geopolitical_risk: "geopolitical_risk_score",
+  market_access: "market_access_score",
+  feasibility: "implementation_score",
+};
+
+function dimensionList(scores, breakdown) {
+  const byDimension = {};
+  (breakdown || []).forEach(entry => { byDimension[entry.dimension] = entry; });
   return SCENARIO_DIMENSIONS.map(([key, label]) => {
     const value = Math.max(0, Math.min(100, Number(scores[key]) || 0));
-    return `<li><span class="dim-label">${escapeHtml(label)}</span><span class="dim-bar"><i style="width:${value}%"></i></span><b>${value}</b></li>`;
+    const entry = byDimension[SCENARIO_BREAKDOWN_KEY[key]];
+    const basis = !entry
+      ? ""
+      : entry.basis === "evidence"
+        ? `<span class="dim-basis evidence" title="${escapeHtml(L("Backed by linked evidence", "有证据支撑"))}">${L("evidence", "证据")}</span>`
+        : `<span class="dim-basis inference" title="${escapeHtml(L("Model inference — no evidence linked", "模型推断——未关联证据"))}">${L("inference", "推断")}</span>`;
+    return `<li><span class="dim-label">${escapeHtml(label)}${basis}</span><span class="dim-bar"><i style="width:${value}%"></i></span><b>${value}</b></li>`;
   }).join("");
 }
 
@@ -1134,7 +1220,7 @@ function scenarioCard(scenario, index, recommendedId, weighting) {
     <p class="scenario-summary">${escapeHtml(scenario.summary || "")}</p>
     <div class="scenario-score"><b>${scenario.overall_score}</b><span>/ 100</span></div>
     <p class="scenario-score-label">Overall score · Confidence: <b>${escapeHtml(scenario.confidence.label)}</b></p>
-    <ul class="scenario-dimensions">${dimensionList(scenario.scores)}</ul>
+    <ul class="scenario-dimensions">${dimensionList(scenario.scores, scenario.breakdown)}</ul>
     <button class="button button-secondary scenario-toggle" type="button" data-scenario-toggle="${index}" aria-expanded="false">View Analysis <span>→</span></button>
     ${scenarioDetail(scenario, index, weighting)}
   </article>`;

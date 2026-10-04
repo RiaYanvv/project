@@ -445,3 +445,18 @@ input.field-invalid,select.field-invalid,textarea.field-invalid{border-color:#d8
 .assessment-meta{margin:12px 0 0;color:#7b8f9e;font:500 11px var(--mono);letter-spacing:.03em}
 .rationale-section summary span{transition:transform .2s ease}
 .rationale-section details[open] summary span{transform:rotate(45deg)}
+
+/* Phase 3 evidence-chain badges: source scope, freshness, verification and the
+   relation between a source and the risk/scenario that cites it. */
+.evidence-link{flex-wrap:wrap}
+.evidence-badges{flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px;padding:5px 0 0}
+.ev-badge{display:inline-block;padding:2px 6px;border:1px solid #cbdde7;border-radius:2px;background:#f4f9fc;color:#5b7c92;font:500 9px var(--mono);letter-spacing:.04em;text-transform:uppercase}
+.ev-badge.scope-company,.ev-badge.relation-supports{border-color:#b9d8ca;background:#eef7f1;color:#2f7a52}
+.ev-badge.scope-policy,.ev-badge.relation-context{border-color:#c6d8e6;background:#f1f7fb;color:#4b7391}
+.ev-badge.relation-contradicts,.ev-badge.verify-contested,.ev-badge.verify-outdated,.ev-badge.freshness-stale{border-color:#e8bcb3;background:#fdf0ed;color:#a33625}
+.ev-badge.self-reported,.ev-badge.verify-partial,.ev-badge.freshness-aging{border-color:#e8d7b0;background:#fdf7e9;color:#966b1d}
+.ev-badge.verify-unverified{border-color:#d8dfe4;background:#f6f8f9;color:#7a8b98}
+.evidence-label.warn{color:#a33625}
+.dim-basis{display:inline-block;margin-left:6px;padding:1px 5px;border:1px solid #cbdde7;border-radius:2px;background:#f4f9fc;color:#5b7c92;font:500 8px var(--mono);letter-spacing:.04em;text-transform:uppercase}
+.dim-basis.evidence{border-color:#b9d8ca;background:#eef7f1;color:#2f7a52}
+.dim-basis.inference{border-color:#e8d7b0;background:#fdf7e9;color:#966b1d}
