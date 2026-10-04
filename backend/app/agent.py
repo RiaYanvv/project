@@ -315,12 +315,21 @@ class AgentService:
             self._retrieve(company, entity.aliases)
         )
         data_mode = self._resolve_data_mode(evidence)
+        # Step 0 (Company Intelligence revision): the profile stage must describe
+        # the company, not its policy exposure, so it receives company evidence
+        # only. The full set is still what downstream risk/scenario stages use.
+        company_evidence = self._company_evidence(evidence)
+        policy_evidence = self._policy_evidence(evidence)
+        profile_evidence = company_evidence or evidence
         trace.append(
             self._trace(
                 agent="ResearchAgent",
                 action="调用混合检索工具",
                 status="completed",
-                detail=f"返回 {len(evidence)} 条证据，数据模式为 {data_mode}。",
+                detail=(
+                    f"返回 {len(evidence)} 条证据（公司来源 {len(company_evidence)} 条、"
+                    f"政策来源 {len(policy_evidence)} 条），数据模式为 {data_mode}。"
+                ),
                 started=step_started,
             )
         )
@@ -339,7 +348,7 @@ class AgentService:
             {"type": "stage", "agent": "IntelligenceAgent", "status": "started"},
         )
         intelligence_payload = active_llm.build_intelligence(
-            company, profile, evidence, language
+            company, profile, profile_evidence, language
         )
         intelligence_payload, intelligence_call = self._consume_llm_result(
             intelligence_payload, "IntelligenceAgent", active_llm
@@ -349,7 +358,8 @@ class AgentService:
             intelligence_payload,
             company,
             profile,
-            evidence,
+            # Citations are validated against what this stage actually saw.
+            profile_evidence,
             language,
             entity=entity,
         )
@@ -376,6 +386,8 @@ class AgentService:
         )
 
         heuristic = self._build_heuristic(company, evidence)
+        # The shared company context every downstream stage receives.
+        intelligence_brief = self.intelligence_brief(intelligence)
 
         step_started = time.perf_counter()
         self._emit_event(
@@ -383,7 +395,11 @@ class AgentService:
             {"type": "stage", "agent": "RiskAgent", "status": "started"},
         )
         risk_payload = active_llm.analyze_risks(
-            company, evidence, heuristic["risks"], language
+            company,
+            evidence,
+            heuristic["risks"],
+            language,
+            company_intelligence=intelligence_brief,
         )
         risk_payload, risk_call = self._consume_llm_result(
             risk_payload, "RiskAgent", active_llm
@@ -441,6 +457,7 @@ class AgentService:
             [item.model_dump(mode="json") for item in risks],
             heuristic["scenarios"],
             language,
+            company_intelligence=intelligence_brief,
         )
         scenario_payload, scenario_call = self._consume_llm_result(
             scenario_payload, "ScenarioAgent", active_llm
@@ -493,6 +510,7 @@ class AgentService:
                 "limitations": heuristic["limitations"],
             },
             language,
+            company_intelligence=intelligence_brief,
         )
         recommendation_payload, advisor_call = self._consume_llm_result(
             recommendation_payload, "AdvisorAgent", active_llm
@@ -607,7 +625,14 @@ class AgentService:
         if self.llm.mode == "deepseek" and not getattr(active_llm, "api_key", None):
             raise ValueError("Backend DeepSeek API Key is not configured")
         language = request.language
-        action = active_llm.choose_chat_action(assessment, request.message, language)
+        action = active_llm.choose_chat_action(
+            assessment,
+            request.message,
+            language,
+            company_intelligence=self.intelligence_brief(
+                assessment.company_intelligence
+            ),
+        )
         action, action_call = self._consume_llm_result(
             action, "ChatActionAgent", active_llm
         )
@@ -630,6 +655,9 @@ class AgentService:
             request.message,
             supplemental_evidence,
             language,
+            company_intelligence=self.intelligence_brief(
+                assessment.company_intelligence
+            ),
         )
         answer_meta = getattr(active_llm, "last_call_meta", None)
         if isinstance(answer_meta, dict):
@@ -705,6 +733,10 @@ class AgentService:
             )
 
         heuristic = self._build_heuristic(company, assessment.evidence)
+        # A re-run keeps the same company context as the original assessment.
+        resim_intelligence = self.intelligence_brief(
+            assessment.company_intelligence
+        )
         step_started = time.perf_counter()
         scenario_payload = active_llm.simulate_scenarios(
             company,
@@ -712,6 +744,7 @@ class AgentService:
             [item.model_dump(mode="json") for item in assessment.risks],
             heuristic["scenarios"],
             language,
+            company_intelligence=resim_intelligence,
         )
         scenario_payload, scenario_call = self._consume_llm_result(
             scenario_payload, "ScenarioAgent", active_llm
@@ -733,6 +766,7 @@ class AgentService:
                 "limitations": heuristic["limitations"],
             },
             language,
+            company_intelligence=resim_intelligence,
         )
         recommendation_payload, advisor_call = self._consume_llm_result(
             recommendation_payload, "AdvisorAgent", active_llm
@@ -833,6 +867,20 @@ class AgentService:
             limit=6,
         )
         return self.retrieval.search(query)
+
+    @staticmethod
+    def _company_evidence(
+        evidence: list[RetrievedEvidence],
+    ) -> list[RetrievedEvidence]:
+        """Evidence about the company itself (registry, website, filings)."""
+        return [item for item in evidence if item.evidence_scope == "company"]
+
+    @staticmethod
+    def _policy_evidence(
+        evidence: list[RetrievedEvidence],
+    ) -> list[RetrievedEvidence]:
+        """Everything else: policy, trade and market material used for risk."""
+        return [item for item in evidence if item.evidence_scope != "company"]
 
     def _retrieve(
         self,
@@ -1644,6 +1692,73 @@ class AgentService:
             duration_ms=max(0, round((time.perf_counter() - started) * 1000)),
         )
 
+
+    # Company Intelligence is the shared company context for every downstream
+    # stage. The full object is large, so prompts receive a bounded projection.
+    INTELLIGENCE_BRIEF_LIMITS = {
+        "overview": 4,
+        "production_footprint": 6,
+        "supply_chain": 6,
+        "market_position": 4,
+        "strategic_context": 2,
+        "information_gaps": 5,
+    }
+    INTELLIGENCE_BRIEF_FACT_CHARS = 240
+
+    @classmethod
+    def intelligence_brief(
+        cls, intelligence: CompanyIntelligence | None
+    ) -> dict[str, Any]:
+        """Compact company context handed to Risk, Scenario, Advisor and Chat."""
+        if intelligence is None:
+            return {}
+        limits = cls.INTELLIGENCE_BRIEF_LIMITS
+        chars = cls.INTELLIGENCE_BRIEF_FACT_CHARS
+
+        def facts(items: list[Any], key: str) -> list[dict[str, Any]]:
+            collected = []
+            for item in (items or [])[: limits.get(key, 4)]:
+                text = str(getattr(item, "fact", "") or "").strip()
+                if not text:
+                    continue
+                collected.append(
+                    {
+                        "fact": text[:chars],
+                        "status": getattr(item, "data_status", "") or "",
+                        "source_ids": list(getattr(item, "source_ids", []) or []),
+                    }
+                )
+            return collected
+
+        entity = intelligence.entity
+        return {
+            "executive_summary": (intelligence.executive_summary or "")[:600],
+            "identity": {
+                "legal_name": entity.legal_name,
+                "aliases": entity.aliases[:5],
+                "headquarters": entity.headquarters,
+                "listing": entity.listing.model_dump(mode="json"),
+                "founded_year": entity.founded_year,
+                "size": entity.size.model_dump(mode="json"),
+            },
+            "overview": facts(intelligence.overview, "overview"),
+            "production_footprint": facts(
+                intelligence.production_footprint, "production_footprint"
+            ),
+            "supply_chain": facts(intelligence.supply_chain, "supply_chain"),
+            "market_position": facts(
+                intelligence.market_position, "market_position"
+            ),
+            "strategic_context": facts(
+                intelligence.strategic_context, "strategic_context"
+            ),
+            "information_gaps": [
+                str(gap)[:chars]
+                for gap in (intelligence.information_gaps or [])[
+                    : limits["information_gaps"]
+                ]
+            ],
+        }
 
     def _build_intelligence(
         self,

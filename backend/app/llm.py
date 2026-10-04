@@ -66,6 +66,7 @@ class LLMProvider(Protocol):
         evidence: list[RetrievedEvidence],
         baseline: list[dict[str, Any]],
         language: str = "en",
+        company_intelligence: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         ...
 
@@ -76,6 +77,7 @@ class LLMProvider(Protocol):
         risks: list[dict[str, Any]],
         baseline: list[dict[str, Any]],
         language: str = "en",
+        company_intelligence: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         ...
 
@@ -87,6 +89,7 @@ class LLMProvider(Protocol):
         scenarios: list[dict[str, Any]],
         baseline: dict[str, Any],
         language: str = "en",
+        company_intelligence: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         ...
 
@@ -95,6 +98,7 @@ class LLMProvider(Protocol):
         assessment: Assessment,
         message: str,
         language: str = "en",
+        company_intelligence: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         ...
 
@@ -104,6 +108,7 @@ class LLMProvider(Protocol):
         message: str,
         supplemental_evidence: list[RetrievedEvidence],
         language: str = "en",
+        company_intelligence: dict[str, Any] | None = None,
     ) -> str:
         ...
 
@@ -144,6 +149,7 @@ class MockLLM:
         evidence: list[RetrievedEvidence],
         baseline: list[dict[str, Any]],
         language: str = "en",
+        company_intelligence: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         return {"risks": baseline}
 
@@ -154,6 +160,7 @@ class MockLLM:
         risks: list[dict[str, Any]],
         baseline: list[dict[str, Any]],
         language: str = "en",
+        company_intelligence: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         return {"scenarios": baseline}
 
@@ -165,6 +172,7 @@ class MockLLM:
         scenarios: list[dict[str, Any]],
         baseline: dict[str, Any],
         language: str = "en",
+        company_intelligence: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         return baseline
 
@@ -173,6 +181,7 @@ class MockLLM:
         assessment: Assessment,
         message: str,
         language: str = "en",
+        company_intelligence: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         return {"action": "answer"}
 
@@ -182,6 +191,7 @@ class MockLLM:
         message: str,
         supplemental_evidence: list[RetrievedEvidence],
         language: str = "en",
+        company_intelligence: dict[str, Any] | None = None,
     ) -> str:
         zh = (language or "en").lower() == "zh"
         normalized = message.lower()
@@ -296,10 +306,12 @@ class DeepSeekLLM:
                 "用户输入是 Baseline，不能被公开推断覆盖；冲突时保留两方并置 "
                 "conflict=true。"
                 "strategic_context 必须恰好覆盖四段：公司现状、供应链结构与依赖、"
-                "市场与地缘政治暴露、决策取舍。段落标题必须使用目标语言"
+                "市场与客户定位、决策情境与待补信息。段落标题必须使用目标语言"
                 "（中文输出用中文标题，英文输出用英文标题），不得直接照抄英文小标题。"
-                "每段至少引用 2 条公司事实和 2 条政策证据；无法确认就明确写 unknown，"
-                "不能只复述表单。"
+                "每段至少引用 2 条公司事实；无法确认就明确写 unknown，不能只复述表单。"
+                "本阶段只描述企业在供应链中的位置与已知事实，不做任何风险判断："
+                "不评估风险、不给严重程度、不建议是否迁移、不比较方案优劣——"
+                "这些属于后续的风险评估与情景模拟阶段。"
                 "information_gaps 必须是字符串数组，每项一句话，不要返回对象。"
                 "产能、产能利用率、客户名单、供应商名单、单位成本、订单积压等"
                 "无法确认的信息必须进入 information_gaps。"
@@ -344,6 +356,7 @@ class DeepSeekLLM:
         evidence: list[RetrievedEvidence],
         baseline: list[dict[str, Any]],
         language: str = "en",
+        company_intelligence: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         return self._call_json(
             stage="RiskAgent",
@@ -358,12 +371,19 @@ class DeepSeekLLM:
                 "critical 必须有至少一条 S/A+ 证据；无证据且无用户约束时不得"
                 "给 high/critical，应标记 insufficient_evidence=true。"
                 "evidence_ids 只能引用输入中的 evidence_id。"
+                "必须以 company_intelligence 中的公司事实为前提，写出这家公司的风险："
+                "结合其生产基地、供应链角色与目标市场说明暴露路径；不得只给行业级结论"
+                "（例如“电池企业面临关税风险”应改写为结合该公司具体基地与原产地的判断）。"
+                "公司事实取自 company_evidence，政策暴露取自 policy_evidence。"
                 "不得把 Mock 证据描述为真实事实。"
             ),
             payload={
                 "task": "识别企业供应链迁移决策最相关的风险",
                 "company": company.model_dump(mode="json"),
-                "evidence": self._evidence_payload(evidence),
+                # Required company context: the risk must be this company's risk,
+                # not a generic industry statement.
+                "company_intelligence": company_intelligence or {},
+                **self._split_evidence_payload(evidence),
                 "deterministic_baseline": baseline,
             },
             fallback={"risks": baseline},
@@ -376,6 +396,7 @@ class DeepSeekLLM:
         risks: list[dict[str, Any]],
         baseline: list[dict[str, Any]],
         language: str = "en",
+        company_intelligence: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         return self._call_json(
             stage="ScenarioAgent",
@@ -388,12 +409,15 @@ class DeepSeekLLM:
                 "applicable_conditions, evidence_ids。"
                 "所有 score 是 0-100 整数，数值越高代表该维度表现越好。"
                 "evidence_ids 只能引用输入中的 evidence_id。"
+                "情景必须结合 company_intelligence 中的现有生产基地、供应链角色与"
+                "目标市场来描述，而不是给通用方案；不同公司的同一方案应体现其自身布局。"
             ),
             payload={
                 "task": "比较维持海外布局、提高中国生产比例和混合布局",
                 "company": company.model_dump(mode="json"),
+                "company_intelligence": company_intelligence or {},
                 "risks": risks,
-                "evidence": self._evidence_payload(evidence),
+                **self._split_evidence_payload(evidence),
                 "deterministic_baseline": baseline,
             },
             fallback={"scenarios": baseline},
@@ -407,6 +431,7 @@ class DeepSeekLLM:
         scenarios: list[dict[str, Any]],
         baseline: dict[str, Any],
         language: str = "en",
+        company_intelligence: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         return self._call_json(
             stage="AdvisorAgent",
@@ -418,13 +443,16 @@ class DeepSeekLLM:
                 "requires_human_review。recommended_scenario_id 必须来自输入方案。"
                 "confidence 只能是 low, medium, high。"
                 "如果存在 critical/high 风险或证据不足，requires_human_review 必须为 true。"
+                "建议必须落在该公司自身情况上（company_intelligence 的生产基地、"
+                "供应链角色、目标市场与信息缺口），不得给与该企业无关的通用建议。"
             ),
             payload={
                 "task": "生成审慎、可追溯的初步建议",
                 "company": company.model_dump(mode="json"),
+                "company_intelligence": company_intelligence or {},
                 "risks": risks,
                 "scenarios": scenarios,
-                "evidence": self._evidence_payload(evidence),
+                **self._split_evidence_payload(evidence),
                 "deterministic_baseline": baseline,
             },
             fallback=baseline,
@@ -435,6 +463,7 @@ class DeepSeekLLM:
         assessment: Assessment,
         message: str,
         language: str = "en",
+        company_intelligence: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         return self._call_json(
             stage="ChatAgent",
@@ -443,9 +472,11 @@ class DeepSeekLLM:
                 + "你是 Agent 的决策器。只返回 JSON。若回答需要补充检索，返回 "
                 '{"action":"search_evidence","query":"检索词"}；'
                 '若现有证据足够，返回 {"action":"answer"}。'
+                "判断前先看 company_intelligence 中这家公司是谁。"
                 "不要直接回答问题，只选择下一步动作。"
             ),
             payload={
+                "company_intelligence": company_intelligence or {},
                 "company": assessment.company_profile.model_dump(mode="json"),
                 "user_message": message,
                 "chat_history": [
@@ -465,6 +496,7 @@ class DeepSeekLLM:
         message: str,
         supplemental_evidence: list[RetrievedEvidence],
         language: str = "en",
+        company_intelligence: dict[str, Any] | None = None,
     ) -> str:
         result = self._call_json(
             stage="ChatAgent",
@@ -473,9 +505,12 @@ class DeepSeekLLM:
                 + "你是供应链决策顾问。只返回 JSON，顶层键为 answer，"
                 "answer 必须是字符串。"
                 "回答必须基于已有评估和证据，明确不确定性，不得编造来源。"
+                "回答要先结合 company_intelligence 中这家公司的业务模式、供应链角色、"
+                "生产基地与待补信息，再给结论。"
                 "若新增信息改变判断，要说明影响；对高风险事项建议人工复核。"
             ),
             payload={
+                "company_intelligence": company_intelligence or {},
                 "company": assessment.company_profile.model_dump(mode="json"),
                 "current_assessment": {
                     "risks": [
@@ -696,3 +731,23 @@ class DeepSeekLLM:
             }
             for item in evidence
         ]
+
+    @classmethod
+    def _split_evidence_payload(
+        cls,
+        evidence: list[RetrievedEvidence],
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Company evidence and policy/risk evidence are labelled separately.
+
+        Both come from the same retrieval run, but downstream prompts must use
+        company material for company-specific claims and policy material for
+        exposure. The total token cost is unchanged.
+        """
+        return {
+            "company_evidence": cls._evidence_payload(
+                [item for item in evidence if item.evidence_scope == "company"]
+            ),
+            "policy_evidence": cls._evidence_payload(
+                [item for item in evidence if item.evidence_scope != "company"]
+            ),
+        }

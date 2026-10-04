@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 from typing import Any
+from urllib.parse import urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
@@ -14,6 +15,18 @@ from .schemas import CompanyInput, RetrievedEvidence
 WIKIDATA_API = "https://www.wikidata.org/w/api.php"
 WIKIDATA_ENTITY = "https://www.wikidata.org/wiki/Special:EntityData/{entity_id}.json"
 WIKIPEDIA_SUMMARY = "https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
+
+# Company-level facts live on a handful of corporate pages. The links are read
+# from the homepage rather than guessed, and only a few are followed, so this
+# stays a small fetch rather than a crawler.
+SECTION_TERMS = (
+    "about", "company", "profile", "overview", "corporate",
+    "product", "business", "solution", "technology", "brand",
+    "sustainab", "esg", "investor", "responsib",
+)
+RELATED_PAGE_LIMIT = 3
+RELATED_PAGE_ATTEMPTS = 6
+RELATED_PAGE_TIMEOUT = 12.0
 USER_AGENT = (
     "LocusBot/1.0 "
     "(https://github.com/RiaYanvv/project; contact@example.org)"
@@ -56,11 +69,127 @@ class CompanyResearchTool:
                 items.append(wikipedia_item)
             website = self._official_website(entity)
             if website:
-                website_item = self._website_evidence(website, company)
-                if website_item:
-                    items.append(website_item)
+                items.extend(self._official_site_evidence(website, company))
+        if not items:
+            # Wikidata is the preferred entry point, but a single upstream failure
+            # used to leave the profile with no company evidence at all. Falling
+            # back to Wikipedia by name keeps the stage useful.
+            for name in names[:3]:
+                wikipedia_item = self._wikipedia_evidence(name, company)
+                if wikipedia_item:
+                    items.append(wikipedia_item)
+                    break
         return items
 
+    def _official_site_evidence(
+        self,
+        base_url: str,
+        company: CompanyInput,
+        limit: int = RELATED_PAGE_LIMIT,
+    ) -> list[RetrievedEvidence]:
+        """Homepage plus a few real internal pages discovered from its links.
+
+        Guessing paths such as /about does not work on most corporate sites —
+        they 404 or block — so the section links are read from the homepage.
+        """
+        homepage = self._fetch_page(base_url)
+        if homepage is None:
+            return []
+        final_url, text, links = homepage
+        items: list[RetrievedEvidence] = []
+        if len(text) >= 120:
+            items.append(self._page_evidence(final_url, company, text, "home"))
+        for url in self._rank_section_links(links):
+            if len(items) > limit:
+                break
+            fetched = self._fetch_page(
+                url, timeout=min(self.timeout, RELATED_PAGE_TIMEOUT)
+            )
+            if fetched is None:
+                continue
+            page_url, page_text, _ = fetched
+            if len(page_text) < 120:
+                continue
+            label = page_url.rstrip("/").rsplit("/", 1)[-1] or "page"
+            items.append(self._page_evidence(page_url, company, page_text, label[:24]))
+        return items[: limit + 1]
+
+    def _rank_section_links(self, links: list[str]) -> list[str]:
+        """Prefer the links most likely to carry company-level facts."""
+
+        def score(url: str) -> tuple[int, int]:
+            lowered = url.lower()
+            matched = not any(term in lowered for term in SECTION_TERMS)
+            return (matched, len(url))
+
+        return sorted(dict.fromkeys(links), key=score)[:RELATED_PAGE_ATTEMPTS]
+
+    def _fetch_page(
+        self, url: str, timeout: float | None = None
+    ) -> tuple[str, str, list[str]] | None:
+        try:
+            with httpx.Client(
+                timeout=timeout or self.timeout,
+                follow_redirects=True,
+                headers={"User-Agent": USER_AGENT},
+            ) as client:
+                response = client.get(url)
+                response.raise_for_status()
+            soup = BeautifulSoup(response.text, "html.parser")
+            # Read the links before stripping navigation, or the section links
+            # would be removed with it.
+            links = self._internal_links(soup, str(response.url))
+            for element in soup(
+                ["script", "style", "noscript", "svg", "nav", "footer"]
+            ):
+                element.decompose()
+            text = re.sub(r"\s+", " ", soup.get_text(" ", strip=True)).strip()
+        except (httpx.HTTPError, ValueError, TypeError):
+            return None
+        return str(response.url), text, links
+
+    @staticmethod
+    def _internal_links(soup: BeautifulSoup, current_url: str) -> list[str]:
+        parsed = urlparse(current_url)
+        found: list[str] = []
+        seen: set[str] = set()
+        for anchor in soup.find_all("a", href=True):
+            href = str(anchor.get("href") or "").strip()
+            if not href or href.startswith(("#", "mailto:", "tel:", "javascript:")):
+                continue
+            absolute = urljoin(current_url, href).split("#")[0].rstrip("/")
+            if urlparse(absolute).netloc != parsed.netloc:
+                continue
+            if absolute == current_url.rstrip("/") or absolute in seen:
+                continue
+            seen.add(absolute)
+            found.append(absolute)
+        return found
+
+    @staticmethod
+    def _page_evidence(
+        url: str,
+        company: CompanyInput,
+        text: str,
+        label: str = "home",
+    ) -> RetrievedEvidence:
+        digest = hashlib.sha1(url.encode("utf-8")).hexdigest()[:10].upper()
+        return RetrievedEvidence(
+            evidence_id=f"EVD-COMPANY-WEB-{digest}",
+            title=f"Official website ({label}): {company.company_name}",
+            source_type="company_website",
+            publisher=urlparse(url).netloc,
+            country_region=company.home_country,
+            publication_date="unknown",
+            url=url,
+            authority_level="B",
+            topic="company_overview" if label == "home" else f"company_{label}",
+            content=text[:8000],
+            relevance_score=78 if label == "home" else 72,
+            is_mock=False,
+            evidence_scope="company",
+            is_self_reported=True,
+        )
     def _find_wikidata_entity(
         self,
         name: str,
@@ -256,10 +385,12 @@ class CompanyResearchTool:
         self,
         url: str,
         company: CompanyInput,
+        page_label: str = "",
+        timeout: float | None = None,
     ) -> RetrievedEvidence | None:
         try:
             with httpx.Client(
-                timeout=self.timeout,
+                timeout=timeout or self.timeout,
                 follow_redirects=True,
                 headers={"User-Agent": USER_AGENT},
             ) as client:
@@ -274,18 +405,19 @@ class CompanyResearchTool:
         if len(text) < 120:
             return None
         digest = hashlib.sha1(url.encode("utf-8")).hexdigest()[:10].upper()
+        label = page_label or "home"
         return RetrievedEvidence(
             evidence_id=f"EVD-COMPANY-WEB-{digest}",
-            title=f"Official website: {company.company_name}",
+            title=f"Official website ({label}): {company.company_name}",
             source_type="company_website",
             publisher=str(response.url.host),
             country_region=company.home_country,
             publication_date="unknown",
             url=url,
             authority_level="B",
-            topic="company_overview",
+            topic="company_overview" if not page_label else f"company_{page_label}",
             content=text[:8000],
-            relevance_score=78,
+            relevance_score=78 if not page_label else 72,
             is_mock=False,
             evidence_scope="company",
             is_self_reported=True,
