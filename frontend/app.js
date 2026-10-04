@@ -5,6 +5,9 @@ const state = {
   projectId: null,
   parentProjectId: null,
   reportOutdated: false,
+  // True once the user actually reorders the priority list. Until then the
+  // scenario score must treat every factor as equally important.
+  prioritiesDeclared: false,
 };
 let runInFlight = false;
 const draftKey = "locus-decision-draft";
@@ -28,7 +31,22 @@ const productionCountries = [
   ["TH", "Thailand"], ["MX", "Mexico"], ["OTHER", "Other"], ["NOT_SURE", "Not sure"],
 ];
 const marketCountries = [["US", "United States"], ["EU", "EU"], ["CN", "China"], ["ASEAN", "ASEAN"], ["OTHER", "Other"], ["NOT_SURE", "Not sure"]];
+/* Home country is asked with a broader list than production/markets because the
+   headquarters can be anywhere. Codes the Agent API knows are sent as codes;
+   anything else is sent as its readable name, and "Other" accepts free text. */
+const HOME_COUNTRY_NAMES = {
+  CN: "China", VN: "Vietnam", ID: "Indonesia", IN: "India", TH: "Thailand",
+  MY: "Malaysia", MX: "Mexico", US: "United States", JP: "Japan",
+  KR: "South Korea", DE: "Germany", PL: "Poland", HU: "Hungary", FR: "France",
+  ES: "Spain", IT: "Italy", TR: "Turkey", BR: "Brazil", PH: "Philippines",
+  SG: "Singapore",
+};
 const priorities = ["Supply Chain Resilience", "Market Access", "Cost", "Compliance", "Political Stability", "Implementation Speed"];
+
+/* Dimensions the backend can weight. Used when the user never ranked the
+   priorities so every factor counts the same instead of a default order. */
+const BACKEND_SCORING_DIMENSIONS = ["cost_reduction", "supply_chain_resilience", "market_access", "political_stability", "compliance"];
+const EQUAL_PRIORITY_WEIGHT = 3;
 
 /* Country codes, enum values and limits below mirror backend/app/schemas.py.
    Keeping them in sync is what lets the form talk to the Agent API. */
@@ -74,6 +92,28 @@ const TRANSITION_LABEL = { consultation: "Opening decision workspace", home: "Re
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#039;","\"":"&quot;"})[c]);
 const countryName = (code) => ([...productionCountries, ...marketCountries].find(([value]) => value === code) || [code, code])[1];
+
+/* Home country may be a code the API knows, a name for countries outside its
+   enum, or free text typed under "Other". */
+function homeCountryLabel(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  return HOME_COUNTRY_NAMES[raw] || countryName(raw);
+}
+
+function homeCountryForApi(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "CN";
+  if (BACKEND_COUNTRIES.includes(raw)) return raw;
+  return HOME_COUNTRY_NAMES[raw] || raw;
+}
+
+function readHomeCountry(form) {
+  const value = form.home_country ? form.home_country.value : "CN";
+  if (value !== "OTHER") return value;
+  const typed = (form.home_country_other?.value || "").trim();
+  return typed || "Other";
+}
 
 if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 
@@ -181,7 +221,15 @@ function buildPriorityControls() {
   renderPriorityItems();
   let dragged = null;
   grid.addEventListener("dragstart", event => { dragged = event.target.closest(".priority-item"); dragged?.classList.add("dragging"); });
-  grid.addEventListener("dragend", () => { dragged?.classList.remove("dragging"); dragged = null; refreshPriorityRanks(); });
+  grid.addEventListener("dragend", () => {
+    dragged?.classList.remove("dragging");
+    dragged = null;
+    refreshPriorityRanks();
+    // Dragging is the only way to express a ranking, so it is what marks the
+    // priorities as user-declared. The list ships with a default order that must
+    // not be mistaken for the user's own ranking.
+    state.prioritiesDeclared = true;
+  });
   grid.addEventListener("dragover", event => {
     event.preventDefault();
     const target = event.target.closest(".priority-item");
@@ -247,7 +295,7 @@ function readForm() {
     company_name: text("company_name"),
     industry: FIXED_INDUSTRY,
     products: text("products"),
-    home_country: data.get("home_country"),
+    home_country: readHomeCountry(form),
     production_locations: state.production.filter(item => item.country),
     target_markets: state.markets.filter(item => item.country),
     decision_type: text("decision_type"),
@@ -262,6 +310,7 @@ function readForm() {
     time_horizon: data.get("time_horizon"),
     notes: text("notes"),
     priorities: priorityValues,
+    priorities_declared: Boolean(state.prioritiesDeclared),
   };
 }
 
@@ -332,9 +381,15 @@ function buildBackendPayload(profile) {
   if (!markets.length) issues.push("Add at least one target market.");
   if (productionTotal > 100) issues.push(`Production shares total ${productionTotal}%, and the assessment API accepts at most 100%.`);
 
-  const mappedPriorities = profile.priorities
-    .map((item, index) => ({ dimension: BACKEND_PRIORITY_DIMENSION[item.dimension], weight: Math.max(0, 5 - index) }))
-    .filter(item => item.dimension);
+  // The priority list has a default display order. Only a user who actually
+  // reordered it has declared a ranking; otherwise every factor is weighted the
+  // same so an unranked decision is not scored against a hidden default order.
+  const mappedPriorities = profile.priorities_declared
+    ? profile.priorities
+        .map((item, index) => ({ dimension: BACKEND_PRIORITY_DIMENSION[item.dimension], weight: Math.max(0, 5 - index) }))
+        .filter(item => item.dimension)
+    : [];
+  const equalPriorities = BACKEND_SCORING_DIMENSIONS.map(dimension => ({ dimension, weight: EQUAL_PRIORITY_WEIGHT }));
 
   const payload = {
     company: {
@@ -343,12 +398,13 @@ function buildBackendPayload(profile) {
       // and no longer asks for one, so the fixed EV / battery scope is sent instead.
       industry: profile.industry || FIXED_INDUSTRY,
       products: [profile.products],
-      home_country: profile.home_country,
+      home_country: homeCountryForApi(profile.home_country),
       production_locations: production,
       target_markets: markets,
       decision_question: buildDecisionQuestion(profile),
       time_horizon: TIME_HORIZON_BACKEND_VALUE[profile.time_horizon] || "6_18_months",
-      priorities: mappedPriorities.length ? mappedPriorities : [{ dimension: "supply_chain_resilience", weight: 3 }],
+      priorities: mappedPriorities.length ? mappedPriorities : equalPriorities,
+      priorities_declared: Boolean(profile.priorities_declared),
       restrictions: profile.restrictions.map(value => TRIGGER_BACKEND_VALUE[value]).filter(Boolean),
       investment_budget_usd: profile.investment_budget ? Number(profile.investment_budget) : null,
       notes: buildNotes(profile),
@@ -487,6 +543,7 @@ function mapApiAssessment(api, profile) {
       assessment_id: api.assessment_id || "",
       model_name: api.model_name || "",
       data_mode: api.data_mode || "",
+      weighting_mode: api.weighting_mode || "",
       // Which language the Agent wrote this analysis in. Kept so the UI can tell
       // the user when the content no longer matches the interface language.
       language: api.language || "",
@@ -1096,7 +1153,7 @@ function renderAssessment(assessment) {
       ["Company", profile.company_name],
       ["Industry", INDUSTRY_LABELS[profile.industry] || (profile.industry || "").replaceAll("_", " ")],
       ["Main product", profile.products],
-      ["Home country", countryName(profile.home_country)],
+      ["Home country", homeCountryLabel(profile.home_country)],
       ["Production footprint", production],
       ["Target markets", markets],
       ["Decision context", profile.decision_question],
@@ -1300,7 +1357,10 @@ function renderScenarios(assessment) {
   const scenarios = normalizeScenarios(assessment);
   const meta = assessment.meta || {};
   const priorities = (profile.priorities || []).map(item => item.dimension);
-  const weighting = priorities.length
+  // The backend reports which weighting it applied. Without a user ranking the
+  // five dimensions are equal, so the UI must not claim a stated priority order.
+  const weightingMode = meta.weighting_mode || (profile.priorities_declared ? "user" : "equal");
+  const weighting = weightingMode === "user" && priorities.length
     ? `The overall score is weighted by your stated priorities: ${priorities.join(" > ")}.`
     : "No priority ranking was provided, so the five dimensions are weighted equally.";
   $("#scenario-grid").innerHTML = scenarios.map((scenario, index) => scenarioCard(scenario, index, assessment.recommendation?.recommended_scenario_id || "", weighting)).join("");
@@ -2077,6 +2137,9 @@ function resetDecisionForm() {
   renderLocations("production");
   renderLocations("markets");
   renderPriorityItems();
+  state.prioritiesDeclared = false;
+  const homeOtherField = $("#home-country-other");
+  if (homeOtherField) homeOtherField.hidden = true;
   document.querySelectorAll("[data-upload-zone]").forEach(zone => renderUploadList(zone));
   $("#advanced-fields").hidden = true;
   $("#show-advanced").hidden = false;
@@ -2263,6 +2326,19 @@ function formFromProfile(profile) {
   form.products.value = profile.products || "";
   form.decision_question.value = profile.decision_question || "";
   form.notes.value = profile.notes || "";
+  // Restore the home country, falling back to the "Other" box for a value the
+  // select does not carry.
+  const storedHome = String(profile.home_country || "").trim();
+  const homeOption = [...(form.home_country?.options || [])].find(option => option.value === storedHome);
+  if (homeOption) {
+    form.home_country.value = storedHome;
+    if (form.home_country_other) form.home_country_other.value = "";
+  } else {
+    form.home_country.value = "OTHER";
+    if (form.home_country_other) form.home_country_other.value = storedHome;
+  }
+  const homeOther = $("#home-country-other");
+  if (homeOther) homeOther.hidden = form.home_country.value !== "OTHER";
   state.production = (profile.production_locations || []).map(item => ({ country: item.country, share: item.share ?? "", other: item.other || "", touched: true }));
   state.markets = (profile.target_markets || []).map(item => ({ country: item.country, share: item.share ?? "", other: item.other || "", touched: true }));
   if (!state.production.length) state.production = [{ country: "CN", share: "", other: "" }];
@@ -2595,6 +2671,12 @@ document.addEventListener("change", event => {
     $("#relocate-country").hidden = changed.value !== "Relocate production";
     $("#new-site-country").hidden = changed.value !== "Establish a new production site";
     $("#decision-other").hidden = changed.value !== "Other";
+    updateFormProgress();
+    return;
+  }
+  if (changed.name === "home_country") {
+    const other = $("#home-country-other");
+    if (other) other.hidden = changed.value !== "OTHER";
     updateFormProgress();
     return;
   }
