@@ -200,7 +200,10 @@ class CompanyResearchTool:
             source_type="company_registry",
             publisher="Wikidata",
             country_region=country or company.home_country,
-            publication_date=inception or "unknown",
+            # The Wikidata inception value is the company's founding year, not a
+            # publication date; using it here made the record look stale. The
+            # founding year is still carried in the content and the entity.
+            publication_date="unknown",
             url=f"https://www.wikidata.org/wiki/{entity['id']}",
             authority_level="B+",
             topic="company_entity",

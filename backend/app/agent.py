@@ -64,6 +64,23 @@ class AgentService:
                 return key
         return "operational"
 
+    # A risk that no evidence supports must not dominate the risk ranking. The
+    # level is capped rather than removed because RiskItem requires a severity.
+    SEVERITY_WITHOUT_EVIDENCE_CAP = "medium"
+    SEVERITY_ORDER = ("low", "medium", "high", "critical")
+
+    @classmethod
+    def _cap_severity_without_evidence(
+        cls, severity: Any, has_evidence: bool
+    ) -> str:
+        value = str(severity or "medium").strip().lower()
+        if value not in cls.SEVERITY_ORDER:
+            value = "medium"
+        if has_evidence:
+            return value
+        cap = cls.SEVERITY_ORDER.index(cls.SEVERITY_WITHOUT_EVIDENCE_CAP)
+        return cls.SEVERITY_ORDER[min(cls.SEVERITY_ORDER.index(value), cap)]
+
     @staticmethod
     def _consume_llm_result(
         payload: Any,
@@ -148,9 +165,15 @@ class AgentService:
         evidence: list[RetrievedEvidence],
     ) -> list[RetrievedEvidence]:
         now = datetime.now(timezone.utc)
+        # Registry and website records describe an entity as it stands today, so
+        # they are living references rather than dated documents. Applying the
+        # document age rules to them marked the most authoritative company
+        # source (a Wikidata record dated by its founding year) as "outdated".
+        entity_record_types = {"company_registry", "company_website"}
         enriched: list[RetrievedEvidence] = []
         for item in evidence:
             freshness = "unknown"
+            entity_record = item.source_type in entity_record_types
             published = None
             raw_date = (item.publication_date or "").strip()
             for parser in (
@@ -165,7 +188,7 @@ class AgentService:
                     break
                 except (TypeError, ValueError):
                     continue
-            if published is not None:
+            if published is not None and not entity_record:
                 age_years = max(0.0, (now - published).days / 365.25)
                 freshness = (
                     "current"
@@ -176,7 +199,7 @@ class AgentService:
                 )
             if item.is_mock:
                 verification = "partial"
-            elif freshness == "stale":
+            elif freshness == "stale" and not entity_record:
                 verification = "outdated"
             elif item.authority_level in {"S", "A+", "A"}:
                 verification = "verified"
@@ -1078,6 +1101,9 @@ class AgentService:
                 )
                 filtered["basis"] = "evidence" if evidence_ids else "inference"
                 filtered["insufficient_evidence"] = not bool(evidence_ids)
+                filtered["severity"] = self._cap_severity_without_evidence(
+                    filtered.get("severity"), bool(evidence_ids)
+                )
                 filtered["verification_status"] = verification_status
                 risks.append(
                     RiskItem.model_validate(filtered).model_copy(
@@ -1125,6 +1151,9 @@ class AgentService:
                             ),
                             "basis": "evidence" if evidence_ids else "inference",
                             "insufficient_evidence": not bool(evidence_ids),
+                            "severity": self._cap_severity_without_evidence(
+                                item.get("severity"), bool(evidence_ids)
+                            ),
                         }
                     )
                 )
