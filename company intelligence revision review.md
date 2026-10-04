@@ -22,6 +22,49 @@
 
 ---
 
+## 0.1 已确认的决策（2026-10-04）
+
+| 问题 | 决议 |
+|---|---|
+| `information_gaps` 类型变更 | 采用**联合类型过渡**（`list[str \| InformationGap]`），前端同版本一起兼容 |
+| 画像阶段是否给政策证据 | **不给**；改为**加强公司检索**来保证画像不空（见下） |
+| 供应链角色词表 | 采用受控词表，**必须**有 `primary_role`，可有多个 `secondary_roles`；无法确认时**不要推断**，用 `OTHER` 或标 unknown |
+| `risk_evidence` / `policy_evidence` 语义 | 采用 **One Evidence Store + Multiple Semantic Views**：只维护**一个** evidence 列表，不同 Agent 按任务过滤出各自视图；**不维护两个独立 list** |
+
+供应链角色受控词表（用于步骤 2，目标是为 Risk / Scenario 提供稳定的企业角色标签，不做细分行业分类）：
+
+```markdown
+UPSTREAM_RAW_MATERIAL      - Raw material suppliers (lithium, nickel, cobalt, graphite…)
+UPSTREAM_COMPONENT         - Battery material/component suppliers (cathode/anode/electrolyte/separator)
+BATTERY_MANUFACTURING      - Cell / module / pack manufacturers
+DOWNSTREAM_APPLICATION     - EV manufacturer, energy storage system provider, other applications
+INTEGRATED_BATTERY_COMPANY - Companies covering multiple stages
+OTHER                      - Unknown / Other
+```
+
+> 待确认：需求示例中 LG Energy Solution 的 `secondary_roles` 用了
+> `ENERGY_STORAGE_SYSTEM_PROVIDER`，该值不在上述枚举内（对应值是
+> `DOWNSTREAM_APPLICATION`，其描述即 "Energy storage system provider"）。
+> 默认按枚举执行，即储能场景映射到 `DOWNSTREAM_APPLICATION`。
+
+### 步骤 0–1 已完成（backend @ `a423976`）
+
+- **证据分流**：按 `evidence_scope` 过滤，画像阶段只接收公司证据；公司证据为空时回退全量，
+  避免一次检索失败就让画像变空白。
+- **画像去风险化**：删掉"地缘政治暴露"段落与"必须引用 2 条政策证据"的要求，加入四条禁令。
+- **加强公司检索**：改为从官网首页解析真实站内链接（猜路径实测 403/404 不可用），
+  并补 Wikidata 失败时按公司名查 Wikipedia 的兜底。CATL 公司证据 **2 → 5 条**。
+- **下游接线**：`analyze_risks` / `simulate_scenarios` / `generate_recommendation` /
+  `choose_chat_action` / `answer_chat` / 情景重跑全部接收 `company_intelligence`；
+  通过 `intelligence_brief()` 精简投影控制 token。
+- **实测效果**：CATL 风险输出已变为公司级判断（引用其中国 60%/德国 40% 布局、
+  无美国生产基地、2014 德国子公司等），画像四段中不含风险措辞。
+
+**待办（步骤 2）**：角色枚举、设施级制造足迹表、信息缺口优先级 + why + action、
+EvidenceReferences、前端渲染与报告章节。
+
+---
+
 ## 1. 现状对照（逐条核对代码）
 
 ### 1.1 管线
