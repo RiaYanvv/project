@@ -13,8 +13,13 @@ from app.llm import MockLLM
 from app.schemas import (
     CompanyInput,
     CompanyIntelligence,
+    DecisionContext,
+    EvidenceReference,
     FactItem,
+    InformationGap,
+    ManufacturingSite,
     RetrievedEvidence,
+    SupplyChainRole,
 )
 
 
@@ -160,6 +165,65 @@ class CompanyContextTest(unittest.TestCase):
 
     def test_brief_of_missing_intelligence_is_empty(self) -> None:
         self.assertEqual(AgentService.intelligence_brief(None), {})
+
+    def test_step_two_company_context_contract(self) -> None:
+        intelligence = CompanyIntelligence(
+            business_profile={
+                "model": "B2B manufacturer",
+                "value_chain_role": "battery cell manufacturer",
+                "products": ["battery cells"],
+            },
+            manufacturing_footprint=[
+                ManufacturingSite(
+                    country="CN",
+                    facility="Ningde plant",
+                    role="cell manufacturing",
+                    production_share=100,
+                    source_type="official_website",
+                    status="reported",
+                    source_ids=["EVD-CO"],
+                )
+            ],
+            supply_chain_role=SupplyChainRole(
+                primary="cell manufacturer",
+                secondary=["module supplier"],
+                manufacturing=[FactItem(fact="Cell manufacturing", source_ids=["EVD-CO"])],
+            ),
+            decision_context=DecisionContext(
+                objective="expand overseas",
+                drivers=["market access"],
+                constraints=["budget"],
+            ),
+            evidence_references=[
+                EvidenceReference(
+                    evidence_id="EVD-CO",
+                    title="Official website",
+                    publisher="CATL",
+                    source_type="company_website",
+                    used_for=["business_profile"],
+                )
+            ],
+            information_gaps=[
+                InformationGap(
+                    item="Capacity is unknown",
+                    priority="critical",
+                    why_it_matters="Capacity affects feasibility.",
+                    recommended_action="Obtain capacity data.",
+                )
+            ],
+        )
+        self.assertEqual(
+            intelligence.manufacturing_footprint[0].facility,
+            "Ningde plant",
+        )
+        self.assertEqual(
+            intelligence.supply_chain_role.primary,
+            "cell manufacturer",
+        )
+        self.assertEqual(
+            intelligence.information_gaps[0].priority,
+            "critical",
+        )
 
 
 if __name__ == "__main__":

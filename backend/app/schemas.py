@@ -328,6 +328,65 @@ class CompanyEntity(StrictModel):
     ] = "to_be_confirmed"
 
 
+class InformationGap(StrictModel):
+    item: str
+    priority: Literal["critical", "important", "optional"] = "important"
+    why_it_matters: str = ""
+    recommended_action: str = ""
+    source_ids: list[str] = Field(default_factory=list)
+
+
+class ManufacturingSite(StrictModel):
+    country: str
+    facility: str = ""
+    role: str = ""
+    production_share: int | None = Field(default=None, ge=0, le=100)
+    capacity: str = "unknown"
+    source_type: Literal[
+        "user_input",
+        "company_filing",
+        "official_website",
+        "industry_report",
+        "news",
+    ] = "user_input"
+    status: Literal[
+        "verified", "reported", "estimated", "inferred", "unknown"
+    ] = "unknown"
+    source_ids: list[str] = Field(default_factory=list)
+
+
+class SupplyChainRole(StrictModel):
+    primary: str = ""
+    secondary: list[str] = Field(default_factory=list)
+    upstream: list[FactItem] = Field(default_factory=list)
+    manufacturing: list[FactItem] = Field(default_factory=list)
+    downstream: list[FactItem] = Field(default_factory=list)
+    unknown: list[str] = Field(default_factory=list)
+
+
+class EvidenceReference(StrictModel):
+    evidence_id: str
+    title: str = ""
+    publisher: str = ""
+    source_type: str = ""
+    used_for: list[str] = Field(default_factory=list)
+
+
+class BusinessProfile(StrictModel):
+    model: str = ""
+    value_chain_role: str = ""
+    products: list[str] = Field(default_factory=list)
+    customers: list[str] = Field(default_factory=list)
+    source_ids: list[str] = Field(default_factory=list)
+
+
+class DecisionContext(StrictModel):
+    objective: str = ""
+    drivers: list[str] = Field(default_factory=list)
+    constraints: list[str] = Field(default_factory=list)
+    source_ids: list[str] = Field(default_factory=list)
+
+
 class CompanyIntelligence(StrictModel):
     executive_summary: str = ""
     entity: CompanyEntity = Field(default_factory=CompanyEntity)
@@ -336,7 +395,12 @@ class CompanyIntelligence(StrictModel):
     supply_chain: list[FactItem] = Field(default_factory=list)
     strategic_context: list[FactItem] = Field(default_factory=list)
     market_position: list[FactItem] = Field(default_factory=list)
-    information_gaps: list[str] = Field(default_factory=list)
+    business_profile: BusinessProfile = Field(default_factory=BusinessProfile)
+    manufacturing_footprint: list[ManufacturingSite] = Field(default_factory=list)
+    supply_chain_role: SupplyChainRole = Field(default_factory=SupplyChainRole)
+    decision_context: DecisionContext = Field(default_factory=DecisionContext)
+    evidence_references: list[EvidenceReference] = Field(default_factory=list)
+    information_gaps: list[str | InformationGap] = Field(default_factory=list)
 
 
 class LLMCallRecord(StrictModel):
@@ -354,7 +418,7 @@ class Assessment(StrictModel):
     request_id: str
     created_at: str
     updated_at: str
-    contract_version: str = "1.0"
+    contract_version: str = "1.1"
     language: Language = "en"
     company_input: CompanyInput | None = None
     company_profile: CompanyProfile

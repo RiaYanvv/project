@@ -14,6 +14,7 @@ from .llm import EventCallback, LLMProvider
 from .retrieval import RetrievalProvider
 from .schemas import (
     Assessment,
+    BusinessProfile,
     ChatAnalysis,
     ChatRequest,
     ChatTurn,
@@ -21,14 +22,20 @@ from .schemas import (
     CompanyEntity,
     CompanyIntelligence,
     CompanyProfile,
+    DecisionContext,
     EvidenceLink,
+    EvidenceReference,
+    FactItem,
+    InformationGap,
     LLMCallRecord,
+    ManufacturingSite,
     Recommendation,
     RetrievalQuery,
     RetrievedEvidence,
     RiskItem,
     ScenarioScoreBreakdown,
     ScenarioResult,
+    SupplyChainRole,
     TraceStep,
     utc_now,
 )
@@ -1702,6 +1709,8 @@ class AgentService:
         "market_position": 4,
         "strategic_context": 2,
         "information_gaps": 5,
+        "manufacturing_footprint": 6,
+        "evidence_references": 8,
     }
     INTELLIGENCE_BRIEF_FACT_CHARS = 240
 
@@ -1752,8 +1761,38 @@ class AgentService:
             "strategic_context": facts(
                 intelligence.strategic_context, "strategic_context"
             ),
+            "business_profile": intelligence.business_profile.model_dump(
+                mode="json"
+            ),
+            "manufacturing_footprint": [
+                item.model_dump(mode="json")
+                for item in intelligence.manufacturing_footprint[
+                    : limits["manufacturing_footprint"]
+                ]
+            ],
+            "supply_chain_role": intelligence.supply_chain_role.model_dump(
+                mode="json"
+            ),
+            "decision_context": intelligence.decision_context.model_dump(
+                mode="json"
+            ),
+            "evidence_references": [
+                item.model_dump(mode="json")
+                for item in intelligence.evidence_references[
+                    : limits["evidence_references"]
+                ]
+            ],
             "information_gaps": [
-                str(gap)[:chars]
+                (
+                    {
+                        "item": gap.item[:chars],
+                        "priority": gap.priority,
+                        "why_it_matters": gap.why_it_matters[:chars],
+                        "recommended_action": gap.recommended_action[:chars],
+                    }
+                    if isinstance(gap, InformationGap)
+                    else {"item": str(gap)[:chars], "priority": "important"}
+                )
                 for gap in (intelligence.information_gaps or [])[
                     : limits["information_gaps"]
                 ]
@@ -1811,10 +1850,10 @@ class AgentService:
                     f"的布局服务 {markets}。",
                     "user_input",
                 ),
-                fact("Supply-chain structure and dependencies：关键供应商与物料依赖仍待确认。", "inferred"),
-                fact("Market and geopolitical exposure：需要结合政策证据核验关税、原产地和准入暴露。", "inferred"),
+                fact("供应链结构与依赖：关键供应商与物料依赖仍待确认。", "inferred"),
+                fact("市场与客户定位：目标市场、客户结构和认证状态仍需确认。", "inferred"),
                 fact(
-                    f"Decision tension：{company.decision_question}；驱动因素为 {drivers}。",
+                    f"决策情境与待补信息：{company.decision_question}；驱动因素为 {drivers}。",
                     "user_input",
                 ),
             ]
@@ -1852,9 +1891,9 @@ class AgentService:
                     "user_input",
                 ),
                 fact("Supply-chain structure and dependencies: critical supplier and material dependencies remain to be confirmed.", "inferred"),
-                fact("Market and geopolitical exposure: tariff, origin and market-access exposure must be validated against policy evidence.", "inferred"),
+                fact("Market and customer positioning: target markets, customer structure and certifications remain to be confirmed.", "inferred"),
                 fact(
-                    f"Decision tension: {company.decision_question}; decision drivers: {drivers}.",
+                    f"Decision context and information needs: {company.decision_question}; decision drivers: {drivers}.",
                     "user_input",
                 ),
             ]
@@ -1867,6 +1906,22 @@ class AgentService:
                 "Ownership and operational structure of overseas facilities",
                 "Product-specific tariff classification and rules of origin",
             ]
+        structured_gaps = [
+            {
+                "item": gap,
+                "priority": "critical" if index < 2 else "important",
+                "why_it_matters": (
+                    "This information is required to validate the company profile "
+                    "and downstream decisions."
+                ),
+                "recommended_action": (
+                    "Obtain the relevant company filing, official document or "
+                    "internal data before relying on this conclusion."
+                ),
+                "source_ids": [],
+            }
+            for index, gap in enumerate(gaps)
+        ]
         return {
             "executive_summary": (
                 f"{company.company_name} 的企业画像需基于用户 Baseline、公司实体证据和"
@@ -1882,7 +1937,56 @@ class AgentService:
             "supply_chain": supply,
             "strategic_context": strategic,
             "market_position": market_position,
-            "information_gaps": gaps,
+            "business_profile": {
+                "model": "",
+                "value_chain_role": "",
+                "products": company.products,
+                "customers": [],
+                "source_ids": [],
+            },
+            "manufacturing_footprint": [
+                {
+                    "country": location.country,
+                    "facility": "",
+                    "role": "",
+                    "production_share": location.production_share,
+                    "capacity": "unknown",
+                    "source_type": "user_input",
+                    "status": "reported",
+                    "source_ids": [],
+                }
+                for location in company.production_locations
+            ],
+            "supply_chain_role": {
+                "primary": "",
+                "secondary": [],
+                "upstream": [],
+                "manufacturing": [],
+                "downstream": [],
+                "unknown": [
+                    "Upstream supplier structure",
+                    "Manufacturing site capabilities",
+                    "Downstream customer structure",
+                ],
+            },
+            "decision_context": {
+                "objective": company.decision_question,
+                "drivers": list(company.restrictions),
+                "constraints": [],
+                "source_ids": [],
+            },
+            "evidence_references": [
+                {
+                    "evidence_id": item.evidence_id,
+                    "title": item.title,
+                    "publisher": item.publisher,
+                    "source_type": item.source_type,
+                    "used_for": ["company_intelligence"],
+                }
+                for item in evidence
+                if item.evidence_id in set(evidence_ids)
+            ],
+            "information_gaps": structured_gaps,
         }
 
     @staticmethod
@@ -1948,14 +2052,14 @@ class AgentService:
         "en": (
             "Current Position",
             "Supply-chain structure and dependencies",
-            "Market and geopolitical exposure",
-            "Decision tension",
+            "Market and customer positioning",
+            "Decision context and information needs",
         ),
         "zh": (
             "公司现状",
             "供应链结构与依赖",
-            "市场与地缘政治暴露",
-            "决策取舍",
+            "市场与客户定位",
+            "决策情境与待补信息",
         ),
     }
     STRATEGIC_SECTION_KEYS = (
@@ -1963,6 +2067,11 @@ class AgentService:
         "current_position",
         "Supply-chain structure and dependencies",
         "supply_chain_structure",
+        "Market and customer positioning",
+        "market_customer_positioning",
+        "Decision context and information needs",
+        "decision_context_information_needs",
+        # Backward-compatible labels from the previous intelligence contract.
         "Market and geopolitical exposure",
         "market_geopolitical_exposure",
         "Decision tension",
@@ -2102,11 +2211,51 @@ class AgentService:
                 provided_sections += 1
         if provided_sections == 0:
             used_fallback = True
-        gaps = [
-            text
-            for item in self._unwrap_list(payload.get("information_gaps"), language)
-            if (text := self._text_of(item))
-        ] or fallback["information_gaps"]
+        raw_gaps = self._unwrap_list(
+            payload.get("information_gaps"), language
+        )
+        gaps: list[InformationGap] = []
+        for item in raw_gaps:
+            if isinstance(item, dict):
+                text = self._text_of(
+                    item.get("item")
+                    or item.get("gap")
+                    or item.get("fact")
+                    or item.get("narrative")
+                )
+                priority = str(item.get("priority") or "important").lower()
+                if priority not in {"critical", "important", "optional"}:
+                    priority = "important"
+                source_ids = [
+                    source_id
+                    for source_id in (item.get("source_ids") or [])
+                    if source_id in allowed
+                ]
+                if text:
+                    gaps.append(
+                        InformationGap(
+                            item=text,
+                            priority=priority,
+                            why_it_matters=str(
+                                item.get("why_it_matters") or ""
+                            ),
+                            recommended_action=str(
+                                item.get("recommended_action") or ""
+                            ),
+                            source_ids=source_ids,
+                        )
+                    )
+            else:
+                text = self._text_of(item)
+                if text:
+                    gaps.append(InformationGap(item=text))
+        if not gaps:
+            gaps = [
+                gap
+                if isinstance(gap, InformationGap)
+                else InformationGap(item=str(gap))
+                for gap in fallback["information_gaps"]
+            ]
         entity_payload = self._unwrap_dict(payload.get("entity"))
         resolved_entity = self._coerce_entity(
             entity_payload if isinstance(entity_payload, dict) else None,
@@ -2152,12 +2301,170 @@ class AgentService:
             or fallback.get("executive_summary")
             or ""
         ).strip()
+
+        business_data = self._unwrap_dict(payload.get("business_profile"))
+        business_data["source_ids"] = [
+            source_id
+            for source_id in (business_data.get("source_ids") or [])
+            if source_id in allowed
+        ]
+        try:
+            business_profile = BusinessProfile.model_validate(business_data)
+        except (ValidationError, TypeError, ValueError):
+            business_profile = BusinessProfile.model_validate(
+                fallback["business_profile"]
+            )
+
+        manufacturing_sites: list[ManufacturingSite] = []
+        for item in self._unwrap_list(
+            payload.get("manufacturing_footprint"), language
+        ):
+            if not isinstance(item, dict):
+                continue
+            filtered = {
+                key: value
+                for key, value in item.items()
+                if key in ManufacturingSite.model_fields
+            }
+            filtered["source_ids"] = [
+                source_id
+                for source_id in (filtered.get("source_ids") or [])
+                if source_id in allowed
+            ]
+            try:
+                manufacturing_sites.append(
+                    ManufacturingSite.model_validate(filtered)
+                )
+            except (ValidationError, TypeError, ValueError):
+                continue
+        if not manufacturing_sites:
+            manufacturing_sites = [
+                ManufacturingSite.model_validate(item)
+                for item in fallback["manufacturing_footprint"]
+            ]
+
+        role_data = self._unwrap_dict(payload.get("supply_chain_role"))
+        try:
+            supply_chain_role = SupplyChainRole(
+                primary=str(role_data.get("primary") or ""),
+                secondary=[
+                    str(item)
+                    for item in (role_data.get("secondary") or [])
+                    if str(item).strip()
+                ],
+                upstream=self._coerce_fact_list(
+                    role_data.get("upstream"),
+                    "SC-UPSTREAM",
+                    allowed,
+                    evidence_by_id,
+                    language,
+                ),
+                manufacturing=self._coerce_fact_list(
+                    role_data.get("manufacturing"),
+                    "SC-MANUFACTURING",
+                    allowed,
+                    evidence_by_id,
+                    language,
+                ),
+                downstream=self._coerce_fact_list(
+                    role_data.get("downstream"),
+                    "SC-DOWNSTREAM",
+                    allowed,
+                    evidence_by_id,
+                    language,
+                ),
+                unknown=[
+                    str(item)
+                    for item in (role_data.get("unknown") or [])
+                    if str(item).strip()
+                ],
+            )
+        except (ValidationError, TypeError, ValueError):
+            supply_chain_role = SupplyChainRole.model_validate(
+                fallback["supply_chain_role"]
+            )
+
+        decision_data = self._unwrap_dict(payload.get("decision_context"))
+        decision_data["source_ids"] = [
+            source_id
+            for source_id in (decision_data.get("source_ids") or [])
+            if source_id in allowed
+        ]
+        try:
+            decision_context = DecisionContext.model_validate(decision_data)
+        except (ValidationError, TypeError, ValueError):
+            decision_context = DecisionContext.model_validate(
+                fallback["decision_context"]
+            )
+
+        references: list[EvidenceReference] = []
+        for item in self._unwrap_list(
+            payload.get("evidence_references"), language
+        ):
+            if not isinstance(item, dict):
+                continue
+            evidence_id = str(item.get("evidence_id") or "")
+            source = evidence_by_id.get(evidence_id)
+            if source is None:
+                continue
+            references.append(
+                EvidenceReference(
+                    evidence_id=evidence_id,
+                    title=str(item.get("title") or source.title),
+                    publisher=str(item.get("publisher") or source.publisher),
+                    source_type=str(
+                        item.get("source_type") or source.source_type
+                    ),
+                    used_for=[
+                        str(value)
+                        for value in (item.get("used_for") or [])
+                        if str(value).strip()
+                    ],
+                )
+            )
+        if not references:
+            used_ids = {
+                *resolved_entity.source_ids,
+                *[
+                    source_id
+                    for section in sections.values()
+                    for fact in section
+                    for source_id in (fact.get("source_ids") or [])
+                ],
+                *[
+                    source_id
+                    for gap in gaps
+                    for source_id in gap.source_ids
+                ],
+            }
+            references = [
+                EvidenceReference(
+                    evidence_id=source.evidence_id,
+                    title=source.title,
+                    publisher=source.publisher,
+                    source_type=source.source_type,
+                    used_for=["company_intelligence"],
+                )
+                for source in evidence
+                if source.evidence_id in used_ids
+            ]
+
         return (
             CompanyIntelligence.model_validate(
                 {
                     **sections,
                     "executive_summary": executive_summary,
                     "entity": resolved_entity.model_dump(mode="json"),
+                    "business_profile": business_profile.model_dump(mode="json"),
+                    "manufacturing_footprint": [
+                        item.model_dump(mode="json")
+                        for item in manufacturing_sites
+                    ],
+                    "supply_chain_role": supply_chain_role.model_dump(mode="json"),
+                    "decision_context": decision_context.model_dump(mode="json"),
+                    "evidence_references": [
+                        item.model_dump(mode="json") for item in references
+                    ],
                     "information_gaps": gaps,
                 }
             ),
@@ -2246,6 +2553,62 @@ class AgentService:
         return len(overlap) >= 2 and (
             not numeric_terms or numeric_terms.issubset(source_terms)
         )
+
+    def _coerce_fact_list(
+        self,
+        value: Any,
+        prefix: str,
+        allowed: set[str],
+        evidence_by_id: dict[str, RetrievedEvidence],
+        language: str,
+    ) -> list[FactItem]:
+        facts: list[FactItem] = []
+        for item in self._unwrap_list(value, language):
+            if not isinstance(item, dict):
+                continue
+            nested = item.get("fact")
+            if isinstance(nested, dict):
+                item = {**item, **nested}
+            text = self._text_of(item.get("fact"))
+            if not text:
+                continue
+            ids = [
+                source_id
+                for source_id in (item.get("source_ids") or [])
+                if source_id in allowed
+            ]
+            status = str(item.get("data_status") or "").strip()
+            if status not in {
+                "user_input",
+                "public_source",
+                "inferred",
+                "to_be_confirmed",
+            }:
+                status = "public_source" if ids else "to_be_confirmed"
+            if status == "public_source" and not self._fact_source_supports(
+                text, ids, evidence_by_id
+            ):
+                status = "inferred" if ids else "to_be_confirmed"
+            facts.append(
+                FactItem(
+                    fact=text,
+                    fact_id=str(
+                        item.get("fact_id")
+                        or f"FCT-{prefix}-{len(facts) + 1:03d}"
+                    ),
+                    source_ids=ids,
+                    data_status=status,
+                    confidence=str(item.get("confidence") or "low"),
+                    as_of=str(item.get("as_of") or ""),
+                    derived_from=[
+                        str(value)
+                        for value in (item.get("derived_from") or [])
+                        if str(value).strip()
+                    ],
+                    conflict=bool(item.get("conflict")),
+                )
+            )
+        return facts
 
     def _build_profile(
         self, company: CompanyInput, request_id: str, language: str = "en"
