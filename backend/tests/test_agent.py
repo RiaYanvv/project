@@ -78,7 +78,12 @@ class AgentServiceTest(unittest.TestCase):
         self.assertEqual(updated.chat_history[0].role, "user")
         self.assertEqual(updated.chat_history[1].role, "assistant")
 
-    def test_production_share_must_equal_100(self) -> None:
+    def test_production_share_only_rejects_impossible_totals(self) -> None:
+        """profile list.md: shares are recommended but not mandatory.
+
+        A partial or empty footprint must be accepted, because the form leaves
+        the share blank by default. Only a total above 100% is impossible.
+        """
         payload = self.company.model_dump(mode="json")
         payload["production_locations"] = [
             {"country": "CN", "production_share": 70},
@@ -91,8 +96,21 @@ class AgentServiceTest(unittest.TestCase):
             {"country": "CN", "production_share": 40},
             {"country": "VN", "production_share": 40},
         ]
-        with self.assertRaises(ValueError):
-            CompanyInput.model_validate(payload)
+        accepted = CompanyInput.model_validate(payload)
+        self.assertEqual(len(accepted.production_locations), 2)
+
+        # The form's default row carries no share at all.
+        payload["production_locations"] = [
+            {"country": "CN", "production_share": 0}
+        ]
+        self.assertEqual(
+            len(CompanyInput.model_validate(payload).production_locations), 1
+        )
+
+        payload["production_locations"] = []
+        self.assertEqual(
+            CompanyInput.model_validate(payload).production_locations, []
+        )
 
     def test_hybrid_retrieval_uses_indexed_public_documents(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -90,9 +90,12 @@ class CompanyInput(StrictModel):
         cls, locations: list[ProductionLocation]
     ) -> list[ProductionLocation]:
         total = sum(location.production_share for location in locations)
-        # If locations are supplied, their production shares must be complete.
-        if locations and total != 100:
-            raise ValueError("production shares must total 100")
+        # profile list.md: shares are recommended but not mandatory, so a partial
+        # or empty footprint is accepted; only an impossible total is rejected.
+        # The form leaves the share blank by default, so requiring exactly 100
+        # rejected every submission that did not fill it in.
+        if total > 100:
+            raise ValueError("production shares cannot exceed 100")
         return locations
 
     @model_validator(mode="after")
