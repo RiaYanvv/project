@@ -53,7 +53,10 @@ class CompanyInput(StrictModel):
         "other",
     ]
     products: list[str] = Field(min_length=1)
-    home_country: CountryCode = "CN"
+    # Free text rather than a fixed enum: the form offers a list of common
+    # countries plus an "Other" entry, and a home base such as "Brazil" must not
+    # be rejected. Known country codes still pass through unchanged.
+    home_country: str = Field(default="CN", min_length=1, max_length=100)
     production_locations: list[ProductionLocation] = Field(default_factory=list)
     target_markets: list[CountryCode] = Field(default_factory=list)
     # The free-text question is optional in the UI (profile list.md); the selected
@@ -61,6 +64,10 @@ class CompanyInput(StrictModel):
     decision_question: str = Field(default="", max_length=1000)
     time_horizon: Literal["within_6_months", "6_18_months", "2_5_years"]
     priorities: list[PriorityWeight] = Field(min_length=1)
+    # False when the user never ranked the decision priorities (the ranking lives
+    # in the optional Advanced assessment). Scenario scoring then weights every
+    # dimension equally instead of falling back to an arbitrary default order.
+    priorities_declared: bool = False
     restrictions: list[
         Literal[
             "tariff_pressure",
@@ -351,6 +358,7 @@ class Assessment(StrictModel):
     scenarios: list[ScenarioResult]
     recommendation: Recommendation
     scoring: dict[str, int] = Field(default_factory=dict)
+    weighting_mode: Literal["user", "equal"] = "equal"
     chat_analysis: ChatAnalysis | None = None
     chat_history: list[ChatTurn] = Field(default_factory=list)
     trace: list[TraceStep] = Field(default_factory=list)

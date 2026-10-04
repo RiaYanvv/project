@@ -577,9 +577,10 @@ class AgentService:
             updated_at=now,
             language=language if language in {"en", "zh"} else "en",  # type: ignore[arg-type]
             company_input=company,
-            scoring={
-                item.dimension: item.weight for item in company.priorities
-            },
+            # The weights actually used for scenario scoring: the user's ranking
+            # when one was given, otherwise equal weights.
+            scoring=self._effective_weights(company),
+            weighting_mode="user" if company.priorities_declared else "equal",
             company_profile=profile,
             company_intelligence=intelligence,
             evidence=evidence,
@@ -1458,12 +1459,45 @@ class AgentService:
             confidence = "low"
         return confidence, score, reasons[:8]
 
-    @staticmethod
+    # Dimensions the scenario score can weight. Declared here so an unranked
+    # decision can default to equal weights across all of them.
+    SCORING_DIMENSIONS = (
+        "cost_reduction",
+        "supply_chain_resilience",
+        "market_access",
+        "political_stability",
+        "compliance",
+    )
+    EQUAL_WEIGHT = 3
+
+    @classmethod
+    def _effective_weights(cls, company: CompanyInput) -> dict[str, int]:
+        """Weights used for scenario scoring.
+
+        The priority ranking lives in the optional Advanced assessment. When the
+        user never ranked the factors, an arbitrary default order (resilience 5,
+        cost 1, ...) must not drive the result — every dimension is weighted the
+        same instead. Equal weights are also the fallback when a declared ranking
+        would produce a zero total.
+        """
+        if not company.priorities_declared:
+            return {dimension: cls.EQUAL_WEIGHT for dimension in cls.SCORING_DIMENSIONS}
+        declared = {item.dimension: item.weight for item in company.priorities}
+        weights = {
+            dimension: declared.get(dimension, cls.EQUAL_WEIGHT)
+            for dimension in cls.SCORING_DIMENSIONS
+        }
+        if sum(weights.values()) <= 0:
+            return {dimension: cls.EQUAL_WEIGHT for dimension in cls.SCORING_DIMENSIONS}
+        return weights
+
+    @classmethod
     def _weighted_scenario_score(
+        cls,
         scenario: ScenarioResult,
         company: CompanyInput,
     ) -> float:
-        weights = {item.dimension: item.weight for item in company.priorities}
+        weights = cls._effective_weights(company)
         metric_weights = {
             "cost_score": ("cost_reduction", 1.0),
             "resilience_score": ("supply_chain_resilience", 1.0),
@@ -1472,12 +1506,12 @@ class AgentService:
             "implementation_score": ("compliance", 0.5),
         }
         total_weight = sum(
-            weights.get(dimension, 3) * factor
+            weights[dimension] * factor
             for dimension, factor in metric_weights.values()
         )
         score = sum(
             getattr(scenario, metric)
-            * weights.get(dimension, 3)
+            * weights[dimension]
             * factor
             / total_weight
             for metric, (dimension, factor) in metric_weights.items()
@@ -2113,6 +2147,16 @@ class AgentService:
         )
         footprint_text = footprint or "not specified"
         markets_text = markets or "not specified"
+        # An unranked decision is reported with equal weights everywhere, so the
+        # prompts and the report do not present a default order as the user's.
+        priorities = (
+            company.priorities
+            if company.priorities_declared
+            else [
+                {"dimension": dimension, "weight": self.EQUAL_WEIGHT}
+                for dimension in self.SCORING_DIMENSIONS
+            ]
+        )
         if (language or "en").lower() == "zh":
             summary = (
                 f"{company.company_name} 当前生产布局为 {footprint_text}，"
@@ -2133,7 +2177,7 @@ class AgentService:
             target_markets=company.target_markets,
             decision_question=question,
             time_horizon=company.time_horizon,
-            priorities=company.priorities,
+            priorities=priorities,
             restrictions=company.restrictions,
             summary=summary,
         )
@@ -2220,14 +2264,8 @@ class AgentService:
                 }
             )
 
-        weights = {item.dimension: item.weight for item in company.priorities}
-        normalized_weights = {
-            "cost_reduction": weights.get("cost_reduction", 3),
-            "supply_chain_resilience": weights.get("supply_chain_resilience", 3),
-            "market_access": weights.get("market_access", 3),
-            "political_stability": weights.get("political_stability", 3),
-            "compliance": weights.get("compliance", 3),
-        }
+        # Unranked decisions fall back to equal weights, not a default order.
+        normalized_weights = self._effective_weights(company)
 
         scenario_defs = [
             {
