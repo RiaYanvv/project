@@ -136,6 +136,10 @@ class RetrievedEvidence(StrictModel):
     is_mock: bool
     evidence_scope: Literal["company", "policy", "market", "unknown"] = "unknown"
     is_self_reported: bool = False
+    freshness: Literal["current", "aging", "stale", "unknown"] = "unknown"
+    verification_status: Literal[
+        "verified", "partial", "unverified", "contested", "outdated"
+    ] = "unverified"
 
 
 class CompanyProfile(StrictModel):
@@ -163,11 +167,20 @@ class RiskItem(StrictModel):
     business_impact: str
     uncertainty: str
     evidence_ids: list[str]
-    verification_status: Literal["verified", "partial", "unverified"] = "unverified"
+    evidence_links: list["EvidenceLink"] = Field(default_factory=list)
+    verification_status: Literal[
+        "verified", "partial", "unverified", "contested", "outdated"
+    ] = "unverified"
     likelihood: Likelihood = "medium"
     likelihood_basis: str = ""
     basis: Literal["evidence", "user_input", "inference"] = "inference"
     insufficient_evidence: bool = False
+
+
+class EvidenceLink(StrictModel):
+    evidence_id: str
+    relation: Literal["supports", "context", "contradicts"]
+    reason: str = ""
 
 
 class ScenarioScoreBreakdown(StrictModel):
@@ -175,6 +188,8 @@ class ScenarioScoreBreakdown(StrictModel):
     score: float
     weight: float
     contribution: float
+    basis: Literal["evidence", "inference"] = "inference"
+    evidence_ids: list[str] = Field(default_factory=list)
 
 
 class ScenarioResult(StrictModel):
@@ -195,6 +210,7 @@ class ScenarioResult(StrictModel):
     evidence_ids: list[str]
     dimension_bands: dict[str, str] = Field(default_factory=dict)
     score_breakdown: list[ScenarioScoreBreakdown] = Field(default_factory=list)
+    evidence_links: list[EvidenceLink] = Field(default_factory=list)
     insufficient_evidence: bool = False
 
 
@@ -208,6 +224,7 @@ class Recommendation(StrictModel):
     confidence_reasons: list[str] = Field(default_factory=list)
     uncertainty: list[str]
     requires_human_review: bool = True
+    evidence_ids: list[str] = Field(default_factory=list)
 
 
 class TraceStep(StrictModel):

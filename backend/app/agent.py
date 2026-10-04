@@ -4,6 +4,7 @@ import re
 import time
 import uuid
 from collections import Counter
+from datetime import datetime, timezone
 from typing import Any
 
 from pydantic import ValidationError
@@ -20,6 +21,7 @@ from .schemas import (
     CompanyEntity,
     CompanyIntelligence,
     CompanyProfile,
+    EvidenceLink,
     LLMCallRecord,
     Recommendation,
     RetrievalQuery,
@@ -141,6 +143,57 @@ class AgentService:
             return "rag_only"
         return "unavailable"
 
+    @staticmethod
+    def _enrich_evidence_status(
+        evidence: list[RetrievedEvidence],
+    ) -> list[RetrievedEvidence]:
+        now = datetime.now(timezone.utc)
+        enriched: list[RetrievedEvidence] = []
+        for item in evidence:
+            freshness = "unknown"
+            published = None
+            raw_date = (item.publication_date or "").strip()
+            for parser in (
+                lambda value: datetime.fromisoformat(value.replace("Z", "+00:00")),
+                lambda value: datetime.strptime(value[:10], "%Y/%m/%d"),
+                lambda value: datetime.strptime(value[:4], "%Y"),
+            ):
+                try:
+                    published = parser(raw_date)
+                    if published.tzinfo is None:
+                        published = published.replace(tzinfo=timezone.utc)
+                    break
+                except (TypeError, ValueError):
+                    continue
+            if published is not None:
+                age_years = max(0.0, (now - published).days / 365.25)
+                freshness = (
+                    "current"
+                    if age_years <= 1.5
+                    else "aging"
+                    if age_years <= 4
+                    else "stale"
+                )
+            if item.is_mock:
+                verification = "partial"
+            elif freshness == "stale":
+                verification = "outdated"
+            elif item.authority_level in {"S", "A+", "A"}:
+                verification = "verified"
+            elif item.authority_level in {"B+", "B"}:
+                verification = "partial"
+            else:
+                verification = "unverified"
+            enriched.append(
+                item.model_copy(
+                    update={
+                        "freshness": freshness,
+                        "verification_status": verification,
+                    }
+                )
+            )
+        return enriched
+
     def run(
         self,
         company: CompanyInput,
@@ -235,7 +288,9 @@ class AgentService:
             event_callback,
             {"type": "stage", "agent": "ResearchAgent", "status": "started"},
         )
-        evidence = self._retrieve(company, entity.aliases)
+        evidence = self._enrich_evidence_status(
+            self._retrieve(company, entity.aliases)
+        )
         data_mode = self._resolve_data_mode(evidence)
         trace.append(
             self._trace(
@@ -314,6 +369,19 @@ class AgentService:
         risks, risk_fallback = self._coerce_risks(
             risk_payload.get("risks"), heuristic["risks"], evidence
         )
+        contested_ids = {
+            link.evidence_id
+            for risk in risks
+            if risk.verification_status == "contested"
+            for link in risk.evidence_links
+        }
+        if contested_ids:
+            evidence = [
+                item.model_copy(update={"verification_status": "contested"})
+                if item.evidence_id in contested_ids
+                else item
+                for item in evidence
+            ]
         risk_degraded = risk_fallback or not risk_call.ok
         if risk_degraded:
             degraded_stages.append("RiskAgent")
@@ -445,7 +513,9 @@ class AgentService:
             event_callback,
             {"type": "stage", "agent": "VerificationAgent", "status": "started"},
         )
-        citations_valid = self._validate_citations(risks, scenarios, evidence)
+        citations_valid = self._validate_citations(
+            risks, scenarios, evidence, recommendation
+        )
         trace.append(
             self._trace(
                 agent="VerificationAgent",
@@ -775,6 +845,172 @@ class AgentService:
             combined.append(item)
         return combined[: max(query.limit, 12)]
 
+    @staticmethod
+    def _evidence_keywords(category_key: str) -> set[str]:
+        return {
+            "trade": {"tariff", "duty", "customs", "origin", "trade"},
+            "political": {"geopolitic", "sanction", "political", "conflict"},
+            "supply_chain": {
+                "supplier",
+                "supply chain",
+                "lithium",
+                "battery",
+                "material",
+                "logistics",
+            },
+            "regulatory": {
+                "regulation",
+                "compliance",
+                "export control",
+                "licence",
+                "license",
+                "policy",
+            },
+            "market_access": {
+                "market access",
+                "local content",
+                "localization",
+                "customer",
+                "origin",
+            },
+            "operational": {
+                "cost",
+                "labor",
+                "labour",
+                "capacity",
+                "implementation",
+                "logistics",
+            },
+        }.get(category_key, set())
+
+    def _select_risk_evidence(
+        self,
+        candidate_ids: list[str],
+        category_key: str,
+        evidence: list[RetrievedEvidence],
+    ) -> list[EvidenceLink]:
+        by_id = {item.evidence_id: item for item in evidence}
+        candidate_items = [
+            by_id[item_id]
+            for item_id in candidate_ids
+            if item_id in by_id
+        ]
+        if not candidate_items:
+            candidate_items = list(evidence)
+        keywords = self._evidence_keywords(category_key)
+        links: list[EvidenceLink] = []
+        for item in candidate_items:
+            text = f"{item.title} {item.topic} {item.content}".lower()
+            topic_hit = bool(keywords) and any(
+                keyword in text for keyword in keywords
+            )
+            if not topic_hit:
+                continue
+            if item.relevance_score < 45 and item.evidence_scope != "company":
+                continue
+            if item.verification_status == "outdated":
+                continue
+            links.append(
+                EvidenceLink(
+                    evidence_id=item.evidence_id,
+                    relation="supports",
+                    reason=f"Matched {category_key} topic and relevance threshold.",
+                )
+            )
+            if len(links) >= 3:
+                break
+        return links
+
+    @staticmethod
+    def _detect_contested(
+        links: list[EvidenceLink],
+        evidence: list[RetrievedEvidence],
+    ) -> bool:
+        by_id = {item.evidence_id: item for item in evidence}
+        texts = {
+            link.evidence_id: by_id[link.evidence_id].content.lower()
+            for link in links
+            if link.evidence_id in by_id
+        }
+        negative_markers = (
+            "not applicable",
+            "does not apply",
+            "no evidence",
+            "not required",
+            "不适用",
+            "未发现",
+            "不需要",
+        )
+        positive_markers = (
+            "requires",
+            "must",
+            "shall",
+            "applicable",
+            "要求",
+            "适用",
+            "必须",
+        )
+        ids = list(texts)
+        for index, left_id in enumerate(ids):
+            for right_id in ids[index + 1 :]:
+                left = texts[left_id]
+                right = texts[right_id]
+                if (
+                    any(marker in left for marker in negative_markers)
+                    and any(marker in right for marker in positive_markers)
+                ) or (
+                    any(marker in right for marker in negative_markers)
+                    and any(marker in left for marker in positive_markers)
+                ):
+                    return True
+        return False
+
+    def _select_scenario_evidence(
+        self,
+        candidate_ids: list[str],
+        evidence: list[RetrievedEvidence],
+    ) -> list[EvidenceLink]:
+        by_id = {item.evidence_id: item for item in evidence}
+        candidates = [
+            by_id[item_id]
+            for item_id in candidate_ids
+            if item_id in by_id
+        ]
+        if not candidates:
+            candidates = list(evidence)
+        keywords: set[str] = set()
+        for category_key in (
+            "trade",
+            "supply_chain",
+            "regulatory",
+            "market_access",
+            "operational",
+        ):
+            keywords.update(self._evidence_keywords(category_key))
+        links: list[EvidenceLink] = []
+        for item in sorted(
+            candidates,
+            key=lambda value: value.relevance_score,
+            reverse=True,
+        ):
+            text = f"{item.title} {item.topic} {item.content}".lower()
+            if not any(keyword in text for keyword in keywords):
+                continue
+            if item.relevance_score < 45 and item.evidence_scope != "company":
+                continue
+            if item.verification_status in {"outdated", "contested"}:
+                continue
+            links.append(
+                EvidenceLink(
+                    evidence_id=item.evidence_id,
+                    relation="supports" if item.relevance_score >= 65 else "context",
+                    reason="Relevant to scenario cost, resilience, access or implementation.",
+                )
+            )
+            if len(links) >= 3:
+                break
+        return links
+
     def _coerce_risks(
         self,
         payload: Any,
@@ -795,14 +1031,26 @@ class AgentService:
                     str(filtered.get("name") or ""),
                     str(filtered.get("category") or ""),
                 )
-                evidence_ids = [
+                raw_ids = [
                     evidence_id
                     for evidence_id in filtered.get("evidence_ids", [])
                     if evidence_id in allowed_ids
                 ]
+                links = self._select_risk_evidence(
+                    raw_ids,
+                    str(filtered["category_key"]),
+                    evidence,
+                )
+                evidence_ids = [link.evidence_id for link in links]
                 filtered["evidence_ids"] = evidence_ids
+                filtered["evidence_links"] = [
+                    link.model_dump(mode="json") for link in links
+                ]
+                contested = self._detect_contested(links, evidence)
                 verification_status = (
-                    "unverified"
+                    "contested"
+                    if contested
+                    else "unverified"
                     if not evidence_ids
                     else "partial"
                     if set(evidence_ids).issubset(mock_ids)
@@ -842,22 +1090,34 @@ class AgentService:
 
         if not risks:
             for index, item in enumerate(fallback, start=1):
-                evidence_ids = [
-                    evidence_id
-                    for evidence_id in item.get("evidence_ids", [])
-                    if evidence_id in allowed_ids
-                ]
+                category_key = self._risk_category_key(
+                    str(item.get("name") or ""),
+                    str(item.get("category") or ""),
+                )
+                links = self._select_risk_evidence(
+                    [
+                        evidence_id
+                        for evidence_id in item.get("evidence_ids", [])
+                        if evidence_id in allowed_ids
+                    ],
+                    category_key,
+                    evidence,
+                )
+                evidence_ids = [link.evidence_id for link in links]
+                contested = self._detect_contested(links, evidence)
                 risks.append(
                     RiskItem.model_validate(item).model_copy(
                         update={
                             "risk_id": f"RSK-{index:03d}",
-                            "category_key": self._risk_category_key(
-                                str(item.get("name") or ""),
-                                str(item.get("category") or ""),
-                            ),
+                            "category_key": category_key,
                             "evidence_ids": evidence_ids,
+                            "evidence_links": [
+                                link.model_dump(mode="json") for link in links
+                            ],
                             "verification_status": (
-                                "unverified"
+                                "contested"
+                                if contested
+                                else "unverified"
                                 if not evidence_ids
                                 else "partial"
                                 if set(evidence_ids).issubset(mock_ids)
@@ -891,7 +1151,14 @@ class AgentService:
                     for evidence_id in filtered.get("evidence_ids", [])
                     if evidence_id in allowed_ids
                 ]
+                links = self._select_scenario_evidence(
+                    evidence_ids, evidence
+                )
+                evidence_ids = [link.evidence_id for link in links]
                 filtered["evidence_ids"] = evidence_ids
+                filtered["evidence_links"] = [
+                    link.model_dump(mode="json") for link in links
+                ]
                 filtered["insufficient_evidence"] = not bool(evidence_ids)
                 filtered["weighted_score"] = 0
                 filtered["dimension_bands"] = {
@@ -937,10 +1204,17 @@ class AgentService:
                     for evidence_id in item.get("evidence_ids", [])
                     if evidence_id in allowed_ids
                 ]
+                links = self._select_scenario_evidence(
+                    evidence_ids, evidence
+                )
+                evidence_ids = [link.evidence_id for link in links]
                 scenario = ScenarioResult.model_validate(item).model_copy(
                     update={
                         "scenario_id": f"SCN-{index:03d}",
                         "evidence_ids": evidence_ids,
+                        "evidence_links": [
+                            link.model_dump(mode="json") for link in links
+                        ],
                         "insufficient_evidence": not bool(evidence_ids),
                     }
                 )
@@ -1020,10 +1294,29 @@ class AgentService:
                     ),
                 }
             )
+        selected_scenario = next(
+            (
+                item
+                for item in scenarios
+                if item.scenario_id == recommendation.recommended_scenario_id
+            ),
+            None,
+        )
+        if selected_scenario is not None:
+            recommendation = recommendation.model_copy(
+                update={"evidence_ids": selected_scenario.evidence_ids}
+            )
 
         requires_review = (
             any(item.severity in {"high", "critical"} for item in risks)
-            or any(item.verification_status == "unverified" for item in risks)
+            or any(
+                item.verification_status in {
+                    "unverified",
+                    "contested",
+                    "outdated",
+                }
+                for item in risks
+            )
         )
         recommendation = recommendation.model_copy(
             update={"requires_human_review": requires_review}
@@ -1195,12 +1488,23 @@ class AgentService:
         for metric, (dimension, factor) in metric_weights.items():
             weight = weights.get(dimension, 3) * factor
             score = float(getattr(scenario, metric))
+            basis = (
+                "evidence"
+                if scenario.evidence_ids and scenario.evidence_links
+                else "inference"
+            )
             breakdown.append(
                 {
                     "dimension": metric,
                     "score": score,
                     "weight": weight,
                     "contribution": round(score * weight / total, 2),
+                    "basis": basis,
+                    "evidence_ids": (
+                        scenario.evidence_ids[:2]
+                        if basis == "evidence"
+                        else []
+                    ),
                 }
             )
         return [
@@ -1220,11 +1524,35 @@ class AgentService:
         risks: list[RiskItem],
         scenarios: list[ScenarioResult],
         evidence: list[RetrievedEvidence],
+        recommendation: Recommendation | None = None,
     ) -> bool:
         allowed_ids = {item.evidence_id for item in evidence}
-        return all(
-            item.evidence_ids and set(item.evidence_ids).issubset(allowed_ids)
+        base_valid = all(
+            (
+                item.insufficient_evidence
+                and not item.evidence_ids
+            )
+            or (
+                bool(item.evidence_ids)
+                and set(item.evidence_ids).issubset(allowed_ids)
+            )
             for item in [*risks, *scenarios]
+        )
+        if not base_valid or recommendation is None:
+            return base_valid
+        chosen = next(
+            (
+                item
+                for item in scenarios
+                if item.scenario_id == recommendation.recommended_scenario_id
+            ),
+            None,
+        )
+        return bool(
+            chosen
+            and set(recommendation.evidence_ids).issubset(
+                set(chosen.evidence_ids)
+            )
         )
 
     @staticmethod
