@@ -118,5 +118,95 @@ class PdfDetectionTest(unittest.TestCase):
         )
 
 
+class SectionSelectionTest(unittest.TestCase):
+    """P0.5: pick the pages that actually describe the company."""
+
+    TOC = (
+        "목 차 【 대표이사 등의 확인 】 I. 회사의 개요 1. 회사의 개요 2. 회사의 연혁 "
+        "II. 사업의 내용 1. 사업의 개요 2. 주요 제품 및 서비스 "
+        "........................... 1 ........................... 4"
+    )
+    BUSINESS = (
+        "II. 사업의 내용 1. 사업의 개요 당사는 지속 가능한 미래를 위한 배터리 기술 개발을 "
+        "핵심 전략으로 삼고 EV, ESS, IT 기기용 배터리를 생산하고 있습니다."
+    )
+    FACTORY = (
+        "3) 생산능력, 생산실적 및 가동률 사업부문 품목 사업소 생산 능력 생산 실적 평균 가동률 "
+        "에너지솔루션 EV용 배터리, ESS용 배터리 생산 공장 가동률"
+    )
+    INVEST = (
+        "4) 투자 현황 및 신규 투자 계획 해외 투자와 증설, 합작 투자 계획을 설명합니다. "
+        "capacity expansion overseas investment"
+    )
+
+    def test_korean_headings_match_even_when_spaced(self) -> None:
+        # PDF extraction renders some headings with a space between characters.
+        spaced = "3) 생 산 능 력, 생산실적 및 가동률"
+        self.assertGreater(
+            CompanyResearchTool._page_section_scores(spaced).get("manufacturing", 0), 0
+        )
+
+    def test_front_matter_is_detected(self) -> None:
+        self.assertTrue(CompanyResearchTool._is_front_matter(self.TOC))
+        self.assertFalse(CompanyResearchTool._is_front_matter(self.BUSINESS))
+
+    def test_table_of_contents_is_not_selected(self) -> None:
+        pages = [self.TOC, self.BUSINESS, self.FACTORY]
+        chosen = CompanyResearchTool._select_sections(pages)
+        self.assertIn(("business", 1), chosen)
+        self.assertNotIn(1, [index for _, index in chosen if index == 0])
+
+    def test_sections_are_not_repeated_across_documents(self) -> None:
+        pages = [self.TOC, self.BUSINESS, self.FACTORY, self.INVEST]
+        first = CompanyResearchTool._select_sections(pages)
+        covered = {section for section, _ in first}
+        second = CompanyResearchTool._select_sections(pages, exclude=covered)
+        self.assertFalse(covered & {section for section, _ in second})
+
+    def test_language_detection(self) -> None:
+        detect = CompanyResearchTool._detect_language
+        self.assertEqual(detect("사업보고서 제 6 기 회사의 개요"), "ko")
+        self.assertEqual(detect("Annual report business overview"), "en")
+        self.assertEqual(detect("年度报告 公司概况 主要产品"), "zh")
+        self.assertEqual(detect("12345 %%%"), "unknown")
+
+
+class DocumentComplementTest(unittest.TestCase):
+    """Two annual reports must not both be the same document type."""
+
+    LINKS = [
+        "https://x.com/a/2025_LGES_Annual_Report.pdf",
+        "https://x.com/a/2024_LGES_Annual_Report[0].pdf",
+        "https://x.com/a/LG_Energy_Solution_2025_ESG_Report_EN[2].pdf",
+        "https://x.com/a/FY25_LGES_FinancialStatement.pdf",
+    ]
+
+    def test_secondary_document_prefers_other_types(self) -> None:
+        selected = CompanyResearchTool._select_pdf_links(self.LINKS)
+        self.assertIn("2025_LGES_Annual_Report.pdf", selected[0])
+        kinds = {CompanyResearchTool._document_kind(url) for url in selected}
+        self.assertNotEqual(kinds, {"annual_report"})
+
+    def test_english_document_is_preferred_for_the_second_slot(self) -> None:
+        self.assertEqual(
+            CompanyResearchTool._english_hint(
+                "https://x.com/a/LG_Energy_Solution_2025_ESG_Report_EN[2].pdf"
+            ),
+            1,
+        )
+        self.assertEqual(
+            CompanyResearchTool._english_hint("https://x.com/a/2025_LGES_Annual_Report.pdf"),
+            0,
+        )
+
+    def test_falls_back_to_a_second_annual_report(self) -> None:
+        links = [
+            "https://x.com/a/2025_LGES_Annual_Report.pdf",
+            "https://x.com/a/2024_LGES_Annual_Report.pdf",
+        ]
+        selected = CompanyResearchTool._select_pdf_links(links)
+        self.assertEqual(len(selected), 2)
+
+
 if __name__ == "__main__":
     unittest.main()

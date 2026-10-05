@@ -171,6 +171,12 @@ class RetrievedEvidence(StrictModel):
         "web_page",
         "unknown",
     ] = "unknown"
+    # Which part of a long document this evidence came from (P0.5): one PDF is
+    # represented by several section snippets, each with its page range.
+    section: str = ""
+    page_start: int = Field(default=0, ge=0)
+    page_end: int = Field(default=0, ge=0)
+    language: Literal["ko", "zh", "en", "unknown"] = "unknown"
     fiscal_year: str = ""
     byte_size: int = Field(default=0, ge=0)
     page_count: int = Field(default=0, ge=0)

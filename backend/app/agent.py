@@ -1035,6 +1035,9 @@ class AgentService:
 
     # Doc §6: the profile should surface a few gaps that matter, not a dump.
     GAP_LIMITS = {"critical": 3, "important": 3, "optional": 3}
+    # Each evidence view gets its own budget in _retrieve (see the note there).
+    COMPANY_EVIDENCE_BUDGET = 9
+    POLICY_EVIDENCE_BUDGET = 6
     GAP_ORDER = ("critical", "important", "optional")
     SUPPLY_CHAIN_STAGES = (
         "raw_material",
@@ -1243,13 +1246,30 @@ class AgentService:
         )
         combined: list[RetrievedEvidence] = []
         seen: set[str] = set()
-        for item in [*company_evidence, *policy_evidence]:
-            identity = item.url or item.evidence_id
-            if identity in seen:
-                continue
-            seen.add(identity)
-            combined.append(item)
-        return combined[: max(query.limit, 12)]
+
+        def add(items: list[RetrievedEvidence], budget: int) -> None:
+            added = 0
+            for item in items:
+                if added >= budget:
+                    break
+                # One PDF is represented by several section snippets, so the URL
+                # alone is no longer a unique identity: keying on the URL dropped
+                # every snippet after the first. Section keeps that collapsing
+                # for items that genuinely have the same source and no section.
+                identity = (item.url or item.evidence_id, item.section)
+                if identity in seen:
+                    continue
+                seen.add(identity)
+                combined.append(item)
+                added += 1
+
+        # Company documents are far larger than they used to be (annual-report
+        # sections), so each view gets its own budget. A single shared 12-item cap
+        # meant company evidence pushed policy evidence out entirely, which the
+        # risk stage depends on. One store, two views — not two lists.
+        add(company_evidence, self.COMPANY_EVIDENCE_BUDGET)
+        add(policy_evidence, max(query.limit, self.POLICY_EVIDENCE_BUDGET))
+        return combined
 
     @staticmethod
     def _evidence_keywords(category_key: str) -> set[str]:

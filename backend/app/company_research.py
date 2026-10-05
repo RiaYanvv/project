@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 from pypdf import PdfReader
 
 from .crawler import PublicSourceCrawler
+from .knowledge import normalize_text
 from .schemas import CompanyInput, RetrievedEvidence
 
 
@@ -72,6 +73,65 @@ PDF_MAX_CHARS = 20_000
 PDF_MIN_CHARS = 400
 PDF_TIMEOUT = 30.0
 SECTION_PAGE_LIMIT = 3
+
+# P0.5: one PDF is represented by a few high-value sections rather than by its
+# first 20,000 characters (which for a 496-page annual report is the cover and
+# table of contents). Snippets stay under the 2,400-character prompt cap so the
+# whole snippet reaches the model instead of being cut off.
+PDF_SNIPPETS_PER_DOC = 3
+PDF_SNIPPET_CHARS = 2_200
+PDF_MIN_SNIPPET_CHARS = 200
+
+# Section names map to what Company Intelligence needs: business, manufacturing,
+# supply chain, markets and investment/expansion. Korean keywords are included
+# because the source annual reports are Korean.
+PDF_SECTION_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "business",
+        (
+            "business overview", "our business", "business segment",
+            "business model", "core business", "value chain", "product portfolio",
+            "main products", "사업의 개요", "사업 개요", "주요 제품", "사업부문",
+            "사업의 내용",
+        ),
+    ),
+    (
+        "manufacturing",
+        (
+            "manufacturing", "production capacity", "production facility",
+            "plant", "factory", "factories", "production footprint",
+            "overseas operation", "생산능력", "생산 설비", "공장", "제조", "생산실적",
+        ),
+    ),
+    (
+        "supply_chain",
+        (
+            "supplier", "raw material", "sourcing", "procurement", "supply chain",
+            "원재료", "공급", "조달", "매입",
+        ),
+    ),
+    (
+        "markets",
+        (
+            "target market", "customer", "application", "geographic market",
+            "sales by region", "시장", "고객", "판매", "지역별",
+        ),
+    ),
+    (
+        "investment",
+        (
+            "investment", "expansion", "new plant", "joint venture",
+            "capacity expansion", "overseas investment", "capital expenditure",
+            "투자", "증설", "확장", "합작", "신규 투자",
+        ),
+    ),
+)
+PDF_SECTION_ORDER = tuple(name for name, _ in PDF_SECTION_KEYWORDS)
+
+# Total items Company Research may return. Keeping this bounded matters because
+# the assessment stores one shared evidence list: company documents must not push
+# policy material out of it (P0 acceptance: policy retrieval must keep working).
+COMPANY_RESEARCH_BUDGET = 9
 
 # US exchange filings. SEC requires a User-Agent that names the requester and a
 # reachable contact address, and blocks placeholder domains, so the lookup is
@@ -147,7 +207,23 @@ class CompanyResearchTool:
                 if wikipedia_item:
                     items.append(wikipedia_item)
                     break
-        return items
+        # Identity first, then the annual-report / ESG sections, then the public
+        # pages. The stable sort keeps the original order inside each group.
+        ordered = sorted(items, key=self._company_item_priority)
+        return ordered[:COMPANY_RESEARCH_BUDGET]
+
+    @staticmethod
+    def _company_item_priority(item: RetrievedEvidence) -> int:
+        """Order company evidence by how much it tells us about the company."""
+        if item.document_format == "pdf":
+            return 0
+        if item.source_type in {
+            "company_registry",
+            "company_profile_public",
+            "exchange_disclosure",
+        }:
+            return 1
+        return 2
 
     def _official_site_evidence(
         self,
@@ -186,11 +262,14 @@ class CompanyResearchTool:
             pdf_links.extend(
                 link for link in page_links if self._is_pdf(link, "")
             )
-        for pdf_url in self._rank_pdf_links(pdf_links):
-            document = self._pdf_evidence(pdf_url, company)
-            if document is not None:
-                items.append(document)
-        return items[: limit + 1 + PDF_LIMIT]
+        covered: set[str] = set()
+        for pdf_url in self._select_pdf_links(pdf_links):
+            documents = self._pdf_section_evidence(
+                pdf_url, company, exclude_sections=covered
+            )
+            covered.update(item.section for item in documents)
+            items.extend(documents)
+        return items
 
     def _sec_filing_evidence(
         self, company: CompanyInput
@@ -385,6 +464,78 @@ class CompanyResearchTool:
         match = re.search(r"(20\d{2})", urlparse(url).path)
         return match.group(1) if match else ""
 
+    @staticmethod
+    def _pdf_pages(payload: bytes) -> list[str]:
+        """Per-page text, so a snippet can say which page it came from.
+
+        pypdf stays the parser (same call as PublicSourceCrawler._extract_pdf);
+        this only keeps the page boundaries that _extract_pdf joins away.
+        """
+        reader = PdfReader(io.BytesIO(payload))
+        return [
+            normalize_text(page.extract_text() or "") for page in reader.pages
+        ]
+
+    @staticmethod
+    def _detect_language(text: str) -> str:
+        sample = (text or "")[:4000]
+        counts = {
+            "ko": len(re.findall(r"[\uac00-\ud7af]", sample)),
+            "zh": len(re.findall(r"[\u4e00-\u9fff]", sample)),
+            "en": len(re.findall(r"[A-Za-z]", sample)),
+        }
+        best = max(counts, key=lambda key: counts[key])
+        return best if counts[best] > 0 else "unknown"
+
+    @classmethod
+    def _select_pdf_links(
+        cls, links: list[str], limit: int = PDF_LIMIT
+    ) -> list[str]:
+        """Pick complementary documents, not two copies of the same report.
+
+        Two editions of the same (often non-English) annual report give the model
+        little new material, so the first slot is an annual/business report and
+        the second prefers English-marked or differently-typed material (ESG,
+        investor, earnings, financial statement).
+        """
+        ranked = cls._rank_pdf_links(links, limit=len(links) or 1)
+        if not ranked:
+            return []
+        primary_kinds = {"annual_report", "business_report"}
+        primary = next(
+            (url for url in ranked if cls._document_kind(url) in primary_kinds),
+            ranked[0],
+        )
+        selected = [primary]
+        if limit <= 1:
+            return selected
+        others = [
+            url
+            for url in ranked
+            if url != primary and cls._document_kind(url) not in primary_kinds
+        ]
+        if others:
+            # Prefer material that is marked English, so the second document
+            # usually adds readable content rather than another Korean edition.
+            others.sort(
+                key=lambda url: (
+                    -cls._english_hint(url),
+                    -cls._pdf_name_score(url),
+                    len(url),
+                )
+            )
+            secondary = others[0]
+        else:
+            secondary = next((url for url in ranked if url != primary), None)
+        if secondary:
+            selected.append(secondary)
+        return selected
+
+    @staticmethod
+    def _english_hint(url: str) -> int:
+        name = unquote(urlparse(url).path.rsplit("/", 1)[-1]).lower()
+        return 1 if ("_en" in name or "-en" in name or "english" in name) else 0
+
     def _fetch_page(
         self, url: str, timeout: float | None = None
     ) -> tuple[str, str, list[str]] | None:
@@ -443,16 +594,126 @@ class CompanyResearchTool:
             return True
         return "/FlateDecode" in head or ("obj" in head and "endobj" in head)
 
-    def _pdf_evidence(
+    @staticmethod
+    def _page_section_scores(page_text: str) -> dict[str, int]:
+        """Keyword score per section for one page (longer phrases weigh more).
+
+        Matching is space and punctuation insensitive: PDF extraction renders some
+        Korean headings with a space between every character ("사 업 보 고 서"),
+        so a plain substring test misses "사업의 내용" and friends.
+        """
+        lowered = page_text.lower()
+        compact = re.sub(r"[^0-9a-z\uac00-\ud7af\u4e00-\u9fff]+", "", lowered)
+        scores: dict[str, int] = {}
+        for name, keywords in PDF_SECTION_KEYWORDS:
+            hits = [
+                keyword
+                for keyword in keywords
+                if keyword in lowered
+                or re.sub(r"[^0-9a-z\uac00-\ud7af\u4e00-\u9fff]+", "", keyword)
+                in compact
+            ]
+            if hits:
+                scores[name] = sum(len(keyword) for keyword in hits)
+        return scores
+
+    @staticmethod
+    def _is_front_matter(page_text: str) -> bool:
+        """Cover and table-of-contents pages are not company intelligence.
+
+        A contents page lists every section name, so it scores highly on keyword
+        matching while saying nothing about the company.
+        """
+        stripped = page_text.strip()
+        if len(stripped) < 60:
+            return True
+        lowered = stripped.lower()
+        if "table of contents" in lowered or "목차" in lowered.replace(" ", ""):
+            return True
+        return len(re.findall(r"\.{3,}", stripped)) >= 5
+
+    @staticmethod
+    def _is_numeric_table(page_text: str) -> bool:
+        """Skip financial tables masquerading as narrative sections.
+
+        "투자" appears on 155 pages of the LGES report, including related-party
+        investment tables whose extracted text is a jumble of company names and
+        figures. Real narrative pages run at a digit ratio around 0.02-0.13 while
+        those tables sit above 0.3.
+        """
+        body = re.sub(r"\s+", "", page_text)
+        if not body:
+            return True
+        return sum(char.isdigit() for char in body) / len(body) > 0.25
+
+    # Suffixes that signal an appendix listing affiliates rather than a narrative
+    # section. "투자" matched a page whose only hits were inside entity names such
+    # as "LG Chem (China) Investment Co.,Ltd.".
+    ENTITY_SUFFIX_PATTERN = re.compile(
+        r"(?:co\.,?\s*ltd|ltd\.?|inc\.?|gmbh|sp\.\s*z\s*o\.?o|pvt\.?|s\.a\.|corp\.?|limited)",
+        re.IGNORECASE,
+    )
+
+    @classmethod
+    def _is_entity_list(cls, page_text: str) -> bool:
+        return len(cls.ENTITY_SUFFIX_PATTERN.findall(page_text)) >= 4
+
+    @classmethod
+    def _select_sections(
+        cls,
+        pages: list[str],
+        limit: int = PDF_SNIPPETS_PER_DOC,
+        exclude: set[str] | None = None,
+    ) -> list[tuple[str, int]]:
+        """Pick (section, page index) pairs covering the valuable sections.
+
+        Each page is scored against the section keyword sets; the best page per
+        section wins, one section per physical page, and sections with no match
+        are skipped rather than filled with the document's opening pages.
+        `exclude` carries the sections a previous document already covered, so
+        two annual reports widen the coverage instead of repeating each other.
+        """
+        skip = exclude or set()
+        per_page = [cls._page_section_scores(page) for page in pages]
+        chosen: list[tuple[str, int]] = []
+        used_pages: set[int] = set()
+        for section in PDF_SECTION_ORDER:
+            if section in skip:
+                continue
+            best_page = None
+            best_score = 0
+            for index, scores in enumerate(per_page):
+                if index in used_pages or index == 0:
+                    continue
+                if (
+                    cls._is_front_matter(pages[index])
+                    or cls._is_numeric_table(pages[index])
+                    or cls._is_entity_list(pages[index])
+                ):
+                    continue
+                score = scores.get(section, 0)
+                if score > best_score:
+                    best_score = score
+                    best_page = index
+            if best_page is not None:
+                chosen.append((section, best_page))
+                used_pages.add(best_page)
+            if len(chosen) >= limit:
+                break
+        return chosen
+
+    def _pdf_section_evidence(
         self,
         url: str,
         company: CompanyInput,
-    ) -> RetrievedEvidence | None:
-        """Download a company PDF and turn its text into citable evidence.
+        exclude_sections: set[str] | None = None,
+    ) -> list[RetrievedEvidence]:
+        """Download a company PDF and return one evidence item per valuable section.
 
         Reuses PublicSourceCrawler._extract_pdf (pypdf) rather than adding another
-        parser. Every failure path returns None so nothing is written: a failed or
-        unparseable document must not become evidence.
+        parser. Every failure path returns [] so nothing is written: a failed or
+        unparseable document must not become evidence, and raw PDF bytes must
+        never be stored as content.
         """
         try:
             with httpx.Client(
@@ -468,47 +729,67 @@ class CompanyResearchTool:
             final_url = str(response.url)
             payload = response.content
         except (httpx.HTTPError, ValueError, TypeError):
-            return None
+            return []
         if not self._is_pdf(final_url, content_type):
-            return None
+            return []
         if not payload or len(payload) > PDF_MAX_BYTES:
-            return None
+            return []
         try:
-            text = PublicSourceCrawler._extract_pdf(payload)
+            pages = self._pdf_pages(payload)
         except Exception:  # noqa: BLE001 - a broken PDF must not break the run
-            return None
-        if not text or len(text.strip()) < PDF_MIN_CHARS:
-            return None
-        if self._looks_like_pdf_source(text):
-            return None
-        try:
-            page_count = len(PdfReader(io.BytesIO(payload)).pages)
-        except Exception:  # noqa: BLE001 - page count is optional metadata
-            page_count = 0
+            try:
+                # Fall back to the shared whole-document extractor.
+                pages = [PublicSourceCrawler._extract_pdf(payload)]
+            except Exception:  # noqa: BLE001 - optional source
+                return []
+        pages = [page for page in pages if page.strip()]
+        full_text = "\n".join(pages)
+        if not full_text or len(full_text.strip()) < PDF_MIN_CHARS:
+            return []
+        if self._looks_like_pdf_source(full_text):
+            return []
+        page_count = len(pages)
+        language = self._detect_language(full_text)
         kind = self._document_kind(final_url)
         digest = hashlib.sha1(final_url.encode("utf-8")).hexdigest()[:10].upper()
         name = urlparse(final_url).path.rsplit("/", 1)[-1] or final_url
-        return RetrievedEvidence(
-            evidence_id=f"EVD-COMPANY-DOC-{digest}",
-            title=f"{company.company_name} — {unquote(name)}",
-            source_type="company_filing",
-            publisher=urlparse(final_url).netloc,
-            country_region=company.home_country,
-            publication_date="unknown",
-            url=final_url,
-            authority_level="A",
-            topic="company_filing",
-            content=text[:PDF_MAX_CHARS],
-            relevance_score=92,
-            is_mock=False,
-            evidence_scope="company",
-            document_format="pdf",
-            document_kind=kind,
-            fiscal_year=self._fiscal_year(final_url),
-            byte_size=len(payload),
-            page_count=page_count,
-            retrieved_at=datetime.now(timezone.utc).isoformat(),
-        )
+        retrieved_at = datetime.now(timezone.utc).isoformat()
+        evidence: list[RetrievedEvidence] = []
+        for section, index in self._select_sections(pages, exclude=exclude_sections):
+            snippet = pages[index][:PDF_SNIPPET_CHARS].strip()
+            if len(snippet) < PDF_MIN_SNIPPET_CHARS:
+                continue
+            evidence.append(
+                RetrievedEvidence(
+                    evidence_id=f"EVD-COMPANY-DOC-{digest}-P{index + 1}",
+                    title=(
+                        f"{company.company_name} — {unquote(name)} "
+                        f"· {section} (p.{index + 1})"
+                    ),
+                    source_type="company_filing",
+                    publisher=urlparse(final_url).netloc,
+                    country_region=company.home_country,
+                    publication_date="unknown",
+                    url=final_url,
+                    authority_level="A",
+                    topic=f"company_{section}",
+                    content=snippet,
+                    relevance_score=92,
+                    is_mock=False,
+                    evidence_scope="company",
+                    document_format="pdf",
+                    document_kind=kind,
+                    section=section,
+                    page_start=index + 1,
+                    page_end=index + 1,
+                    language=language,  # type: ignore[arg-type]
+                    fiscal_year=self._fiscal_year(final_url),
+                    byte_size=len(payload),
+                    page_count=page_count,
+                    retrieved_at=retrieved_at,
+                )
+            )
+        return evidence
 
     @staticmethod
     def _internal_links(soup: BeautifulSoup, current_url: str) -> list[str]:
