@@ -69,6 +69,18 @@ class AgentService:
     @classmethod
     def _risk_category_key(cls, name: str, category: str) -> str:
         text = f"{category} {name}".lower()
+        if any(
+            token in text
+            for token in (
+                "financial",
+                "financing",
+                "capital expenditure",
+                "capex",
+                "融资",
+                "资本开支",
+            )
+        ):
+            return "operational"
         for key, tokens in cls.RISK_CATEGORY_KEYWORDS:
             if any(token in text for token in tokens):
                 return key
@@ -471,7 +483,10 @@ class AgentService:
         )
         llm_calls.append(risk_call)
         risks, risk_fallback = self._coerce_risks(
-            risk_payload.get("risks"), heuristic["risks"], evidence
+            risk_payload.get("risks"),
+            heuristic["risks"],
+            evidence,
+            company,
         )
         contested_ids = {
             link.evidence_id
@@ -1437,13 +1452,262 @@ class AgentService:
                 break
         return links
 
+    @staticmethod
+    def _risk_level_from_score(score: int) -> str:
+        if score >= 60:
+            return "high"
+        if score >= 25:
+            return "medium"
+        return "low"
+
+    @staticmethod
+    def _likelihood_label(score: int) -> str:
+        return {
+            1: "very_low",
+            2: "low",
+            3: "medium",
+            4: "high",
+            5: "very_high",
+        }.get(score, "medium")
+
+    @staticmethod
+    def _decision_relevance_rank(value: str) -> int:
+        return {"low": 1, "medium": 2, "high": 3}.get(value, 2)
+
+    @staticmethod
+    def _confidence_rank(value: str) -> int:
+        return {"low": 1, "medium": 2, "high": 3}.get(value, 1)
+
+    @staticmethod
+    def _company_specific_trigger(
+        company: CompanyInput,
+        risk_name: str,
+        category_key: str,
+    ) -> str:
+        markets = ", ".join(company.target_markets)
+        footprint = ", ".join(
+            f"{item.country} {item.production_share}%"
+            for item in company.production_locations
+        )
+        return (
+            f"For {company.company_name}, this risk is relevant because its disclosed "
+            f"footprint is {footprint or 'not provided'} while its target markets are "
+            f"{markets or 'not provided'}. The risk category is {category_key}."
+        )
+
+    def _apply_risk_rubric(
+        self,
+        risk: dict[str, Any],
+        links: list[EvidenceLink],
+        evidence: list[RetrievedEvidence],
+        company: CompanyInput | None,
+    ) -> dict[str, Any]:
+        by_id = {item.evidence_id: item for item in evidence}
+        linked = [
+            by_id[link.evidence_id]
+            for link in links
+            if link.evidence_id in by_id
+        ]
+        company_evidence = [
+            item for item in linked if item.evidence_scope == "company"
+        ]
+        external_evidence = [
+            item for item in linked if item.evidence_scope != "company"
+        ]
+
+        likelihood_score = max(
+            1, min(5, int(risk.get("likelihood_score") or 3))
+        )
+        impact_score = max(1, min(5, int(risk.get("impact_score") or 3)))
+        exposure_score = max(
+            1, min(5, int(risk.get("company_exposure_score") or 3))
+        )
+        risk_score = likelihood_score * impact_score * exposure_score
+        risk_level = self._risk_level_from_score(risk_score)
+
+        insufficient = not linked
+        if insufficient:
+            risk_level = "low" if risk_level == "low" else "medium"
+            confidence = "low"
+        elif not company_evidence:
+            # Industry/policy evidence alone cannot support a HIGH company risk.
+            risk_level = "low" if risk_level == "low" else "medium"
+            confidence = "low"
+        elif external_evidence:
+            verified = all(
+                item.verification_status == "verified"
+                for item in [*company_evidence, *external_evidence]
+            )
+            confidence = "high" if verified else "medium"
+        else:
+            confidence = "medium"
+
+        if any(item.verification_status == "contested" for item in linked):
+            confidence = "low"
+            risk_level = "medium" if risk_level == "high" else risk_level
+            risk["verification_status"] = "contested"
+        elif linked and all(
+            item.verification_status == "outdated" for item in linked
+        ):
+            confidence = "low"
+            risk_level = "low"
+            risk["verification_status"] = "outdated"
+
+        decision_relevance = str(
+            risk.get("decision_relevance") or "medium"
+        ).lower()
+        if decision_relevance not in {"low", "medium", "high"}:
+            decision_relevance = "medium"
+        risk.update(
+            {
+                "title": str(
+                    risk.get("title") or risk.get("name") or "Risk"
+                ),
+                "company_specific_trigger": str(
+                    risk.get("company_specific_trigger")
+                    or (
+                        self._company_specific_trigger(
+                            company,
+                            str(risk.get("name") or risk.get("title") or ""),
+                            str(risk.get("category_key") or "operational"),
+                        )
+                        if company is not None
+                        else "Company-specific trigger requires verification."
+                    )
+                ),
+                "external_mechanism": str(
+                    risk.get("external_mechanism") or ""
+                ),
+                "impact_channels": [
+                    str(item)
+                    for item in (risk.get("impact_channels") or [])
+                    if str(item).strip()
+                ],
+                "impact_description": str(
+                    risk.get("impact_description")
+                    or risk.get("business_impact")
+                    or ""
+                ),
+                "likelihood_score": likelihood_score,
+                "impact_score": impact_score,
+                "company_exposure_score": exposure_score,
+                "risk_score": risk_score,
+                "risk_level": risk_level,
+                "severity": risk_level,
+                "probability": likelihood_score * 20,
+                "likelihood": self._likelihood_label(likelihood_score),
+                "decision_relevance": decision_relevance,
+                "confidence": confidence,
+                "supporting_evidence_ids": list(
+                    dict.fromkeys(
+                        [*risk.get("supporting_evidence_ids", []), *[
+                            link.evidence_id for link in links
+                        ]]
+                    )
+                ),
+                "insufficient_evidence": insufficient,
+                "basis": "evidence" if linked else "inference",
+                "uncertainty_reasons": [
+                    str(item)
+                    for item in (risk.get("uncertainty_reasons") or [])
+                    if str(item).strip()
+                ],
+                "what_would_change_assessment": [
+                    str(item)
+                    for item in (
+                        risk.get("what_would_change_assessment") or []
+                    )
+                    if str(item).strip()
+                ],
+            }
+        )
+        return risk
+
+    def _deduplicate_risks(
+        self,
+        risks: list[RiskItem],
+    ) -> list[RiskItem]:
+        kept: list[RiskItem] = []
+        for risk in risks:
+            duplicate_index = None
+            risk_terms = self._terms(f"{risk.category_key} {risk.title} {risk.name}")
+            for index, existing in enumerate(kept):
+                if existing.category_key != risk.category_key:
+                    continue
+                existing_terms = self._terms(
+                    f"{existing.category_key} {existing.title} {existing.name}"
+                )
+                union = risk_terms | existing_terms
+                similarity = (
+                    len(risk_terms & existing_terms) / len(union)
+                    if union
+                    else 0.0
+                )
+                if similarity >= 0.55:
+                    duplicate_index = index
+                    break
+            if duplicate_index is None:
+                kept.append(risk)
+                continue
+            existing = kept[duplicate_index]
+            if (
+                risk.risk_score,
+                self._decision_relevance_rank(risk.decision_relevance),
+                self._confidence_rank(risk.confidence),
+            ) > (
+                existing.risk_score,
+                self._decision_relevance_rank(existing.decision_relevance),
+                self._confidence_rank(existing.confidence),
+            ):
+                kept[duplicate_index] = risk
+        return kept
+
+    @classmethod
+    def _select_core_risks(
+        cls,
+        risks: list[RiskItem],
+    ) -> list[RiskItem]:
+        ranked = sorted(
+            risks,
+            key=lambda item: (
+                cls._decision_relevance_rank(item.decision_relevance),
+                item.risk_score,
+                cls._confidence_rank(item.confidence),
+            ),
+            reverse=True,
+        )[:5]
+        return [
+            item.model_copy(update={"risk_id": f"RSK-{index:03d}"})
+            for index, item in enumerate(ranked, start=1)
+        ]
+
     def _coerce_risks(
         self,
         payload: Any,
         fallback: list[dict[str, Any]],
         evidence: list[RetrievedEvidence],
+        company: CompanyInput | None = None,
     ) -> tuple[list[RiskItem], bool]:
         candidates = payload if isinstance(payload, list) else fallback
+        system_risk_markers = (
+            "information_quality",
+            "data_quality",
+            "data quality",
+            "资料不足",
+            "数据质量",
+            "信息质量",
+        )
+        candidates = [
+            item
+            for item in candidates
+            if isinstance(item, dict)
+            and not any(
+                marker
+                in f"{item.get('name', '')} {item.get('title', '')} "
+                f"{item.get('category', '')}".lower()
+                for marker in system_risk_markers
+            )
+        ]
         allowed_ids = {item.evidence_id for item in evidence}
         mock_ids = {item.evidence_id for item in evidence if item.is_mock}
         risks: list[RiskItem] = []
@@ -1457,9 +1721,19 @@ class AgentService:
                     str(filtered.get("name") or ""),
                     str(filtered.get("category") or ""),
                 )
+                filtered["category"] = str(
+                    filtered["category_key"]
+                ).upper()
+                filtered["title"] = str(
+                    filtered.get("title") or filtered.get("name") or "Risk"
+                )
                 raw_ids = [
                     evidence_id
-                    for evidence_id in filtered.get("evidence_ids", [])
+                    for evidence_id in (
+                        filtered.get("evidence_ids")
+                        or filtered.get("supporting_evidence_ids")
+                        or []
+                    )
                     if evidence_id in allowed_ids
                 ]
                 links = self._select_risk_evidence(
@@ -1508,6 +1782,9 @@ class AgentService:
                     filtered.get("severity"), bool(evidence_ids)
                 )
                 filtered["verification_status"] = verification_status
+                filtered = self._apply_risk_rubric(
+                    filtered, links, evidence, company
+                )
                 risks.append(
                     RiskItem.model_validate(filtered).model_copy(
                         update={"risk_id": f"RSK-{index:03d}"}
@@ -1534,8 +1811,16 @@ class AgentService:
                 )
                 evidence_ids = [link.evidence_id for link in links]
                 contested = self._detect_contested(links, evidence)
+                item = dict(item)
+                item["category"] = category_key.upper()
+                item["title"] = str(
+                    item.get("title") or item.get("name") or "Risk"
+                )
+                risk_payload = self._apply_risk_rubric(
+                    item, links, evidence, company
+                )
                 risks.append(
-                    RiskItem.model_validate(item).model_copy(
+                    RiskItem.model_validate(risk_payload).model_copy(
                         update={
                             "risk_id": f"RSK-{index:03d}",
                             "category_key": category_key,
@@ -1560,6 +1845,9 @@ class AgentService:
                         }
                     )
                 )
+        risks = self._select_core_risks(
+            self._deduplicate_risks(risks)
+        )
         return risks, used_fallback
 
     def _coerce_scenarios(
@@ -3089,14 +3377,39 @@ class AgentService:
                     "关键物料、工程人才或本地配套不足可能降低产能爬坡速度和交付稳定性。",
                 )
             )
-        risk_templates.append(
+        minimum_risks = [
             (
-                "政策与数据时效性风险",
-                "information_quality",
+                "目标市场准入与本地化要求",
+                "market_access",
+                62,
+                "区域本地化、客户原产地要求和认证门槛可能限制现有供应安排。",
+            ),
+            (
+                "多基地运营与实施复杂度",
+                "operational",
                 58,
-                "公开资料无法替代逐项法规核验，政策变化可能使建议快速过期。",
-            )
-        )
+                "多地区布局可能提高资本开支、认证、产能爬坡和组织协调难度。",
+            ),
+            (
+                "供应链集中与替代能力",
+                "supply_chain",
+                61,
+                "关键材料或供应商集中可能影响交付韧性和替代能力。",
+            ),
+            (
+                "出口管制与合规要求",
+                "regulatory",
+                57,
+                "出口、客户筛查或本地合规要求可能增加实施负担。",
+            ),
+        ]
+        existing_categories = {item[1] for item in risk_templates}
+        for candidate in minimum_risks:
+            if len(risk_templates) >= 4:
+                break
+            if candidate[1] not in existing_categories:
+                risk_templates.append(candidate)
+                existing_categories.add(candidate[1])
 
         risks = []
         for name, category, probability, impact in risk_templates:

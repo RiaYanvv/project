@@ -205,18 +205,33 @@ class CompanyProfile(StrictModel):
 class RiskItem(StrictModel):
     risk_id: str
     name: str
+    title: str = ""
     category: str
     category_key: RiskCategoryKey | None = None
     severity: RiskLevel
     probability: int = Field(ge=0, le=100)
     business_impact: str
+    company_specific_trigger: str = ""
+    external_mechanism: str = ""
+    impact_channels: list[str] = Field(default_factory=list)
+    impact_description: str = ""
     uncertainty: str
+    uncertainty_reasons: list[str] = Field(default_factory=list)
+    what_would_change_assessment: list[str] = Field(default_factory=list)
     evidence_ids: list[str]
+    supporting_evidence_ids: list[str] = Field(default_factory=list)
     evidence_links: list["EvidenceLink"] = Field(default_factory=list)
     verification_status: Literal[
         "verified", "partial", "unverified", "contested", "outdated"
     ] = "unverified"
     likelihood: Likelihood = "medium"
+    likelihood_score: int = Field(default=3, ge=1, le=5)
+    impact_score: int = Field(default=3, ge=1, le=5)
+    company_exposure_score: int = Field(default=3, ge=1, le=5)
+    risk_score: int = Field(default=27, ge=1, le=125)
+    risk_level: Literal["low", "medium", "high"] = "medium"
+    decision_relevance: Literal["low", "medium", "high"] = "medium"
+    confidence: ConfidenceLevel = "low"
     likelihood_basis: str = ""
     basis: Literal["evidence", "user_input", "inference"] = "inference"
     insufficient_evidence: bool = False
