@@ -1011,6 +1011,48 @@ const FACT_STATUS_LABEL = {
   to_be_confirmed: "To be confirmed",
 };
 
+/* Step 2 of the Company Intelligence revision added structured fields whose
+   labels are rendered here (the i18n dictionary only matches static markup). */
+const GAP_PRIORITY_LABEL = {
+  critical: () => L("Critical", "关键"),
+  important: () => L("Important", "重要"),
+  optional: () => L("Optional", "可选"),
+};
+const SITE_STATUS_LABEL = {
+  verified: () => L("Verified", "已验证"),
+  reported: () => L("Reported", "已报告"),
+  estimated: () => L("Estimated", "估计"),
+  inferred: () => L("Inferred", "推断"),
+  unknown: () => L("Unknown", "未知"),
+};
+const SITE_SOURCE_LABEL = {
+  user_input: () => L("User input", "用户提供"),
+  company_filing: () => L("Company filing", "公司披露"),
+  official_website: () => L("Official website", "官方网站"),
+  industry_report: () => L("Industry report", "行业报告"),
+  news: () => L("News", "新闻"),
+};
+/* Controlled supply-chain role vocabulary agreed with the product owner. The
+   backend label is shown unchanged when the value is not one of these. */
+const ROLE_LABEL = {
+  UPSTREAM_RAW_MATERIAL: () => L("Upstream raw material", "上游原材料"),
+  UPSTREAM_COMPONENT: () => L("Upstream component", "上游材料/零部件"),
+  BATTERY_MANUFACTURING: () => L("Battery manufacturing", "电池制造"),
+  DOWNSTREAM_APPLICATION: () => L("Downstream application", "下游应用"),
+  INTEGRATED_BATTERY_COMPANY: () => L("Integrated battery company", "一体化电池企业"),
+  OTHER: () => L("Other", "其他"),
+};
+
+function roleLabel(value) {
+  const key = String(value || "").trim().toUpperCase();
+  return ROLE_LABEL[key] ? ROLE_LABEL[key]() : String(value || "");
+}
+
+function mappedLabel(map, key) {
+  const value = String(key || "").trim();
+  return map[value] ? map[value]() : value;
+}
+
 function renderIntelligence(assessment) {
   const container = $("#intelligence-body");
   if (!container) return;
@@ -1019,15 +1061,99 @@ function renderIntelligence(assessment) {
     container.innerHTML = `<p class="overview-text muted">Company intelligence is not available for this assessment.</p>`;
     return;
   }
-  const block = ([key, label]) => {
-    const items = data[key] || [];
-    if (!items.length) return "";
-    return `<div class="intel-block"><p class="intel-label">${escapeHtml(label)}</p><ul class="intel-list">${items.map(item => `
-      <li><span class="intel-fact">${escapeHtml(item.fact)}</span><span class="intel-meta"><span class="intel-status ${escapeHtml(item.data_status)}">${escapeHtml(FACT_STATUS_LABEL[item.data_status] || item.data_status)}</span>${(item.source_ids || []).length ? `<span class="intel-sources">${(item.source_ids || []).slice(0, 2).map(escapeHtml).join(" · ")}</span>` : ""}</span></li>`).join("")}</ul></div>`;
+  const facts = (items) => `<ul class="intel-list">${(items || []).map(item => `
+      <li><span class="intel-fact">${escapeHtml(item.fact)}</span><span class="intel-meta"><span class="intel-status ${escapeHtml(item.data_status)}">${escapeHtml(FACT_STATUS_LABEL[item.data_status] || item.data_status)}</span>${(item.source_ids || []).length ? `<span class="intel-sources">${(item.source_ids || []).slice(0, 2).map(escapeHtml).join(" · ")}</span>` : ""}</span></li>`).join("")}</ul>`;
+  const block = (label, inner) => (inner
+    ? `<div class="intel-block"><p class="intel-label">${escapeHtml(label)}</p>${inner}</div>`
+    : "");
+
+  const summary = String(data.executive_summary || "").trim();
+  const entity = data.entity || {};
+  const identity = [
+    entity.legal_name ? `${L("Legal name", "法律实体")}: ${entity.legal_name}` : "",
+    entity.headquarters ? `${L("Headquarters", "总部")}: ${entity.headquarters}` : "",
+    entity.founded_year ? `${L("Founded", "成立")}: ${entity.founded_year}` : "",
+    entity.listing && entity.listing.ticker ? `${L("Listing", "上市")}: ${entity.listing.exchange || ""} ${entity.listing.ticker}`.trim() : "",
+  ].filter(Boolean);
+
+  // Structured footprint (step 2). The narrative fact list still renders below,
+  // so an assessment produced before the schema change is unaffected.
+  const sites = data.manufacturing_footprint || [];
+  const siteTable = sites.length
+    ? `<table class="intel-table"><thead><tr>
+        <th>${L("Country", "国家")}</th><th>${L("Facility", "设施")}</th><th>${L("Role", "角色")}</th>
+        <th>${L("Share", "占比")}</th><th>${L("Capacity", "产能")}</th><th>${L("Source", "来源")}</th><th>${L("Status", "状态")}</th>
+      </tr></thead><tbody>${sites.map(site => `<tr>
+        <td>${escapeHtml(site.country || "")}</td>
+        <td>${escapeHtml(site.facility || "—")}</td>
+        <td>${escapeHtml(roleLabel(site.role) || "—")}</td>
+        <td>${site.production_share === null || site.production_share === undefined ? "—" : `${escapeHtml(String(site.production_share))}%`}</td>
+        <td>${escapeHtml(site.capacity || "unknown")}</td>
+        <td>${escapeHtml(mappedLabel(SITE_SOURCE_LABEL, site.source_type))}</td>
+        <td><span class="intel-status ${escapeHtml(site.status || "unknown")}">${escapeHtml(mappedLabel(SITE_STATUS_LABEL, site.status))}</span></td>
+      </tr>`).join("")}</tbody></table>`
+    : "";
+
+  const roleData = data.supply_chain_role || {};
+  const roleValues = [roleData.primary, ...(roleData.secondary || [])].filter(Boolean);
+  const roleInner = roleValues.length
+    ? `<div class="role-chips">${roleValues.map((value, index) => `<span class="role-chip${index === 0 ? " primary" : ""}">${escapeHtml(roleLabel(value))}</span>`).join("")}</div>`
+    : "";
+
+  const profile = data.business_profile || {};
+  const profileInner = (profile.model || profile.value_chain_role || (profile.products || []).length)
+    ? `<ul class="intel-list">
+        ${profile.model ? `<li><span class="intel-fact"><b>${L("Business model", "业务模式")}</b> · ${escapeHtml(profile.model)}</span></li>` : ""}
+        ${profile.value_chain_role ? `<li><span class="intel-fact"><b>${L("Value-chain role", "价值链位置")}</b> · ${escapeHtml(profile.value_chain_role)}</span></li>` : ""}
+        ${(profile.products || []).length ? `<li><span class="intel-fact"><b>${L("Products", "产品")}</b> · ${escapeHtml(profile.products.join(" · "))}</span></li>` : ""}
+        ${(profile.customers || []).length ? `<li><span class="intel-fact"><b>${L("Customers", "客户")}</b> · ${escapeHtml(profile.customers.join(" · "))}</span></li>` : ""}
+      </ul>`
+    : "";
+
+  const context = data.decision_context || {};
+  const contextInner = (context.objective || (context.drivers || []).length)
+    ? `<ul class="intel-list">
+        ${context.objective ? `<li><span class="intel-fact"><b>${L("Objective", "决策目标")}</b> · ${escapeHtml(context.objective)}</span></li>` : ""}
+        ${(context.drivers || []).length ? `<li><span class="intel-fact"><b>${L("Drivers", "驱动因素")}</b> · ${escapeHtml(context.drivers.join(" · "))}</span></li>` : ""}
+        ${(context.constraints || []).length ? `<li><span class="intel-fact"><b>${L("Constraints", "约束")}</b> · ${escapeHtml(context.constraints.join(" · "))}</span></li>` : ""}
+      </ul>`
+    : "";
+
+  // Older assessments stored plain strings; step 2 stores objects with a
+  // priority, why it matters and how to obtain the information.
+  const gapRow = (gap) => {
+    if (typeof gap === "string" || gap === null) {
+      return `<li class="gap-row"><div class="gap-head"><span class="gap-priority important">${GAP_PRIORITY_LABEL.important()}</span><span class="gap-item">${escapeHtml(gap || "")}</span></div></li>`;
+    }
+    const priority = GAP_PRIORITY_LABEL[gap.priority] ? gap.priority : "important";
+    return `<li class="gap-row">
+      <div class="gap-head"><span class="gap-priority ${priority}">${GAP_PRIORITY_LABEL[priority]()}</span><span class="gap-item">${escapeHtml(gap.item || "")}</span></div>
+      ${gap.why_it_matters ? `<p class="gap-detail"><b>${L("Why it matters", "为什么重要")}</b> · ${escapeHtml(gap.why_it_matters)}</p>` : ""}
+      ${gap.recommended_action ? `<p class="gap-detail"><b>${L("Next step", "建议动作")}</b> · ${escapeHtml(gap.recommended_action)}</p>` : ""}
+    </li>`;
   };
   const gaps = data.information_gaps || [];
-  container.innerHTML = INTELLIGENCE_BLOCKS.map(block).join("")
-    + (gaps.length ? `<div class="intel-block"><p class="intel-label">Information gaps</p><ul class="intel-list">${gaps.map(gap => `<li><span class="intel-fact">${escapeHtml(gap)}</span><span class="intel-meta"><span class="intel-status to_be_confirmed">To be confirmed</span></span></li>`).join("")}</ul></div>` : "");
+  const gapInner = gaps.length ? `<ul class="gap-list">${gaps.map(gapRow).join("")}</ul>` : "";
+
+  const references = data.evidence_references || [];
+  const referenceInner = references.length
+    ? `<ul class="intel-list">${references.map(ref => `<li><span class="intel-fact">${escapeHtml(ref.title || ref.evidence_id)} <span class="intel-sources">${escapeHtml(ref.publisher || "")}</span></span><span class="intel-meta"><span class="intel-sources">${escapeHtml(ref.evidence_id)}</span></span></li>`).join("")}</ul>`
+    : "";
+
+  container.innerHTML = [
+    summary ? `<p class="overview-text">${escapeHtml(summary)}</p>` : "",
+    identity.length ? block(L("Company identity", "企业身份"), `<ul class="intel-list">${identity.map(line => `<li><span class="intel-fact">${escapeHtml(line)}</span></li>`).join("")}</ul>`) : "",
+    INTELLIGENCE_BLOCKS.map(([key, label]) => {
+      const items = data[key] || [];
+      return items.length ? block(label, facts(items)) : "";
+    }).join(""),
+    block(L("Business profile", "业务画像"), profileInner),
+    block(L("Global manufacturing footprint (structured)", "全球生产布局（结构化）"), siteTable),
+    block(L("Supply chain role", "供应链角色"), roleInner),
+    block(L("Decision context", "决策情境"), contextInner),
+    block(L("Information gaps", "信息缺口"), gapInner),
+    block(L("Evidence references", "证据引用"), referenceInner),
+  ].join("");
 }
 
 function renderRationale(assessment) {

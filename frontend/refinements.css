@@ -460,3 +460,25 @@ input.field-invalid,select.field-invalid,textarea.field-invalid{border-color:#d8
 .dim-basis{display:inline-block;margin-left:6px;padding:1px 5px;border:1px solid #cbdde7;border-radius:2px;background:#f4f9fc;color:#5b7c92;font:500 8px var(--mono);letter-spacing:.04em;text-transform:uppercase}
 .dim-basis.evidence{border-color:#b9d8ca;background:#eef7f1;color:#2f7a52}
 .dim-basis.inference{border-color:#e8d7b0;background:#fdf7e9;color:#966b1d}
+
+/* Step 2 Company Intelligence: structured footprint table, supply-chain role
+   chips and prioritised information gaps. */
+.intel-table{width:100%;border-collapse:collapse;margin-top:4px;font-size:12px}
+.intel-table th{text-align:left;padding:8px 10px;background:#f3f8fb;border:1px solid #e2ecf1;color:#5b7c92;font:600 9.5px var(--mono);letter-spacing:.06em;text-transform:uppercase}
+.intel-table td{padding:9px 10px;border:1px solid #e2ecf1;color:#3f5b70;vertical-align:top}
+.intel-table tr:nth-child(even) td{background:#fbfdfe}
+.role-chips{display:flex;flex-wrap:wrap;gap:8px}
+.role-chip{display:inline-block;padding:5px 10px;border:1px solid #cbdde7;border-radius:2px;background:#f4f9fc;color:#4b7391;font:600 11px var(--sans)}
+.role-chip.primary{border-color:#3984ac;background:#eff8fc;color:var(--blue)}
+.gap-list{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.gap-row{padding:13px 14px;border:1px solid #e2ecf1;border-left:3px solid #cbdde7;background:#fbfdfe}
+.gap-row:has(.gap-priority.critical){border-left-color:var(--high)}
+.gap-row:has(.gap-priority.important){border-left-color:var(--medium)}
+.gap-head{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap}
+.gap-priority{padding:3px 7px;border-radius:2px;font:600 9px var(--mono);text-transform:uppercase;letter-spacing:.06em}
+.gap-priority.critical{color:#a33625;background:#f9eae7}
+.gap-priority.important{color:#9c691d;background:#faf3e5}
+.gap-priority.optional{color:#5b7c92;background:#f1f5f8}
+.gap-item{color:#294861;font-size:13.5px;font-weight:700;line-height:1.5}
+.gap-detail{margin:7px 0 0;color:#5a7182;font-size:12px;line-height:1.6}
+.gap-detail b{color:#345267}
