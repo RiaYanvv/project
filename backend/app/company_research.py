@@ -68,7 +68,10 @@ PDF_NAME_SCORES: tuple[tuple[int, str], ...] = (
 # Guard rails: a handful of the most relevant documents per run, nothing bigger
 # than a normal report, and no unbounded text in the prompt.
 PDF_LIMIT = 2
-PDF_MAX_BYTES = 15 * 1024 * 1024
+# Real sustainability and annual reports are routinely 20-40 MB; the LGES 2025
+# English ESG report is 37 MB. The guard still bounds what we download, it just
+# no longer excludes the exact documents this stage exists to read.
+PDF_MAX_BYTES = 40 * 1024 * 1024
 PDF_MAX_CHARS = 20_000
 PDF_MIN_CHARS = 400
 PDF_TIMEOUT = 30.0
@@ -78,7 +81,17 @@ SECTION_PAGE_LIMIT = 3
 # first 20,000 characters (which for a 496-page annual report is the cover and
 # table of contents). Snippets stay under the 2,400-character prompt cap so the
 # whole snippet reaches the model instead of being cut off.
-PDF_SNIPPETS_PER_DOC = 3
+# Sections are budgeted for the whole research run, not per document, so a
+# second document widens coverage instead of repeating the first one.
+TOTAL_SECTION_BUDGET = 7
+# Every selected document contributes at least this many snippets, so a Tier A
+# annual report is not crowded out by a higher-scoring English report.
+PER_DOCUMENT_MIN_SNIPPETS = 2
+# One extra page beyond the investor document pages, so an ESG / sustainability
+# page (which usually links the English report) is always reached.
+EXTRA_CATEGORY_PAGES = 1
+# When two pages are similarly informative, prefer the English one.
+ENGLISH_SECTION_BONUS = 5
 PDF_SNIPPET_CHARS = 2_200
 PDF_MIN_SNIPPET_CHARS = 200
 
@@ -244,8 +257,8 @@ class CompanyResearchTool:
         pdf_links: list[str] = [url for url in links if self._is_pdf(url, "")]
         if len(text) >= 120:
             items.append(self._page_evidence(final_url, company, text, "home"))
-        for url in self._rank_section_links(links):
-            if len(items) > limit:
+        for url in self._select_site_pages(links):
+            if len(items) > limit + EXTRA_CATEGORY_PAGES:
                 break
             fetched = self._fetch_page(
                 url, timeout=min(self.timeout, RELATED_PAGE_TIMEOUT)
@@ -262,13 +275,32 @@ class CompanyResearchTool:
             pdf_links.extend(
                 link for link in page_links if self._is_pdf(link, "")
             )
-        covered: set[str] = set()
-        for pdf_url in self._select_pdf_links(pdf_links):
-            documents = self._pdf_section_evidence(
-                pdf_url, company, exclude_sections=covered
+        # Parse every selected document first, then choose sections across all of
+        # them, so the run-wide snippet budget is spent on coverage rather than on
+        # whichever document happens to be processed first.
+        documents = []
+        preferred = self._select_pdf_links(pdf_links)
+        # If a preferred document cannot be fetched or parsed, fall back to the
+        # next candidate instead of silently losing the slot.
+        fallbacks = [
+            url
+            for url in self._rank_pdf_links(pdf_links, limit=len(pdf_links) or 1)
+            if url not in preferred
+        ]
+        for pdf_url in preferred + fallbacks:
+            if len(documents) >= PDF_LIMIT:
+                break
+            parsed = self._pdf_section_evidence(pdf_url, company)
+            if parsed is not None:
+                documents.append(parsed)
+        for doc_index, section, page_index in self._select_document_sections(
+            documents
+        ):
+            document = self._document_evidence(
+                documents[doc_index], section, page_index, company
             )
-            covered.update(item.section for item in documents)
-            items.extend(documents)
+            if document is not None:
+                items.append(document)
         return items
 
     def _sec_filing_evidence(
@@ -422,6 +454,67 @@ class CompanyResearchTool:
         )[:RELATED_PAGE_ATTEMPTS]
 
     @staticmethod
+    def _is_esg_page(url: str) -> bool:
+        """A sustainability *report* page, not any page with "esg" in the path.
+
+        /kr/investors/esg-bond is a green-bond instrument page; the English ESG
+        report lives on /kr/esg/report-performance.
+        """
+        segments = [
+            segment for segment in urlparse(url).path.lower().split("/") if segment
+        ]
+        joined = " ".join(segments)
+        if "bond" in joined:
+            return False
+        report_like = any(
+            term in joined for term in ("report", "performance", "document", "data")
+        )
+        return report_like and any(
+            term in joined for term in ("esg", "sustainability", "sustainab")
+        )
+
+    @classmethod
+    def _select_site_pages(
+        cls, links: list[str], limit: int = SECTION_PAGE_LIMIT
+    ) -> list[str]:
+        """Document pages first, plus one ESG/sustainability page.
+
+        The English report usually sits on the ESG page, which ranks below the
+        investor pages. Fetching one extra page is what makes English material
+        reachable without going back to crawling many pages.
+        """
+        ranked = cls._rank_section_links(links)
+        selected = ranked[:limit]
+        if not any(cls._is_esg_page(url) for url in selected):
+            candidates = [url for url in links if cls._is_esg_page(url)]
+            # Prefer a listing/report page ("report-performance") over a
+            # ratings page ("report-evaluation"): the PDFs hang off the former.
+            candidates.sort(key=cls._esg_page_score, reverse=True)
+            extra = candidates[0] if candidates else None
+            if extra:
+                selected = selected + [extra][:EXTRA_CATEGORY_PAGES]
+        return selected
+
+    @staticmethod
+    def _esg_page_score(url: str) -> int:
+        joined = " ".join(
+            segment for segment in urlparse(url).path.lower().split("/") if segment
+        )
+        return sum(
+            term in joined
+            for term in (
+                "report",
+                "performance",
+                "data",
+                "download",
+                "publication",
+                "archive",
+                "material",
+                "library",
+            )
+        )
+
+    @staticmethod
     def _pdf_name_score(url: str) -> int:
         name = urlparse(url).path.rsplit("/", 1)[-1].lower()
         name = re.sub(r"%20|[-_+]", " ", name)
@@ -440,7 +533,16 @@ class CompanyResearchTool:
             # /investors/data-business-report also contains "business report".
             if cls._is_pdf(url, "") and cls._pdf_name_score(url) > 0
         ]
-        ranked.sort(key=lambda item: (-item[0], len(item[1])))
+        # Recency matters as much as the document type: with equal name scores a
+        # 2008 sustainability report must not outrank the 2025 edition just
+        # because its URL is shorter.
+        ranked.sort(
+            key=lambda item: (
+                -item[0],
+                -int(cls._fiscal_year(item[1]) or 0),
+                len(item[1]),
+            )
+        )
         return [url for _, url in ranked[:limit]]
 
     @staticmethod
@@ -501,7 +603,9 @@ class CompanyResearchTool:
         ranked = cls._rank_pdf_links(links, limit=len(links) or 1)
         if not ranked:
             return []
-        primary_kinds = {"annual_report", "business_report"}
+        # Tier A: the company's own reporting. Tier B: other English-friendly
+        # material that adds a different lens (ESG, investor, earnings).
+        primary_kinds = {"annual_report", "business_report", "financial_statement"}
         primary = next(
             (url for url in ranked if cls._document_kind(url) in primary_kinds),
             ranked[0],
@@ -515,16 +619,25 @@ class CompanyResearchTool:
             if url != primary and cls._document_kind(url) not in primary_kinds
         ]
         if others:
-            # Prefer material that is marked English, so the second document
-            # usually adds readable content rather than another Korean edition.
-            others.sort(
+            # Recency comes first: an eleven-year-old English report is not
+            # "similar information" to the current edition, so English is a
+            # preference within the newest material rather than a trump card.
+            newest = max(int(cls._fiscal_year(url) or 0) for url in others)
+            recent_english = [
+                url
+                for url in others
+                if cls._english_hint(url)
+                and int(cls._fiscal_year(url) or 0) >= newest - 1
+            ]
+            pool = recent_english or others
+            pool.sort(
                 key=lambda url: (
-                    -cls._english_hint(url),
                     -cls._pdf_name_score(url),
+                    -int(cls._fiscal_year(url) or 0),
                     len(url),
                 )
             )
-            secondary = others[0]
+            secondary = pool[0]
         else:
             secondary = next((url for url in ranked if url != primary), None)
         if secondary:
@@ -534,7 +647,11 @@ class CompanyResearchTool:
     @staticmethod
     def _english_hint(url: str) -> int:
         name = unquote(urlparse(url).path.rsplit("/", 1)[-1]).lower()
-        return 1 if ("_en" in name or "-en" in name or "english" in name) else 0
+        # A language marker only counts as a whole token: "lg_energy..." must not
+        # be read as English material because it contains "_en".
+        if re.search(r"(?:^|[^a-z])en(?:[^a-z]|$)", name):
+            return 1
+        return 1 if "english" in name else 0
 
     def _fetch_page(
         self, url: str, timeout: float | None = None
@@ -659,59 +776,115 @@ class CompanyResearchTool:
         return len(cls.ENTITY_SUFFIX_PATTERN.findall(page_text)) >= 4
 
     @classmethod
-    def _select_sections(
-        cls,
-        pages: list[str],
-        limit: int = PDF_SNIPPETS_PER_DOC,
-        exclude: set[str] | None = None,
-    ) -> list[tuple[str, int]]:
-        """Pick (section, page index) pairs covering the valuable sections.
+    def _page_is_eligible(cls, page_text: str) -> bool:
+        return not (
+            cls._is_front_matter(page_text)
+            or cls._is_numeric_table(page_text)
+            or cls._is_entity_list(page_text)
+        )
 
-        Each page is scored against the section keyword sets; the best page per
-        section wins, one section per physical page, and sections with no match
-        are skipped rather than filled with the document's opening pages.
-        `exclude` carries the sections a previous document already covered, so
-        two annual reports widen the coverage instead of repeating each other.
+    @classmethod
+    def _select_document_sections(
+        cls,
+        documents: list[dict[str, Any]],
+        budget: int = TOTAL_SECTION_BUDGET,
+    ) -> list[tuple[int, str, int]]:
+        """Choose (document, section, page) across all documents in one budget.
+
+        Pass 1 covers each core section once, taking the best page available in
+        any document. Pass 2 spends what is left on the next-best pages. Budgeting
+        for the whole run rather than per document is what stops two annual
+        reports from both reporting business / manufacturing / supply chain.
         """
-        skip = exclude or set()
-        per_page = [cls._page_section_scores(page) for page in pages]
-        chosen: list[tuple[str, int]] = []
-        used_pages: set[int] = set()
-        for section in PDF_SECTION_ORDER:
-            if section in skip:
-                continue
-            best_page = None
-            best_score = 0
-            for index, scores in enumerate(per_page):
-                if index in used_pages or index == 0:
+        page_scores = [
+            [cls._page_section_scores(page) for page in document["pages"]]
+            for document in documents
+        ]
+        english = [
+            document["language"] == "en" for document in documents
+        ]
+        taken: dict[int, set[int]] = {}
+        selected: list[tuple[int, str, int]] = []
+
+        def value_of(doc_index: int, section: str, page_index: int) -> int:
+            base = page_scores[doc_index][page_index].get(section, 0)
+            if not base:
+                return 0
+            if not cls._page_is_eligible(documents[doc_index]["pages"][page_index]):
+                return 0
+            return base + (ENGLISH_SECTION_BONUS if english[doc_index] else 0)
+
+        def best_page(doc_index: int, section: str) -> int | None:
+            used = taken.get(doc_index, set())
+            best_score, best_index = 0, None
+            for index in range(len(documents[doc_index]["pages"])):
+                if index in used or index == 0:
                     continue
-                if (
-                    cls._is_front_matter(pages[index])
-                    or cls._is_numeric_table(pages[index])
-                    or cls._is_entity_list(pages[index])
-                ):
-                    continue
-                score = scores.get(section, 0)
+                score = value_of(doc_index, section, index)
                 if score > best_score:
-                    best_score = score
-                    best_page = index
-            if best_page is not None:
-                chosen.append((section, best_page))
-                used_pages.add(best_page)
-            if len(chosen) >= limit:
+                    best_score, best_index = score, index
+            return best_index
+
+        def best_overall(sections) -> tuple[int, int, str, int] | None:
+            best = None
+            for section in sections:
+                for doc_index in range(len(documents)):
+                    index = best_page(doc_index, section)
+                    if index is None:
+                        continue
+                    score = value_of(doc_index, section, index)
+                    if best is None or score > best[0]:
+                        best = (score, doc_index, section, index)
+            return best
+
+        def take(doc_index: int, section: str, index: int) -> None:
+            selected.append((doc_index, section, index))
+            taken.setdefault(doc_index, set()).add(index)
+
+        for section in PDF_SECTION_ORDER:
+            best = best_overall([section])
+            if best is not None:
+                take(best[1], best[2], best[3])
+        # A complementary document must actually contribute: fetching an English
+        # ESG report and then ignoring it wastes the slot the selection reserved
+        # for it. Give every selected document one snippet before spending the
+        # rest of the budget on extra pages.
+        floor = min(
+            PER_DOCUMENT_MIN_SNIPPETS,
+            max(1, budget // max(1, len(documents))),
+        )
+        for doc_index in range(len(documents)):
+            while (
+                len(taken.get(doc_index, set())) < floor
+                and len(selected) < budget
+            ):
+                best_in_document = None
+                for section in PDF_SECTION_ORDER:
+                    index = best_page(doc_index, section)
+                    if index is None:
+                        continue
+                    score = value_of(doc_index, section, index)
+                    if best_in_document is None or score > best_in_document[0]:
+                        best_in_document = (score, section, index)
+                if best_in_document is None:
+                    break
+                take(doc_index, best_in_document[1], best_in_document[2])
+        while len(selected) < budget:
+            best = best_overall(PDF_SECTION_ORDER)
+            if best is None:
                 break
-        return chosen
+            take(best[1], best[2], best[3])
+        return sorted(selected, key=lambda item: PDF_SECTION_ORDER.index(item[1]))
 
     def _pdf_section_evidence(
         self,
         url: str,
         company: CompanyInput,
-        exclude_sections: set[str] | None = None,
-    ) -> list[RetrievedEvidence]:
-        """Download a company PDF and return one evidence item per valuable section.
+    ) -> dict[str, Any] | None:
+        """Download and parse one company PDF into a document record.
 
-        Reuses PublicSourceCrawler._extract_pdf (pypdf) rather than adding another
-        parser. Every failure path returns [] so nothing is written: a failed or
+        Reuses PublicSourceCrawler._extract_pdf (pypdf) as the fallback extractor.
+        Every failure path returns None so nothing is written: a failed or
         unparseable document must not become evidence, and raw PDF bytes must
         never be stored as content.
         """
@@ -729,11 +902,11 @@ class CompanyResearchTool:
             final_url = str(response.url)
             payload = response.content
         except (httpx.HTTPError, ValueError, TypeError):
-            return []
+            return None
         if not self._is_pdf(final_url, content_type):
-            return []
+            return None
         if not payload or len(payload) > PDF_MAX_BYTES:
-            return []
+            return None
         try:
             pages = self._pdf_pages(payload)
         except Exception:  # noqa: BLE001 - a broken PDF must not break the run
@@ -741,55 +914,64 @@ class CompanyResearchTool:
                 # Fall back to the shared whole-document extractor.
                 pages = [PublicSourceCrawler._extract_pdf(payload)]
             except Exception:  # noqa: BLE001 - optional source
-                return []
+                return None
         pages = [page for page in pages if page.strip()]
         full_text = "\n".join(pages)
         if not full_text or len(full_text.strip()) < PDF_MIN_CHARS:
-            return []
+            return None
         if self._looks_like_pdf_source(full_text):
-            return []
-        page_count = len(pages)
-        language = self._detect_language(full_text)
-        kind = self._document_kind(final_url)
-        digest = hashlib.sha1(final_url.encode("utf-8")).hexdigest()[:10].upper()
-        name = urlparse(final_url).path.rsplit("/", 1)[-1] or final_url
-        retrieved_at = datetime.now(timezone.utc).isoformat()
-        evidence: list[RetrievedEvidence] = []
-        for section, index in self._select_sections(pages, exclude=exclude_sections):
-            snippet = pages[index][:PDF_SNIPPET_CHARS].strip()
-            if len(snippet) < PDF_MIN_SNIPPET_CHARS:
-                continue
-            evidence.append(
-                RetrievedEvidence(
-                    evidence_id=f"EVD-COMPANY-DOC-{digest}-P{index + 1}",
-                    title=(
-                        f"{company.company_name} — {unquote(name)} "
-                        f"· {section} (p.{index + 1})"
-                    ),
-                    source_type="company_filing",
-                    publisher=urlparse(final_url).netloc,
-                    country_region=company.home_country,
-                    publication_date="unknown",
-                    url=final_url,
-                    authority_level="A",
-                    topic=f"company_{section}",
-                    content=snippet,
-                    relevance_score=92,
-                    is_mock=False,
-                    evidence_scope="company",
-                    document_format="pdf",
-                    document_kind=kind,
-                    section=section,
-                    page_start=index + 1,
-                    page_end=index + 1,
-                    language=language,  # type: ignore[arg-type]
-                    fiscal_year=self._fiscal_year(final_url),
-                    byte_size=len(payload),
-                    page_count=page_count,
-                    retrieved_at=retrieved_at,
-                )
-            )
-        return evidence
+            return None
+        return {
+            "url": final_url,
+            "name": unquote(urlparse(final_url).path.rsplit("/", 1)[-1] or final_url),
+            "kind": self._document_kind(final_url),
+            "fiscal_year": self._fiscal_year(final_url),
+            "language": self._detect_language(full_text),
+            "pages": pages,
+            "page_count": len(pages),
+            "byte_size": len(payload),
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "digest": hashlib.sha1(final_url.encode("utf-8")).hexdigest()[:10].upper(),
+        }
+
+    @staticmethod
+    def _document_evidence(
+        document: dict[str, Any],
+        section: str,
+        page_index: int,
+        company: CompanyInput,
+    ) -> RetrievedEvidence | None:
+        snippet = document["pages"][page_index][:PDF_SNIPPET_CHARS].strip()
+        if len(snippet) < PDF_MIN_SNIPPET_CHARS:
+            return None
+        return RetrievedEvidence(
+            evidence_id=f"EVD-COMPANY-DOC-{document['digest']}-P{page_index + 1}",
+            title=(
+                f"{company.company_name} — {document['name']} "
+                f"· {section} (p.{page_index + 1})"
+            ),
+            source_type="company_filing",
+            publisher=urlparse(document["url"]).netloc,
+            country_region=company.home_country,
+            publication_date="unknown",
+            url=document["url"],
+            authority_level="A",
+            topic=f"company_{section}",
+            content=snippet,
+            relevance_score=92,
+            is_mock=False,
+            evidence_scope="company",
+            document_format="pdf",
+            document_kind=document["kind"],
+            section=section,
+            page_start=page_index + 1,
+            page_end=page_index + 1,
+            language=document["language"],
+            fiscal_year=document["fiscal_year"],
+            byte_size=document["byte_size"],
+            page_count=document["page_count"],
+            retrieved_at=document["retrieved_at"],
+        )
 
     @staticmethod
     def _internal_links(soup: BeautifulSoup, current_url: str) -> list[str]:

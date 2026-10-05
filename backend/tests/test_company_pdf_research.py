@@ -80,6 +80,17 @@ class PdfLinkRankingTest(unittest.TestCase):
         ]
         self.assertEqual(len(CompanyResearchTool._rank_pdf_links(links)), PDF_LIMIT)
 
+    def test_newer_document_wins_on_equal_scores(self) -> None:
+        links = [
+            "https://x.com/a/2015_Sustainability_Report_Korean.pdf",
+            "https://x.com/b/2025_Sustainability_Report_EN.pdf",
+            "https://x.com/c/2021_Sustainability_Report.mp3.pdf",
+        ]
+        self.assertEqual(
+            CompanyResearchTool._rank_pdf_links(links)[0],
+            "https://x.com/b/2025_Sustainability_Report_EN.pdf",
+        )
+
     def test_document_kind_and_fiscal_year(self) -> None:
         kind = CompanyResearchTool._document_kind
         self.assertEqual(kind("https://x.com/a/2025_LGES_Annual_Report.pdf"), "annual_report")
@@ -138,6 +149,10 @@ class SectionSelectionTest(unittest.TestCase):
         "4) 투자 현황 및 신규 투자 계획 해외 투자와 증설, 합작 투자 계획을 설명합니다. "
         "capacity expansion overseas investment"
     )
+    MARKETS = (
+        "5) 시장 및 고객 현황 주요 목표 시장은 미국과 유럽이며, 고객은 자동차 기업과 "
+        "정보통신 기업입니다. target market customer application"
+    )
 
     def test_korean_headings_match_even_when_spaced(self) -> None:
         # PDF extraction renders some headings with a space between characters.
@@ -151,17 +166,39 @@ class SectionSelectionTest(unittest.TestCase):
         self.assertFalse(CompanyResearchTool._is_front_matter(self.BUSINESS))
 
     def test_table_of_contents_is_not_selected(self) -> None:
-        pages = [self.TOC, self.BUSINESS, self.FACTORY]
-        chosen = CompanyResearchTool._select_sections(pages)
-        self.assertIn(("business", 1), chosen)
-        self.assertNotIn(1, [index for _, index in chosen if index == 0])
+        documents = [
+            {"pages": [self.TOC, self.BUSINESS, self.FACTORY], "language": "en"}
+        ]
+        chosen = CompanyResearchTool._select_document_sections(documents)
+        self.assertIn((0, "business", 1), chosen)
+        self.assertNotIn((0, "business", 0), chosen)
 
     def test_sections_are_not_repeated_across_documents(self) -> None:
+        # Pass 1 must cover every available section exactly once before the
+        # remaining budget is spent on additional pages.
         pages = [self.TOC, self.BUSINESS, self.FACTORY, self.INVEST]
-        first = CompanyResearchTool._select_sections(pages)
-        covered = {section for section, _ in first}
-        second = CompanyResearchTool._select_sections(pages, exclude=covered)
-        self.assertFalse(covered & {section for section, _ in second})
+        documents = [
+            {"pages": pages, "language": "ko"},
+            {"pages": pages, "language": "en"},
+        ]
+        chosen = CompanyResearchTool._select_document_sections(documents)
+        sections = [section for _, section, _ in chosen]
+        self.assertEqual(
+            set(sections), {"business", "manufacturing", "investment"}
+        )
+        self.assertLessEqual(len(sections), 6)
+
+    def test_second_document_covers_what_the_first_lacks(self) -> None:
+        first = {"pages": [self.TOC, self.BUSINESS, self.FACTORY], "language": "ko"}
+        second = {"pages": [self.TOC, self.MARKETS, self.INVEST], "language": "en"}
+        chosen = CompanyResearchTool._select_document_sections(
+            [first, second], budget=4
+        )
+        by_section = {section: doc for doc, section, _ in chosen}
+        self.assertEqual(
+            set(by_section),
+            {"business", "manufacturing", "markets", "investment"},
+        )
 
     def test_language_detection(self) -> None:
         detect = CompanyResearchTool._detect_language
@@ -196,6 +233,13 @@ class DocumentComplementTest(unittest.TestCase):
         )
         self.assertEqual(
             CompanyResearchTool._english_hint("https://x.com/a/2025_LGES_Annual_Report.pdf"),
+            0,
+        )
+        # "lg_energy..." contains "_en" but is not English material.
+        self.assertEqual(
+            CompanyResearchTool._english_hint(
+                "https://x.com/a/LG_Energy_Solution_2025_ESG_Report_KR[1].pdf"
+            ),
             0,
         )
 
