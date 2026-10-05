@@ -3003,6 +3003,12 @@ class AgentService:
                 ManufacturingSite.model_validate(item)
                 for item in fallback["manufacturing_footprint"]
             ]
+        # Company Research and Company Intelligence already know bases the form
+        # never asked about; this puts them in the same table as the user's own
+        # layout without inventing shares or capacity for them.
+        manufacturing_sites = self._merge_manufacturing_footprint(
+            manufacturing_sites, company, evidence_by_id
+        )
 
         role_data = self._unwrap_dict(payload.get("supply_chain_role"))
         try:
@@ -3199,30 +3205,163 @@ class AgentService:
             }
         )
 
+    # The form may send a country as a code, an English name or a local name
+    # ("CN", "China", "中国"). Collapsing them onto one key lets a disclosed base
+    # join the user's own row instead of showing the same country twice. Only the
+    # comparison is normalised; the displayed value stays whatever the user wrote.
+    COUNTRY_ALIASES: dict[str, str] = {
+        "cn": "CN", "china": "CN", "中国": "CN",
+        "kr": "KR", "korea": "KR", "southkorea": "KR", "韩国": "KR", "대한민국": "KR",
+        "us": "US", "usa": "US", "unitedstates": "US", "美国": "US",
+        "pl": "PL", "poland": "PL", "波兰": "PL",
+        "ca": "CA", "canada": "CA", "加拿大": "CA",
+        "jp": "JP", "japan": "JP", "日本": "JP",
+        "de": "DE", "germany": "DE", "德国": "DE",
+        "hu": "HU", "hungary": "HU", "匈牙利": "HU",
+    }
+
+    @classmethod
+    def _country_key(cls, country: str) -> str:
+        compact = re.sub(
+            r"[^a-z0-9\uac00-\ud7af\u4e00-\u9fff]",
+            "",
+            str(country or "").casefold(),
+        )
+        if not compact:
+            return ""
+        return cls.COUNTRY_ALIASES.get(compact, compact)
+
+    def _merge_manufacturing_footprint(
+        self,
+        sites: list[ManufacturingSite],
+        company: CompanyInput,
+        evidence_by_id: dict[str, RetrievedEvidence],
+    ) -> list[ManufacturingSite]:
+        """One table: the user's own layout plus the bases the company discloses.
+
+        The user's countries and shares are the baseline. They are never
+        overwritten, and the share the user did not state is never distributed to
+        the other countries. A facility name, role or capacity is only taken from
+        a row that cites company evidence; a country the user never mentioned is
+        only kept when the company's own material names it as a production base,
+        and it never receives a percentage.
+        """
+        merged: dict[str, ManufacturingSite] = {}
+        order: list[str] = []
+        for location in company.production_locations:
+            key = self._country_key(location.country)
+            if not key or key in merged:
+                continue
+            merged[key] = ManufacturingSite(
+                country=location.country,
+                production_share=location.production_share,
+                source_type="user_input",
+                status="reported",
+            )
+            order.append(key)
+        for site in sites:
+            key = self._country_key(site.country)
+            if not key:
+                continue
+            cited = [
+                source_id
+                for source_id in site.source_ids
+                if source_id in evidence_by_id
+            ]
+            existing = merged.get(key)
+            if existing is None:
+                if not cited:
+                    # An unsourced country would be an inference, not a disclosure.
+                    continue
+                merged[key] = site.model_copy(update={"production_share": None})
+                order.append(key)
+                continue
+            if not cited:
+                continue
+            merged[key] = existing.model_copy(
+                update={
+                    "facility": site.facility or existing.facility,
+                    "role": site.role or existing.role,
+                    "capacity": (
+                        site.capacity
+                        if site.capacity and site.capacity != "unknown"
+                        else existing.capacity
+                    ),
+                    "source_type": (
+                        site.source_type
+                        if site.source_type != "user_input"
+                        else "company_filing"
+                    ),
+                    "source_ids": cited,
+                    "status": site.status or existing.status,
+                }
+            )
+        return [merged[key] for key in order]
+
     def _fact_source_supports(
         self,
         fact: str,
         source_ids: list[str],
         evidence_by_id: dict[str, RetrievedEvidence],
     ) -> bool:
+        """Does the cited material actually state this fact?
+
+        Company disclosures are usually English or Korean while the fact is
+        written in the user's language, so a word-by-word comparison only decides
+        anything when both sides share a writing system. Across languages the
+        check falls back to the anchors that survive translation — figures and
+        Latin names — and to whether the cited material is the company's own
+        disclosure at all. A translated restatement of a disclosed fact is still
+        a disclosed fact; only a claim the cited material cannot carry is
+        downgraded.
+        """
         if not source_ids:
+            return False
+        items = [
+            evidence_by_id[source_id]
+            for source_id in source_ids
+            if source_id in evidence_by_id
+        ]
+        if not items:
+            return False
+        source_text = " ".join(item.content for item in items)
+        if len(source_text.strip()) < 80:
             return False
         fact_terms = self._terms(fact)
         if not fact_terms:
             return False
-        source_text = " ".join(
-            evidence_by_id[source_id].content
-            for source_id in source_ids
-            if source_id in evidence_by_id
-        )
         source_terms = self._terms(source_text)
         overlap = fact_terms & source_terms
+        if self._script_of(fact) != self._script_of(source_text):
+            # "국내 공장 및 해외 생산법인에서 제품을 생산" and "通过国内工厂及海外
+            # 生产法人生产" are the same sentence in two scripts; only the figures
+            # and Latin names can be compared, and a fact that carries none of
+            # them rests on the company's own disclosure being the cited source.
+            anchors = {term for term in fact_terms if term.isascii()}
+            if anchors:
+                return bool(anchors & source_terms)
+            return all(
+                item.evidence_scope == "company" and item.source_tier <= 2
+                for item in items
+            )
         numeric_terms = {
             term for term in fact_terms if any(char.isdigit() for char in term)
         }
         return len(overlap) >= 2 and (
             not numeric_terms or numeric_terms.issubset(source_terms)
         )
+
+    @staticmethod
+    def _script_of(value: str) -> str:
+        """Dominant writing system, used to decide if terms are comparable."""
+        text = str(value or "")
+        counts = {
+            "han": len(re.findall(r"[\u4e00-\u9fff]", text)),
+            "hangul": len(re.findall(r"[\uac00-\ud7af]", text)),
+            "latin": len(re.findall(r"[A-Za-z]", text)),
+        }
+        script, count = max(counts.items(), key=lambda item: item[1])
+        return script if count else "unknown"
 
     def _coerce_fact_list(
         self,
