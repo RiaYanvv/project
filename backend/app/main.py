@@ -383,6 +383,73 @@ def assessment_schema() -> dict:
     return Assessment.model_json_schema()
 
 
+def _render_intelligence(assessment: Assessment) -> str:
+    """Company Intelligence part of the HTML report.
+
+    Renders the structured company model (footprint, supply chain, gaps) instead
+    of repeating the user's form input. Returns "" for assessments created before
+    the schema existed.
+    """
+    intelligence = getattr(assessment, "company_intelligence", None)
+    if intelligence is None:
+        return ""
+    blocks: list[str] = []
+    if intelligence.manufacturing_footprint:
+        rows = "".join(
+            "<tr>"
+            f"<td>{html.escape(str(site.country))}</td>"
+            f"<td>{html.escape(str(site.facility or '—'))}</td>"
+            f"<td>{html.escape(str(site.role or '—'))}</td>"
+            f"<td>{site.production_share if site.production_share is not None else '未知'}</td>"
+            f"<td>{html.escape(str(site.capacity))}</td>"
+            f"<td>{html.escape(str(site.status))}</td>"
+            "</tr>"
+            for site in intelligence.manufacturing_footprint
+        )
+        blocks.append(
+            "<h2>全球生产布局</h2><table><thead><tr>"
+            "<th>国家</th><th>设施</th><th>角色</th><th>占比</th>"
+            "<th>产能</th><th>状态</th></tr></thead>"
+            f"<tbody>{rows}</tbody></table>"
+        )
+    if intelligence.supply_chain_structure:
+        rows = "".join(
+            "<tr>"
+            f"<td>{html.escape(stage.stage)}</td>"
+            f"<td>{html.escape(str(stage.region))}</td>"
+            f"<td>{html.escape(str(stage.company_role))}</td>"
+            f"<td>{html.escape(str(stage.share))}</td>"
+            "</tr>"
+            for stage in intelligence.supply_chain_structure
+        )
+        blocks.append(
+            "<h2>供应链结构</h2><table><thead><tr>"
+            "<th>环节</th><th>地区</th><th>该公司角色</th><th>占比</th>"
+            "</tr></thead>"
+            f"<tbody>{rows}</tbody></table>"
+        )
+    gaps = [
+        gap for gap in intelligence.information_gaps if not isinstance(gap, str)
+    ]
+    if gaps:
+        rows = "".join(
+            "<tr>"
+            f"<td>{html.escape(gap.priority)}</td>"
+            f"<td>{html.escape(gap.item)}</td>"
+            f"<td>{html.escape(gap.why_it_matters)}</td>"
+            f"<td>{html.escape(gap.recommended_action)}</td>"
+            "</tr>"
+            for gap in gaps
+        )
+        blocks.append(
+            "<h2>信息缺口</h2><table><thead><tr>"
+            "<th>优先级</th><th>缺失信息</th><th>为什么重要</th><th>建议动作</th>"
+            "</tr></thead>"
+            f"<tbody>{rows}</tbody></table>"
+        )
+    return "".join(blocks)
+
+
 def _render_report(assessment: Assessment) -> str:
     risks = "".join(
         f"<li><strong>{html.escape(item.name)}</strong>："
@@ -408,6 +475,7 @@ def _render_report(assessment: Assessment) -> str:
     company_summary = html.escape(assessment.company_profile.summary)
     recommendation_headline = html.escape(assessment.recommendation.headline)
     recommendation_rationale = html.escape(assessment.recommendation.rationale)
+    intelligence = _render_intelligence(assessment)
     return f"""<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -428,6 +496,7 @@ small {{ color: #52606d; }}
 <body>
 <h1>供应链迁移决策初步报告</h1>
 <p>{company_summary}</p>
+{intelligence}
 <h2>主要风险</h2>
 <ul>{risks}</ul>
 <h2>情景比较</h2>

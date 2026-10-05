@@ -52,6 +52,30 @@ REPORT_LABELS: dict[str, dict[str, str]] = {
         "benefits": "潜在收益",
         "scenario_risks": "潜在风险",
         "assumptions": "关键假设",
+        "footprint": "全球生产布局",
+        "supply_chain": "供应链结构",
+        "gaps": "信息缺口",
+        "col_country": "国家",
+        "col_facility": "设施",
+        "col_role": "角色",
+        "col_share": "占比",
+        "col_capacity": "产能",
+        "col_status": "状态",
+        "col_stage": "环节",
+        "col_region": "地区",
+        "col_company_role": "该公司角色",
+        "col_priority": "优先级",
+        "col_item": "缺失信息",
+        "col_why": "为什么重要",
+        "col_action": "建议动作",
+        "unknown": "未知",
+        "priority_critical": "关键",
+        "priority_important": "重要",
+        "priority_optional": "可选",
+        "stage_raw_material": "原材料",
+        "stage_component": "材料/零部件",
+        "stage_manufacturing": "制造",
+        "stage_downstream": "下游应用",
     },
     "en": {
         "document_title": "Supply Chain Relocation Decision Report",
@@ -79,6 +103,30 @@ REPORT_LABELS: dict[str, dict[str, str]] = {
         "benefits": "Potential benefits",
         "scenario_risks": "Potential risks",
         "assumptions": "Key assumptions",
+        "footprint": "Global manufacturing footprint",
+        "supply_chain": "Supply chain structure",
+        "gaps": "Information gaps",
+        "col_country": "Country",
+        "col_facility": "Facility",
+        "col_role": "Role",
+        "col_share": "Share",
+        "col_capacity": "Capacity",
+        "col_status": "Status",
+        "col_stage": "Stage",
+        "col_region": "Region",
+        "col_company_role": "Company role",
+        "col_priority": "Priority",
+        "col_item": "Missing information",
+        "col_why": "Why it matters",
+        "col_action": "Recommended action",
+        "unknown": "unknown",
+        "priority_critical": "Critical",
+        "priority_important": "Important",
+        "priority_optional": "Optional",
+        "stage_raw_material": "Raw materials",
+        "stage_component": "Materials / components",
+        "stage_manufacturing": "Manufacturing",
+        "stage_downstream": "Downstream",
     },
 }
 
@@ -137,6 +185,7 @@ def build_assessment_pdf(assessment: Assessment) -> bytes:
         Spacer(1, 5 * mm),
         _section(labels["profile"], styles),
         _profile_table(assessment, styles),
+        *_intelligence_sections(assessment, styles, labels),
         Spacer(1, 6 * mm),
         _section(labels["risks"], styles),
         _risk_table(assessment, styles),
@@ -313,6 +362,130 @@ def _profile_table(
     table = Table(data, colWidths=[46 * mm, None])
     table.setStyle(_table_style())
     return table
+
+
+def _intelligence_sections(
+    assessment: Assessment,
+    styles: dict[str, ParagraphStyle],
+    labels: dict[str, str],
+) -> list:
+    """Company Intelligence detail: footprint, supply chain, gaps.
+
+    The report used to describe the company only through the user's form input.
+    These sections render the structured model instead, and are omitted entirely
+    for assessments produced before the schema existed.
+    """
+    intelligence = getattr(assessment, "company_intelligence", None)
+    if intelligence is None:
+        return []
+    blocks: list = []
+
+    def text(value: object) -> str:
+        raw = str(value or "").strip()
+        return raw or labels["unknown"]
+
+    def table(
+        header: list[str], rows: list[list[str]], widths: list[float]
+    ) -> Table:
+        data = [
+            [Paragraph(html.escape(cell), styles["CellHeader"]) for cell in header]
+        ] + [
+            [Paragraph(html.escape(cell), styles["Cell"]) for cell in row]
+            for row in rows
+        ]
+        built = Table(data, colWidths=[width * mm for width in widths], repeatRows=1)
+        built.setStyle(_table_style())
+        return built
+
+    sites = intelligence.manufacturing_footprint
+    if sites:
+        blocks.append(Spacer(1, 5 * mm))
+        blocks.append(_section(labels["footprint"], styles))
+        blocks.append(
+            table(
+                [
+                    labels["col_country"],
+                    labels["col_facility"],
+                    labels["col_role"],
+                    labels["col_share"],
+                    labels["col_capacity"],
+                    labels["col_status"],
+                ],
+                [
+                    [
+                        text(site.country),
+                        text(site.facility),
+                        text(site.role),
+                        (
+                            f"{site.production_share}%"
+                            if site.production_share is not None
+                            else labels["unknown"]
+                        ),
+                        text(site.capacity),
+                        text(site.status),
+                    ]
+                    for site in sites
+                ],
+                [22, 34, 38, 18, 26, 22],
+            )
+        )
+
+    stages = intelligence.supply_chain_structure
+    if stages:
+        blocks.append(Spacer(1, 5 * mm))
+        blocks.append(_section(labels["supply_chain"], styles))
+        blocks.append(
+            table(
+                [
+                    labels["col_stage"],
+                    labels["col_region"],
+                    labels["col_company_role"],
+                    labels["col_share"],
+                ],
+                [
+                    [
+                        labels.get(f"stage_{stage.stage}", stage.stage),
+                        text(stage.region),
+                        text(stage.company_role)
+                        + (f" — {stage.description}" if stage.description else ""),
+                        text(stage.share),
+                    ]
+                    for stage in stages
+                ],
+                [28, 30, 88, 24],
+            )
+        )
+
+    gaps = list(intelligence.information_gaps)
+    if gaps:
+        rows = []
+        for gap in gaps:
+            if isinstance(gap, str):
+                rows.append([labels["priority_important"], gap, "", ""])
+            else:
+                rows.append(
+                    [
+                        labels.get(f"priority_{gap.priority}", gap.priority),
+                        gap.item,
+                        gap.why_it_matters,
+                        gap.recommended_action,
+                    ]
+                )
+        blocks.append(Spacer(1, 5 * mm))
+        blocks.append(_section(labels["gaps"], styles))
+        blocks.append(
+            table(
+                [
+                    labels["col_priority"],
+                    labels["col_item"],
+                    labels["col_why"],
+                    labels["col_action"],
+                ],
+                rows,
+                [20, 44, 56, 54],
+            )
+        )
+    return blocks
 
 
 def _scenario_detail(

@@ -743,11 +743,30 @@ class AgentService:
 
         assistant_turn = ChatTurn(role="assistant", content=reply, created_at=utc_now())
         history = [*assessment.chat_history, user_turn, assistant_turn]
+        # Doc §10: information the user adds during the consultation is folded
+        # back into the company model so later stages use the same context.
+        patched_intelligence, patch_count = self._patch_intelligence(
+            assessment.company_intelligence, chat_analysis
+        )
+        patch_trace = None
+        if patch_count:
+            patch_trace = self._trace(
+                agent="ChatAgent",
+                action="将咨询新增信息并入企业画像",
+                status="completed",
+                detail=f"新增 {patch_count} 条约束/偏好到决策情境。",
+                started=step_started,
+            )
         updated = assessment.model_copy(
             update={
                 "chat_history": history,
                 "chat_analysis": chat_analysis,
-                "trace": [*assessment.trace, chat_trace],
+                "company_intelligence": patched_intelligence,
+                "trace": [
+                    *assessment.trace,
+                    chat_trace,
+                    *([patch_trace] if patch_trace else []),
+                ],
                 "llm_calls": chat_calls,
                 "degraded": assessment.degraded or any(
                     not item.ok for item in chat_calls
@@ -1054,6 +1073,42 @@ class AgentService:
             return True
         # A bare list of evidence ids carries no company information.
         return bool(cls._EVIDENCE_ID_LIST.fullmatch(lowered))
+
+    @staticmethod
+    def _patch_intelligence(
+        intelligence: CompanyIntelligence | None,
+        analysis: ChatAnalysis,
+    ) -> tuple[CompanyIntelligence | None, int]:
+        """Fold consultation input into the company model.
+
+        New constraints extend the decision context; stated preferences extend the
+        drivers, because a preference such as "we would rather not relocate" is a
+        factor driving the decision. Existing entries are never overwritten.
+        """
+        if intelligence is None:
+            return None, 0
+        context = intelligence.decision_context
+        constraints = list(
+            dict.fromkeys([*context.constraints, *analysis.new_constraints])
+        )
+        drivers = list(
+            dict.fromkeys([*context.drivers, *analysis.new_preferences])
+        )
+        added = (len(constraints) - len(context.constraints)) + (
+            len(drivers) - len(context.drivers)
+        )
+        if added <= 0:
+            return intelligence, 0
+        return (
+            intelligence.model_copy(
+                update={
+                    "decision_context": context.model_copy(
+                        update={"constraints": constraints, "drivers": drivers}
+                    )
+                }
+            ),
+            added,
+        )
 
     @classmethod
     def _cap_information_gaps(

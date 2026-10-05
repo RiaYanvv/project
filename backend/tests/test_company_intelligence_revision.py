@@ -10,7 +10,15 @@ sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.agent import AgentService
 from app.company_research import CompanyResearchTool
-from app.schemas import InformationGap, RetrievedEvidence
+from app.main import _render_intelligence
+from app.schemas import (
+    Assessment,
+    ChatAnalysis,
+    CompanyIntelligence,
+    DecisionContext,
+    InformationGap,
+    RetrievedEvidence,
+)
 
 
 def make_evidence(source_type: str, scope: str = "company") -> RetrievedEvidence:
@@ -197,6 +205,110 @@ class SchemaNoiseTest(unittest.TestCase):
                 "CATL is headquartered in Ningde and listed in Shenzhen."
             )
         )
+
+
+class ConsultationPatchTest(unittest.TestCase):
+    """Doc §10: consultation input is folded back into the company model."""
+
+    def test_new_constraints_and_preferences_are_added(self) -> None:
+        intelligence = CompanyIntelligence(
+            decision_context=DecisionContext(
+                objective="expand or stay", constraints=["time horizon"]
+            )
+        )
+        patched, added = AgentService._patch_intelligence(
+            intelligence,
+            ChatAnalysis(
+                new_constraints=["budget cap of USD 50M"],
+                new_preferences=["prefer not to relocate"],
+            ),
+        )
+        self.assertEqual(added, 2)
+        self.assertIn("budget cap of USD 50M", patched.decision_context.constraints)
+        self.assertIn("prefer not to relocate", patched.decision_context.drivers)
+
+    def test_existing_entries_are_not_duplicated(self) -> None:
+        intelligence = CompanyIntelligence(
+            decision_context=DecisionContext(constraints=["time horizon"])
+        )
+        _, added = AgentService._patch_intelligence(
+            intelligence,
+            ChatAnalysis(new_constraints=["time horizon"]),
+        )
+        self.assertEqual(added, 0)
+
+    def test_missing_intelligence_is_tolerated(self) -> None:
+        patched, added = AgentService._patch_intelligence(
+            None, ChatAnalysis(new_constraints=["x"])
+        )
+        self.assertIsNone(patched)
+        self.assertEqual(added, 0)
+
+
+class HtmlReportIntelligenceTest(unittest.TestCase):
+    """The report renders the company model instead of the raw form."""
+
+    def test_empty_without_intelligence(self) -> None:
+        assessment = Assessment.model_validate(
+            {
+                "assessment_id": "ASM-1",
+                "request_id": "REQ-1",
+                "created_at": "2026-01-01T00:00:00+00:00",
+                "updated_at": "2026-01-01T00:00:00+00:00",
+                "company_profile": {
+                    "company_id": "CMP-1",
+                    "company_name": "Test Co",
+                    "industry": "battery_ev",
+                    "products": ["cells"],
+                    "home_country": "CN",
+                    "production_footprint": [],
+                    "target_markets": [],
+                    "decision_question": "q",
+                    "time_horizon": "6_18_months",
+                    "priorities": [],
+                    "restrictions": [],
+                    "summary": "s",
+                },
+                "company_intelligence": None,
+                "evidence": [],
+                "risks": [],
+                "scenarios": [],
+                "recommendation": {
+                    "recommended_scenario_id": "SCN-001",
+                    "headline": "h",
+                    "rationale": "r",
+                    "next_actions": [],
+                    "confidence": "low",
+                    "uncertainty": [],
+                },
+                "limitations": [],
+                "model_mode": "mock",
+                "data_mode": "mock",
+            }
+        )
+        self.assertEqual(_render_intelligence(assessment), "")
+
+    def test_sections_render_from_intelligence(self) -> None:
+        from app.schemas import ManufacturingSite, SupplyChainStage
+
+        intelligence = CompanyIntelligence(
+            manufacturing_footprint=[
+                ManufacturingSite(country="Germany", production_share=40)
+            ],
+            supply_chain_structure=[
+                SupplyChainStage(stage="raw_material", region="unknown")
+            ],
+            information_gaps=[
+                InformationGap(item="Capacity by site", priority="critical")
+            ],
+        )
+        html_out = _render_intelligence(
+            type("A", (), {"company_intelligence": intelligence})()
+        )
+        self.assertIn("全球生产布局", html_out)
+        self.assertIn("供应链结构", html_out)
+        self.assertIn("信息缺口", html_out)
+        self.assertIn("Germany", html_out)
 
 
 if __name__ == "__main__":
