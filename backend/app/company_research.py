@@ -162,6 +162,29 @@ SEC_NAME_SUFFIXES = (
     "inc", "incorporated", "corp", "corporation", "co", "company", "ltd",
     "limited", "plc", "holdings", "group", "technologies", "technology",
 )
+# Legal forms stripped before an entity lookup, so "LG Energy Solution Ltd."
+# and "LG Energy Solution" reach the same Wikidata candidate. Derived from the
+# SEC list (one suffix table, not two); the descriptive words in it are left out
+# because they are part of real names ("SK Holdings", "LG Technology").
+COMPANY_NAME_LEGAL_SUFFIXES = tuple(
+    dict.fromkeys(
+        [
+            suffix
+            for suffix in SEC_NAME_SUFFIXES
+            if suffix not in {"holdings", "group", "technologies", "technology"}
+        ]
+        + ["llc", "gmbh", "s.a", "주식회사", "株式会社"]
+    )
+)
+# Korean and Japanese legal forms may also stand in front of the core name.
+COMPANY_NAME_LEGAL_PREFIXES = ("주식회사", "株式会社")
+# Requires a separator before the suffix, so "Tosco" is not read as "Tos" + "co".
+_COMPANY_SUFFIX_PATTERN = re.compile(
+    r"[\s,.\u3001\uff0c]+(?:"
+    + "|".join(re.escape(item) for item in COMPANY_NAME_LEGAL_SUFFIXES)
+    + r")[\s,.\u3001\uff0c]*$",
+    re.IGNORECASE,
+)
 # One download per process; the file is ~800 KB.
 _SEC_TICKER_CACHE: dict[str, str] | None = None
 RELATED_PAGE_LIMIT = 3
@@ -191,12 +214,22 @@ class CompanyResearchTool:
                 ]
             )
         )
+        # A legal suffix used to end the run before it started: "LG Energy
+        # Solution Ltd." returns no Wikidata candidate at all, and that miss
+        # skipped every other source. The normalized core name is tried right
+        # after the user's own wording; the original value is never overwritten.
+        normalized = self.normalize_company_name(company.company_name)
+        if normalized and normalized.casefold() != company.company_name.strip().casefold():
+            names.insert(1, normalized)
+        lookup_names = names[:5]
         items: list[RetrievedEvidence] = []
         entity = None
-        for name in names[:3]:
+        for name in lookup_names:
             entity = self._find_wikidata_entity(name, company.industry)
             if entity:
                 break
+        # Wikidata is an entry point, not a gate. When it resolves, it supplies
+        # the identity material; when it does not, research continues below.
         if entity:
             wikidata_item = self._wikidata_evidence(entity, company)
             if wikidata_item:
@@ -207,19 +240,22 @@ class CompanyResearchTool:
             )
             if wikipedia_item:
                 items.append(wikipedia_item)
-            website = self._official_website(entity)
-            if website:
-                items.extend(self._official_site_evidence(website, company))
-            items.extend(self._sec_filing_evidence(company))
-        if not items:
+        else:
             # Wikidata is the preferred entry point, but a single upstream failure
             # used to leave the profile with no company evidence at all. Falling
             # back to Wikipedia by name keeps the stage useful.
-            for name in names[:3]:
+            for name in lookup_names:
                 wikipedia_item = self._wikipedia_evidence(name, company)
                 if wikipedia_item:
                     items.append(wikipedia_item)
                     break
+        # The company's own site — and the annual reports / ESG documents linked
+        # from it — is researched whether or not Wikidata identified the entity.
+        website = self._official_website(entity) if entity else ""
+        website = website or self._fallback_official_site(company)
+        if website:
+            items.extend(self._official_site_evidence(website, company))
+        items.extend(self._sec_filing_evidence(company))
         # Identity first, then the annual-report / ESG sections, then the public
         # pages. The stable sort keeps the original order inside each group.
         ordered = sorted(items, key=self._company_item_priority)
@@ -1100,6 +1136,33 @@ class CompanyResearchTool:
         }
 
     @staticmethod
+    def normalize_company_name(company_name: str) -> str:
+        """Drop legal-form tokens so a lookup reaches the core company name.
+
+        "LG Energy Solution Ltd.", "LG Energy Solution, Ltd." and
+        "LG Energy Solution Limited" all normalize to "LG Energy Solution".
+        The caller keeps the user's original wording; this value is only an
+        extra lookup candidate. When nothing can be stripped the original name
+        is returned unchanged.
+        """
+        original = " ".join(str(company_name or "").split())
+        if not original:
+            return ""
+        name = original
+        for prefix in COMPANY_NAME_LEGAL_PREFIXES:
+            if prefix in name:
+                name = name.replace(prefix, " ")
+        name = " ".join(name.split())
+        while name:
+            stripped = _COMPANY_SUFFIX_PATTERN.sub("", name).strip(
+                " .,\u3001\uff0c"
+            )
+            if stripped == name:
+                break
+            name = stripped
+        return name or original
+
+    @staticmethod
     def _known_aliases(company_name: str) -> list[str]:
         normalized = company_name.lower().replace(" ", "")
         aliases: dict[str, list[str]] = {
@@ -1209,6 +1272,39 @@ class CompanyResearchTool:
 
     def _official_website(self, entity: dict[str, Any]) -> str:
         return self._claim_string(entity.get("claims") or {}, "P856")
+
+    def _fallback_official_site(self, company: CompanyInput) -> str:
+        """Find the corporate site when Wikidata cannot identify the company.
+
+        Without a new search service the name is the only signal left, so the
+        conventional domains for the normalized name are probed through the
+        existing page fetcher. A candidate is accepted only when its homepage
+        actually names the company, so a wrong guess is dropped instead of being
+        crawled as if it were the company's own site.
+        """
+        core = self.normalize_company_name(company.company_name)
+        slug = re.sub(r"[^a-z0-9]", "", core.casefold())
+        if len(slug) < 4:
+            return ""
+        for candidate in (f"https://www.{slug}.com", f"https://www.{slug}.co.kr"):
+            fetched = self._fetch_page(
+                candidate, timeout=min(self.timeout, RELATED_PAGE_TIMEOUT)
+            )
+            if fetched is None:
+                continue
+            final_url, text, _ = fetched
+            if self._names_company(text, core):
+                return final_url
+        return ""
+
+    @staticmethod
+    def _names_company(text: str, company_name: str) -> bool:
+        """True when a fetched page actually mentions the company's core name."""
+        compact_name = re.sub(r"[^a-z0-9]", "", str(company_name).casefold())
+        if len(compact_name) < 4:
+            return False
+        compact_text = re.sub(r"[^a-z0-9]", "", str(text or "").casefold())
+        return compact_name in compact_text
 
     def _website_evidence(
         self,
