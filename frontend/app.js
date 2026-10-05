@@ -998,12 +998,8 @@ function sourceLink(item) {
 /* Company intelligence (workflow.md): every fact carries its own source and
    status, so user statements, public sources, inferences and open questions are
    never blended together. */
-const INTELLIGENCE_BLOCKS = [
-  ["overview", "Company overview"],
-  ["production_footprint", "Global production footprint"],
-  ["supply_chain", "Supply chain structure"],
-  ["strategic_context", "Strategic context"],
-];
+/* The section order below is fixed in renderIntelligence; the profile page no
+   longer repeats the user's form input section by section. */
 const FACT_STATUS_LABEL = {
   user_input: "User input",
   public_source: "Public source",
@@ -1041,6 +1037,17 @@ const ROLE_LABEL = {
   DOWNSTREAM_APPLICATION: () => L("Downstream application", "下游应用"),
   INTEGRATED_BATTERY_COMPANY: () => L("Integrated battery company", "一体化电池企业"),
   OTHER: () => L("Other", "其他"),
+};
+const STAGE_LABEL = {
+  raw_material: () => L("Raw materials", "原材料"),
+  component: () => L("Materials / components", "材料 / 零部件"),
+  manufacturing: () => L("Manufacturing", "制造"),
+  downstream: () => L("Downstream", "下游应用"),
+};
+const SHARE_BASIS_LABEL = {
+  user_input: () => L("user-provided", "用户提供"),
+  disclosed: () => L("company disclosure", "公司披露"),
+  sourced_estimate: () => L("sourced estimate", "有来源的估计"),
 };
 
 function roleLabel(value) {
@@ -1096,8 +1103,23 @@ function renderIntelligence(assessment) {
 
   const roleData = data.supply_chain_role || {};
   const roleValues = [roleData.primary, ...(roleData.secondary || [])].filter(Boolean);
-  const roleInner = roleValues.length
-    ? `<div class="role-chips">${roleValues.map((value, index) => `<span class="role-chip${index === 0 ? " primary" : ""}">${escapeHtml(roleLabel(value))}</span>`).join("")}</div>`
+  const roleChips = roleValues
+    .map((value, index) => `<span class="role-chip${index === 0 ? " primary" : ""}">${escapeHtml(roleLabel(value))}</span>`)
+    .join("");
+  const roleInner = roleChips ? `<div class="role-chips">${roleChips}</div>` : "";
+
+  // Structured supply chain (Company Intelligence revision §3): who supplies
+  // what, where, and where the output goes.
+  const stages = data.supply_chain_structure || [];
+  const structureInner = stages.length
+    ? `${roleInner}<ul class="supply-chain-list">${stages.map(stage => `<li>
+        <span class="chain-stage ${escapeHtml(stage.stage)}">${escapeHtml(STAGE_LABEL[stage.stage] ? STAGE_LABEL[stage.stage]() : stage.stage)}</span>
+        <span class="chain-body">
+          <b>${escapeHtml(stage.region || "unknown")}${stage.company_role ? ` · ${escapeHtml(stage.company_role)}` : ""}</b>
+          ${stage.description ? `<span class="chain-text">${escapeHtml(stage.description)}</span>` : ""}
+          <span class="chain-share">${L("Share", "占比")}: ${escapeHtml(stage.share || "unknown")}${stage.share_basis && stage.share_basis !== "unknown" ? ` · ${escapeHtml(mappedLabel(SHARE_BASIS_LABEL, stage.share_basis))}` : ""}</span>
+        </span>
+      </li>`).join("")}</ul>`
     : "";
 
   const profile = data.business_profile || {};
@@ -1133,26 +1155,51 @@ function renderIntelligence(assessment) {
     </li>`;
   };
   const gaps = data.information_gaps || [];
-  const gapInner = gaps.length ? `<ul class="gap-list">${gaps.map(gapRow).join("")}</ul>` : "";
+  const isOptional = (gap) => typeof gap === "object" && gap !== null && gap.priority === "optional";
+  const mainGaps = gaps.filter(gap => !isOptional(gap));
+  const optionalGaps = gaps.filter(isOptional);
+  const gapList = (list) => `<ul class="gap-list">${list.map(gapRow).join("")}</ul>`;
+  const gapInner = [
+    mainGaps.length ? gapList(mainGaps) : "",
+    optionalGaps.length
+      ? `<details class="intel-fold"><summary>${L("Optional gaps", "可选信息缺口")} (${optionalGaps.length})</summary>${gapList(optionalGaps)}</details>`
+      : "",
+  ].join("");
 
   const references = data.evidence_references || [];
   const referenceInner = references.length
-    ? `<ul class="intel-list">${references.map(ref => `<li><span class="intel-fact">${escapeHtml(ref.title || ref.evidence_id)} <span class="intel-sources">${escapeHtml(ref.publisher || "")}</span></span><span class="intel-meta"><span class="intel-sources">${escapeHtml(ref.evidence_id)}</span></span></li>`).join("")}</ul>`
+    // Collapsed by default: the page should read first and explain on demand.
+    ? `<details class="intel-fold"><summary>${L("Evidence", "证据")} (${references.length})</summary><ul class="intel-list">${references.map(ref => `<li><span class="intel-fact">${escapeHtml(ref.title || ref.evidence_id)} <span class="intel-sources">${escapeHtml(ref.publisher || "")}</span></span><span class="intel-meta"><span class="intel-sources">${escapeHtml(ref.evidence_id)}</span>${ref.url ? ` <a class="evidence-open" href="${escapeHtml(ref.url)}" target="_blank" rel="noopener noreferrer">${L("Open source", "打开来源")} ↗</a>` : ""}</span></li>`).join("")}</ul></details>`
+    : "";
+
+  // Company Overview keeps identity + business model + the overview facts in one
+  // place, so the same user input is not restated in several sections.
+  const overviewInner = [
+    identity.length ? `<ul class="intel-list">${identity.map(line => `<li><span class="intel-fact">${escapeHtml(line)}</span></li>`).join("")}</ul>` : "",
+    profileInner,
+    (data.overview || []).length ? facts(data.overview) : "",
+  ].join("");
+  const legacyFootprint = (data.production_footprint || []).length
+    ? facts(data.production_footprint)
+    : "";
+  const legacySupplyChain = [
+    roleInner,
+    (data.supply_chain || []).length ? facts(data.supply_chain) : "",
+  ].join("");
+  const sourceLine = references.length
+    ? `<p class="intel-source-line">${L(`Based on ${references.length} sources`, `基于 ${references.length} 条来源`)}</p>`
     : "";
 
   container.innerHTML = [
     summary ? `<p class="overview-text">${escapeHtml(summary)}</p>` : "",
-    identity.length ? block(L("Company identity", "企业身份"), `<ul class="intel-list">${identity.map(line => `<li><span class="intel-fact">${escapeHtml(line)}</span></li>`).join("")}</ul>`) : "",
-    INTELLIGENCE_BLOCKS.map(([key, label]) => {
-      const items = data[key] || [];
-      return items.length ? block(label, facts(items)) : "";
-    }).join(""),
-    block(L("Business profile", "业务画像"), profileInner),
-    block(L("Global manufacturing footprint (structured)", "全球生产布局（结构化）"), siteTable),
-    block(L("Supply chain role", "供应链角色"), roleInner),
+    sourceLine,
+    block(L("Company overview", "企业概况"), overviewInner),
+    block(L("Global manufacturing footprint", "全球生产布局"), siteTable || legacyFootprint),
+    block(L("Supply chain structure", "供应链结构"), structureInner || legacySupplyChain),
+    block(L("Strategic context", "战略情境"), (data.strategic_context || []).length ? facts(data.strategic_context) : ""),
     block(L("Decision context", "决策情境"), contextInner),
     block(L("Information gaps", "信息缺口"), gapInner),
-    block(L("Evidence references", "证据引用"), referenceInner),
+    block(L("Evidence sources", "证据来源"), referenceInner),
   ].join("");
 }
 

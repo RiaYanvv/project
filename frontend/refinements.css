@@ -482,3 +482,22 @@ input.field-invalid,select.field-invalid,textarea.field-invalid{border-color:#d8
 .gap-item{color:#294861;font-size:13.5px;font-weight:700;line-height:1.5}
 .gap-detail{margin:7px 0 0;color:#5a7182;font-size:12px;line-height:1.6}
 .gap-detail b{color:#345267}
+
+/* Supply chain structure (upstream → manufacturing → downstream), plus the
+   collapsed evidence / optional-gap folds that keep the profile readable. */
+.supply-chain-list{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:10px}
+.supply-chain-list li{display:grid;grid-template-columns:120px 1fr;gap:12px;padding:12px 14px;border:1px solid #e2ecf1;border-left:3px solid #cbdde7;background:#fbfdfe}
+.chain-stage{align-self:start;justify-self:start;padding:3px 8px;border:1px solid #cbdde7;border-radius:2px;background:#f4f9fc;color:#4b7391;font:600 9.5px var(--mono);letter-spacing:.05em;text-transform:uppercase}
+.chain-stage.raw_material{border-color:#d8cfe8;background:#f7f3fb;color:#6a5490}
+.chain-stage.component{border-color:#c6d8e6;background:#f1f7fb;color:#4b7391}
+.chain-stage.manufacturing{border-color:#3984ac;background:#eff8fc;color:var(--blue)}
+.chain-stage.downstream{border-color:#b9d8ca;background:#eef7f1;color:#2f7a52}
+.chain-body{display:grid;gap:4px}
+.chain-body b{color:#294861;font-size:12.5px}
+.chain-text{color:#5a7182;font-size:12px;line-height:1.6}
+.chain-share{color:#8293a0;font:500 10px var(--mono)}
+.intel-fold{margin-top:10px;border:1px solid #e2ecf1;background:#fbfdfe}
+.intel-fold summary{padding:10px 14px;color:var(--blue);font:600 11.5px var(--sans);cursor:pointer}
+.intel-fold[open] summary{border-bottom:1px solid #e2ecf1}
+.intel-fold .intel-list,.intel-fold .gap-list{padding:0 14px 12px;margin-top:10px}
+.intel-source-line{margin:6px 0 0;color:#8293a0;font:500 10px var(--mono);letter-spacing:.03em;text-transform:uppercase}
