@@ -157,6 +157,24 @@ class RetrievedEvidence(StrictModel):
     # 3 = industry context, 4 = policy/regulatory material.
     source_tier: int = Field(default=4, ge=1, le=4)
     source_tier_reason: str = ""
+    # Document provenance for company sources (Company Research P0). Additive
+    # with defaults so existing stored assessments keep validating.
+    document_format: Literal["html", "pdf", "unknown"] = "unknown"
+    document_kind: Literal[
+        "annual_report",
+        "business_report",
+        "esg_report",
+        "financial_statement",
+        "earnings_release",
+        "investor_material",
+        "filing",
+        "web_page",
+        "unknown",
+    ] = "unknown"
+    fiscal_year: str = ""
+    byte_size: int = Field(default=0, ge=0)
+    page_count: int = Field(default=0, ge=0)
+    retrieved_at: str = ""
     freshness: Literal["current", "aging", "stale", "unknown"] = "unknown"
     verification_status: Literal[
         "verified", "partial", "unverified", "contested", "outdated"

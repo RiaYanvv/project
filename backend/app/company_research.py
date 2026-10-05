@@ -1,15 +1,19 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
 import re
+from datetime import datetime, timezone
 from typing import Any
-from urllib.parse import urljoin, urlparse
+from urllib.parse import unquote, urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
+from pypdf import PdfReader
 
+from .crawler import PublicSourceCrawler
 from .schemas import CompanyInput, RetrievedEvidence
 
 
@@ -20,12 +24,54 @@ WIKIPEDIA_SUMMARY = "https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
 # Company-level facts live on a handful of corporate pages. The links are read
 # from the homepage rather than guessed, and only a few are followed, so this
 # stays a small fetch rather than a crawler.
-SECTION_TERMS = (
-    "about", "company", "profile", "overview", "corporate",
-    "product", "business", "solution", "technology", "brand",
-    "sustainab", "esg", "investor", "responsib",
-    "news", "press", "media", "announce", "disclosure", "ir",
+#
+# Ranking is by company-intelligence value, not URL length: the previous
+# length-based sort let short marketing paths such as /kr/business/ess outrank
+# /kr/investors/data-business-report, so annual reports were never reached.
+SECTION_SCORES: tuple[tuple[int, tuple[str, ...]], ...] = (
+    (100, ("annual-report", "annual_report", "business-report", "business_report")),
+    (90, ("disclosure", "financial", "earnings")),
+    # Note: no bare "ir" here — as a substring it matches "cs-inquiry" and
+    # "fair-trade". Investor pages are recognised by a whole path segment below.
+    (80, ("investor", "investors")),
+    (60, ("report", "newsroom", "announce")),
+    (50, ("about", "company", "profile", "overview")),
+    (40, ("esg", "sustainability", "sustainab")),
+    (10, ("product", "business", "solution", "technology", "careers",
+          "service", "marketing", "brand")),
 )
+# "ir" must match a whole path segment: /kr/esg/fair-trade contains the letters
+# "ir" but is not an investor page.
+IR_PATH_SEGMENTS = frozenset({"ir", "investor", "investors"})
+
+# Filename hints for the PDFs linked from those pages.
+PDF_NAME_SCORES: tuple[tuple[int, str], ...] = (
+    (100, "annual_report"),
+    (95, "annual report"),
+    (95, "annualreport"),
+    (90, "business_report"),
+    (90, "business report"),
+    (80, "financial_statement"),
+    (80, "financial statement"),
+    (78, "financial_report"),
+    (78, "financial report"),
+    (70, "earnings"),
+    (60, "investor_presentation"),
+    (60, "investor presentation"),
+    (50, "esg_report"),
+    (50, "esg report"),
+    (50, "sustainability_report"),
+    (50, "sustainability report"),
+)
+
+# Guard rails: a handful of the most relevant documents per run, nothing bigger
+# than a normal report, and no unbounded text in the prompt.
+PDF_LIMIT = 2
+PDF_MAX_BYTES = 15 * 1024 * 1024
+PDF_MAX_CHARS = 20_000
+PDF_MIN_CHARS = 400
+PDF_TIMEOUT = 30.0
+SECTION_PAGE_LIMIT = 3
 
 # US exchange filings. SEC requires a User-Agent that names the requester and a
 # reachable contact address, and blocks placeholder domains, so the lookup is
@@ -107,9 +153,9 @@ class CompanyResearchTool:
         self,
         base_url: str,
         company: CompanyInput,
-        limit: int = RELATED_PAGE_LIMIT,
+        limit: int = SECTION_PAGE_LIMIT,
     ) -> list[RetrievedEvidence]:
-        """Homepage plus a few real internal pages discovered from its links.
+        """Homepage, the highest-value sections, and the PDFs they link to.
 
         Guessing paths such as /about does not work on most corporate sites —
         they 404 or block — so the section links are read from the homepage.
@@ -119,6 +165,7 @@ class CompanyResearchTool:
             return []
         final_url, text, links = homepage
         items: list[RetrievedEvidence] = []
+        pdf_links: list[str] = [url for url in links if self._is_pdf(url, "")]
         if len(text) >= 120:
             items.append(self._page_evidence(final_url, company, text, "home"))
         for url in self._rank_section_links(links):
@@ -129,12 +176,21 @@ class CompanyResearchTool:
             )
             if fetched is None:
                 continue
-            page_url, page_text, _ = fetched
+            page_url, page_text, page_links = fetched
             if len(page_text) < 120:
                 continue
             label = page_url.rstrip("/").rsplit("/", 1)[-1] or "page"
             items.append(self._page_evidence(page_url, company, page_text, label[:24]))
-        return items[: limit + 1]
+            # Annual reports and filings are linked from these pages, one hop
+            # below the homepage.
+            pdf_links.extend(
+                link for link in page_links if self._is_pdf(link, "")
+            )
+        for pdf_url in self._rank_pdf_links(pdf_links):
+            document = self._pdf_evidence(pdf_url, company)
+            if document is not None:
+                items.append(document)
+        return items[: limit + 1 + PDF_LIMIT]
 
     def _sec_filing_evidence(
         self, company: CompanyInput
@@ -261,19 +317,84 @@ class CompanyResearchTool:
                 return cik
         return ""
 
-    def _rank_section_links(self, links: list[str]) -> list[str]:
-        """Prefer the links most likely to carry company-level facts."""
+    @classmethod
+    def _section_score(cls, url: str) -> int:
+        """Company-intelligence value of a page URL (higher is better)."""
+        segments = [
+            segment for segment in urlparse(url).path.lower().split("/") if segment
+        ]
+        haystack = " ".join(segments)
+        score = 0
+        for value, keywords in SECTION_SCORES:
+            if any(keyword in haystack for keyword in keywords):
+                score = max(score, value)
+        # A page under an investor path is at least investor-grade, but document
+        # endpoints such as .../data-business-report still score higher above.
+        if IR_PATH_SEGMENTS & set(segments):
+            score = max(score, 80)
+        return score
 
-        def score(url: str) -> tuple[int, int]:
-            lowered = url.lower()
-            matched = not any(term in lowered for term in SECTION_TERMS)
-            return (matched, len(url))
+    @classmethod
+    def _rank_section_links(cls, links: list[str]) -> list[str]:
+        """Prefer the pages most likely to carry company-level facts."""
+        return sorted(
+            dict.fromkeys(links),
+            key=lambda url: (-cls._section_score(url), len(url)),
+        )[:RELATED_PAGE_ATTEMPTS]
 
-        return sorted(dict.fromkeys(links), key=score)[:RELATED_PAGE_ATTEMPTS]
+    @staticmethod
+    def _pdf_name_score(url: str) -> int:
+        name = urlparse(url).path.rsplit("/", 1)[-1].lower()
+        name = re.sub(r"%20|[-_+]", " ", name)
+        for score, hint in PDF_NAME_SCORES:
+            if hint in name:
+                return score
+        return 0
+
+    @classmethod
+    def _rank_pdf_links(cls, links: list[str], limit: int = PDF_LIMIT) -> list[str]:
+        """Only clearly named company documents, best first."""
+        ranked = [
+            (cls._pdf_name_score(url), url)
+            for url in dict.fromkeys(links)
+            # A filename hint alone is not enough: an HTML path such as
+            # /investors/data-business-report also contains "business report".
+            if cls._is_pdf(url, "") and cls._pdf_name_score(url) > 0
+        ]
+        ranked.sort(key=lambda item: (-item[0], len(item[1])))
+        return [url for _, url in ranked[:limit]]
+
+    @staticmethod
+    def _document_kind(url: str) -> str:
+        name = urlparse(url).path.rsplit("/", 1)[-1].lower()
+        name = re.sub(r"%20|[-_+]", " ", name)
+        if "annual report" in name or "annualreport" in name:
+            return "annual_report"
+        if "business report" in name:
+            return "business_report"
+        if "esg" in name or "sustainability" in name:
+            return "esg_report"
+        if "financial" in name:
+            return "financial_statement"
+        if "earnings" in name or "script" in name:
+            return "earnings_release"
+        return "investor_material"
+
+    @staticmethod
+    def _fiscal_year(url: str) -> str:
+        match = re.search(r"(20\d{2})", urlparse(url).path)
+        return match.group(1) if match else ""
 
     def _fetch_page(
         self, url: str, timeout: float | None = None
     ) -> tuple[str, str, list[str]] | None:
+        """Fetch an HTML page.
+
+        Returns None for anything that is not HTML — in particular for PDFs,
+        which are handled by _pdf_evidence. Parsing a PDF as HTML yielded 2.9M
+        characters of "%PDF-1.7 ... /FlateDecode" that passed the length check and
+        would have been stored as evidence content.
+        """
         try:
             with httpx.Client(
                 timeout=timeout or self.timeout,
@@ -282,6 +403,13 @@ class CompanyResearchTool:
             ) as client:
                 response = client.get(url)
                 response.raise_for_status()
+            content_type = (
+                response.headers.get("content-type", "").split(";")[0].strip().lower()
+            )
+            if self._is_pdf(str(response.url), content_type):
+                return None
+            if content_type and not self._is_html(content_type):
+                return None
             soup = BeautifulSoup(response.text, "html.parser")
             # Read the links before stripping navigation, or the section links
             # would be removed with it.
@@ -294,6 +422,93 @@ class CompanyResearchTool:
         except (httpx.HTTPError, ValueError, TypeError):
             return None
         return str(response.url), text, links
+
+    @staticmethod
+    def _is_pdf(url: str, content_type: str) -> bool:
+        return content_type == "application/pdf" or urlparse(url).path.lower().endswith(
+            ".pdf"
+        )
+
+    @staticmethod
+    def _is_html(content_type: str) -> bool:
+        return content_type.startswith("text/") or content_type in {
+            "application/xhtml+xml",
+        }
+
+    @staticmethod
+    def _looks_like_pdf_source(text: str) -> bool:
+        """Guard against raw PDF bytes ever reaching evidence content."""
+        head = text.lstrip()[:200]
+        if head.startswith("%PDF"):
+            return True
+        return "/FlateDecode" in head or ("obj" in head and "endobj" in head)
+
+    def _pdf_evidence(
+        self,
+        url: str,
+        company: CompanyInput,
+    ) -> RetrievedEvidence | None:
+        """Download a company PDF and turn its text into citable evidence.
+
+        Reuses PublicSourceCrawler._extract_pdf (pypdf) rather than adding another
+        parser. Every failure path returns None so nothing is written: a failed or
+        unparseable document must not become evidence.
+        """
+        try:
+            with httpx.Client(
+                timeout=PDF_TIMEOUT,
+                follow_redirects=True,
+                headers={"User-Agent": USER_AGENT},
+            ) as client:
+                response = client.get(url)
+                response.raise_for_status()
+            content_type = (
+                response.headers.get("content-type", "").split(";")[0].strip().lower()
+            )
+            final_url = str(response.url)
+            payload = response.content
+        except (httpx.HTTPError, ValueError, TypeError):
+            return None
+        if not self._is_pdf(final_url, content_type):
+            return None
+        if not payload or len(payload) > PDF_MAX_BYTES:
+            return None
+        try:
+            text = PublicSourceCrawler._extract_pdf(payload)
+        except Exception:  # noqa: BLE001 - a broken PDF must not break the run
+            return None
+        if not text or len(text.strip()) < PDF_MIN_CHARS:
+            return None
+        if self._looks_like_pdf_source(text):
+            return None
+        try:
+            page_count = len(PdfReader(io.BytesIO(payload)).pages)
+        except Exception:  # noqa: BLE001 - page count is optional metadata
+            page_count = 0
+        kind = self._document_kind(final_url)
+        digest = hashlib.sha1(final_url.encode("utf-8")).hexdigest()[:10].upper()
+        name = urlparse(final_url).path.rsplit("/", 1)[-1] or final_url
+        return RetrievedEvidence(
+            evidence_id=f"EVD-COMPANY-DOC-{digest}",
+            title=f"{company.company_name} — {unquote(name)}",
+            source_type="company_filing",
+            publisher=urlparse(final_url).netloc,
+            country_region=company.home_country,
+            publication_date="unknown",
+            url=final_url,
+            authority_level="A",
+            topic="company_filing",
+            content=text[:PDF_MAX_CHARS],
+            relevance_score=92,
+            is_mock=False,
+            evidence_scope="company",
+            document_format="pdf",
+            document_kind=kind,
+            fiscal_year=self._fiscal_year(final_url),
+            byte_size=len(payload),
+            page_count=page_count,
+            retrieved_at=datetime.now(timezone.utc).isoformat(),
+        )
 
     @staticmethod
     def _internal_links(soup: BeautifulSoup, current_url: str) -> list[str]:
@@ -336,6 +551,10 @@ class CompanyResearchTool:
             is_mock=False,
             evidence_scope="company",
             is_self_reported=True,
+            document_format="html",
+            document_kind="web_page",
+            byte_size=len(text),
+            retrieved_at=datetime.now(timezone.utc).isoformat(),
         )
     def _find_wikidata_entity(
         self,
