@@ -35,6 +35,8 @@ from .schemas import (
     RiskItem,
     ScenarioScoreBreakdown,
     ScenarioResult,
+    SUPPLY_CHAIN_ROLE_FALLBACK,
+    SUPPLY_CHAIN_ROLE_VALUES,
     SupplyChainRole,
     TraceStep,
     utc_now,
@@ -874,6 +876,105 @@ class AgentService:
             limit=6,
         )
         return self.retrieval.search(query)
+
+    # Safety net behind the prompt for the controlled role vocabulary. The more
+    # specific stages are checked before the generic ones.
+    SUPPLY_CHAIN_ROLE_HINTS: tuple[tuple[str, tuple[str, ...]], ...] = (
+        (
+            "UPSTREAM_RAW_MATERIAL",
+            ("raw material", "mining", "mineral", "lithium", "nickel", "cobalt",
+             "graphite", "原材料", "矿产", "锂", "镍", "钴", "石墨"),
+        ),
+        (
+            "UPSTREAM_COMPONENT",
+            ("component", "cathode", "anode", "electrolyte", "separator",
+             "material supplier", "正极", "负极", "电解液", "隔膜", "零部件",
+             "材料供应"),
+        ),
+        (
+            "INTEGRATED_BATTERY_COMPANY",
+            ("integrated", "multiple stage", "full value chain", "一体化",
+             "全产业链", "多个环节"),
+        ),
+        (
+            "BATTERY_MANUFACTURING",
+            ("cell manufactur", "battery manufactur", "module", "pack assembl",
+             "电芯", "模组", "电池制造", "电池与储能系统制造"),
+        ),
+        (
+            "DOWNSTREAM_APPLICATION",
+            ("ev manufactur", "oem", "energy storage", "integrator", "recycl",
+             "application", "整车", "车企", "储能", "回收", "应用"),
+        ),
+    )
+
+    @classmethod
+    def _normalise_supply_chain_role(cls, value: Any) -> str:
+        """Map a role onto the controlled vocabulary.
+
+        The prompt asks for the enum values directly; this only rescues free-text
+        answers so a stray description cannot leak into downstream prompts.
+        """
+        text = str(value or "").strip()
+        if not text:
+            return SUPPLY_CHAIN_ROLE_FALLBACK
+        candidate = text.upper().replace("-", "_").replace(" ", "_")
+        if candidate in SUPPLY_CHAIN_ROLE_VALUES:
+            return candidate
+        lowered = text.lower()
+        for role, hints in cls.SUPPLY_CHAIN_ROLE_HINTS:
+            if any(hint in lowered for hint in hints):
+                return role
+        return SUPPLY_CHAIN_ROLE_FALLBACK
+
+    @classmethod
+    def _normalise_supply_chain_roles(cls, value: Any) -> list[str]:
+        """Accepts a list or a delimited string.
+
+        A bare string used to be iterated directly, which turned one description
+        into one entry per character.
+        """
+        roles: list[str] = []
+        for item in cls._string_candidates(value):
+            role = cls._normalise_supply_chain_role(item)
+            if role == SUPPLY_CHAIN_ROLE_FALLBACK or role in roles:
+                continue
+            roles.append(role)
+        return roles
+
+    @staticmethod
+    def _string_candidates(value: Any) -> list[Any]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return re.split(r"[,;、，；/|]+", value)
+        if isinstance(value, (list, tuple, set)):
+            candidates: list[Any] = []
+            for item in value:
+                if isinstance(item, str):
+                    candidates.extend(re.split(r"[,;、，；/|]+", item))
+                else:
+                    candidates.append(item)
+            return candidates
+        return [value]
+
+    @classmethod
+    def _coerce_string_list(cls, value: Any) -> list[str]:
+        """De-duplicated string list.
+
+        Tolerates a delimited string, and flattens an object to its text instead
+        of storing a Python dict literal in a string field.
+        """
+        items: list[str] = []
+        for candidate in cls._string_candidates(value):
+            text = (
+                cls._text_of(candidate)
+                if isinstance(candidate, dict)
+                else str(candidate or "").strip()
+            )
+            if text and text not in items:
+                items.append(text)
+        return items
 
     @staticmethod
     def _company_evidence(
@@ -1958,7 +2059,7 @@ class AgentService:
                 for location in company.production_locations
             ],
             "supply_chain_role": {
-                "primary": "",
+                "primary": SUPPLY_CHAIN_ROLE_FALLBACK,
                 "secondary": [],
                 "upstream": [],
                 "manufacturing": [],
@@ -2346,12 +2447,12 @@ class AgentService:
         role_data = self._unwrap_dict(payload.get("supply_chain_role"))
         try:
             supply_chain_role = SupplyChainRole(
-                primary=str(role_data.get("primary") or ""),
-                secondary=[
-                    str(item)
-                    for item in (role_data.get("secondary") or [])
-                    if str(item).strip()
-                ],
+                # Free-text answers are normalised onto the controlled vocabulary
+                # instead of being stored as-is.
+                primary=self._normalise_supply_chain_role(role_data.get("primary")),
+                secondary=self._normalise_supply_chain_roles(
+                    role_data.get("secondary")
+                ),
                 upstream=self._coerce_fact_list(
                     role_data.get("upstream"),
                     "SC-UPSTREAM",
@@ -2374,9 +2475,7 @@ class AgentService:
                     language,
                 ),
                 unknown=[
-                    str(item)
-                    for item in (role_data.get("unknown") or [])
-                    if str(item).strip()
+                    *self._coerce_string_list(role_data.get("unknown")),
                 ],
             )
         except (ValidationError, TypeError, ValueError):
@@ -2385,6 +2484,15 @@ class AgentService:
             )
 
         decision_data = self._unwrap_dict(payload.get("decision_context"))
+        # The model sometimes answers with objects where a string list is
+        # expected; flatten them rather than failing validation and losing the
+        # whole block to the baseline.
+        decision_data["drivers"] = self._coerce_string_list(
+            decision_data.get("drivers")
+        )
+        decision_data["constraints"] = self._coerce_string_list(
+            decision_data.get("constraints")
+        )
         decision_data["source_ids"] = [
             source_id
             for source_id in (decision_data.get("source_ids") or [])
@@ -2415,11 +2523,7 @@ class AgentService:
                     source_type=str(
                         item.get("source_type") or source.source_type
                     ),
-                    used_for=[
-                        str(value)
-                        for value in (item.get("used_for") or [])
-                        if str(value).strip()
-                    ],
+                    used_for=self._coerce_string_list(item.get("used_for")),
                 )
             )
         if not references:

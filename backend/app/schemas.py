@@ -355,8 +355,22 @@ class ManufacturingSite(StrictModel):
     source_ids: list[str] = Field(default_factory=list)
 
 
+# Controlled vocabulary agreed with the product owner: the role labels must be
+# stable for the Risk and Scenario stages, so they are a small fixed set rather
+# than a free-text industry classification.
+SUPPLY_CHAIN_ROLE_VALUES = (
+    "UPSTREAM_RAW_MATERIAL",
+    "UPSTREAM_COMPONENT",
+    "BATTERY_MANUFACTURING",
+    "DOWNSTREAM_APPLICATION",
+    "INTEGRATED_BATTERY_COMPANY",
+    "OTHER",
+)
+SUPPLY_CHAIN_ROLE_FALLBACK = "OTHER"
+
+
 class SupplyChainRole(StrictModel):
-    primary: str = ""
+    primary: str = SUPPLY_CHAIN_ROLE_FALLBACK
     secondary: list[str] = Field(default_factory=list)
     upstream: list[FactItem] = Field(default_factory=list)
     manufacturing: list[FactItem] = Field(default_factory=list)
