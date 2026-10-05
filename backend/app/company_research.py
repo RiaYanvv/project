@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from typing import Any
 from urllib.parse import urljoin, urlparse
@@ -23,7 +24,27 @@ SECTION_TERMS = (
     "about", "company", "profile", "overview", "corporate",
     "product", "business", "solution", "technology", "brand",
     "sustainab", "esg", "investor", "responsib",
+    "news", "press", "media", "announce", "disclosure", "ir",
 )
+
+# US exchange filings. SEC requires a User-Agent that names the requester and a
+# reachable contact address, and blocks placeholder domains, so the lookup is
+# only attempted when SEC_CONTACT_EMAIL is configured. Set it to a real address
+# to enable US filing evidence; without it the step is skipped silently.
+SEC_CONTACT_EMAIL = os.getenv("SEC_CONTACT_EMAIL", "").strip()
+# SEC documents the expected form as "Sample Company AdminContact@example.com";
+# a parenthesised User-Agent is rejected as an undeclared automated tool.
+SEC_USER_AGENT = f"Locus Research {SEC_CONTACT_EMAIL}"
+SEC_COMPANY_SEARCH = "https://www.sec.gov/cgi-bin/browse-edgar"
+SEC_TICKER_MAP = "https://www.sec.gov/files/company_tickers.json"
+# Corporate suffixes accepted after a name prefix, so "Tesla" matches
+# "Tesla, Inc." but "Apple" does not match "Apple Hospitality".
+SEC_NAME_SUFFIXES = (
+    "inc", "incorporated", "corp", "corporation", "co", "company", "ltd",
+    "limited", "plc", "holdings", "group", "technologies", "technology",
+)
+# One download per process; the file is ~800 KB.
+_SEC_TICKER_CACHE: dict[str, str] | None = None
 RELATED_PAGE_LIMIT = 3
 RELATED_PAGE_ATTEMPTS = 6
 RELATED_PAGE_TIMEOUT = 12.0
@@ -70,6 +91,7 @@ class CompanyResearchTool:
             website = self._official_website(entity)
             if website:
                 items.extend(self._official_site_evidence(website, company))
+            items.extend(self._sec_filing_evidence(company))
         if not items:
             # Wikidata is the preferred entry point, but a single upstream failure
             # used to leave the profile with no company evidence at all. Falling
@@ -113,6 +135,131 @@ class CompanyResearchTool:
             label = page_url.rstrip("/").rsplit("/", 1)[-1] or "page"
             items.append(self._page_evidence(page_url, company, page_text, label[:24]))
         return items[: limit + 1]
+
+    def _sec_filing_evidence(
+        self, company: CompanyInput
+    ) -> list[RetrievedEvidence]:
+        """Recent US exchange filings, when the company is an SEC registrant.
+
+        The company is first resolved to a CIK through the official ticker map.
+        SEC's company-search Atom feed returns its company names as
+        "ARRAY(0x...)" (a bug on their side), so matching on that feed picked the
+        wrong registrant; the ticker map has clean names. Without a confident
+        match nothing is returned, because another company's filings would be
+        worse than none.
+        """
+        if not SEC_CONTACT_EMAIL:
+            return []
+        cik = self._sec_cik(company.company_name)
+        if not cik:
+            return []
+        try:
+            with httpx.Client(
+                timeout=min(self.timeout, RELATED_PAGE_TIMEOUT),
+                follow_redirects=True,
+                headers={"User-Agent": SEC_USER_AGENT},
+            ) as client:
+                response = client.get(
+                    SEC_COMPANY_SEARCH,
+                    params={
+                        "action": "getcompany",
+                        "CIK": cik,
+                        "type": "",
+                        "dateb": "",
+                        "owner": "include",
+                        "count": "5",
+                        "output": "atom",
+                    },
+                )
+                response.raise_for_status()
+            # html.parser is always available; the optional lxml XML parser is not
+            # installed in this environment.
+            document = BeautifulSoup(response.text, "html.parser")
+        except Exception:  # noqa: BLE001 - research must never break the run
+            return []
+        items: list[RetrievedEvidence] = []
+        for entry in document.find_all("entry")[:3]:
+            link = entry.find("link")
+            href = str(link.get("href") or "") if link else ""
+            text = entry.get_text(" ", strip=True)
+            if not href or not text:
+                continue
+            digest = hashlib.sha1(href.encode("utf-8")).hexdigest()[:10].upper()
+            # "20\d\d" avoids matching the accession number (e.g. 8280-26-06).
+            dated = re.search(r"20\d{2}-\d{2}-\d{2}", text)
+            filed = dated.group(0) if dated else "unknown"
+            accession = re.search(r"\d{10}-\d{2}-\d{6}", text)
+            label = (
+                f"{accession.group(0)} ({filed})"
+                if accession
+                else f"filed {filed}"
+            )
+            items.append(
+                RetrievedEvidence(
+                    evidence_id=f"EVD-COMPANY-SEC-{digest}",
+                    title=f"SEC filing: {label}",
+                    source_type="exchange_disclosure",
+                    publisher="US SEC EDGAR",
+                    country_region="US",
+                    publication_date=filed,
+                    url=href,
+                    authority_level="A",
+                    topic="company_filing",
+                    content=(
+                        f"{text[:400]} Filed with the US Securities and Exchange "
+                        f"Commission. Source: {href}"
+                    ),
+                    relevance_score=90,
+                    is_mock=False,
+                    evidence_scope="company",
+                )
+            )
+        return items
+
+    @staticmethod
+    def _sec_cik(company_name: str) -> str:
+        """Resolve a company name to a CIK, or "" when the match is not clear."""
+        global _SEC_TICKER_CACHE
+        if not SEC_CONTACT_EMAIL:
+            return ""
+        if _SEC_TICKER_CACHE is None:
+            try:
+                with httpx.Client(
+                    timeout=RELATED_PAGE_TIMEOUT,
+                    follow_redirects=True,
+                    headers={"User-Agent": SEC_USER_AGENT},
+                ) as client:
+                    response = client.get(SEC_TICKER_MAP)
+                    response.raise_for_status()
+                rows = response.json().values()
+            except Exception:  # noqa: BLE001 - optional source
+                return ""
+            _SEC_TICKER_CACHE = {}
+            for row in rows:
+                title = str(row.get("title") or "")
+                cik = str(row.get("cik_str") or "")
+                normalized = re.sub(r"[^a-z0-9]", "", title.lower())
+                if normalized and cik:
+                    _SEC_TICKER_CACHE[normalized] = cik
+        wanted = re.sub(r"[^a-z0-9]", "", (company_name or "").lower())
+        return CompanyResearchTool._match_cik(wanted, _SEC_TICKER_CACHE)
+
+    @staticmethod
+    def _match_cik(wanted: str, mapping: dict[str, str]) -> str:
+        """Conservative name → CIK match over normalised company names."""
+        wanted = re.sub(r"[^a-z0-9]", "", (wanted or "").lower())
+        if not wanted:
+            return ""
+        if wanted in mapping:
+            return mapping[wanted]
+        # "tesla" -> "teslainc" is accepted; "apple" -> "applehospitality" is not.
+        for normalized, cik in mapping.items():
+            if not normalized.startswith(wanted):
+                continue
+            remainder = normalized[len(wanted):]
+            if any(suffix.startswith(remainder) for suffix in SEC_NAME_SUFFIXES):
+                return cik
+        return ""
 
     def _rank_section_links(self, links: list[str]) -> list[str]:
         """Prefer the links most likely to carry company-level facts."""

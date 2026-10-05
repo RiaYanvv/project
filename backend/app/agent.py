@@ -38,6 +38,7 @@ from .schemas import (
     SUPPLY_CHAIN_ROLE_FALLBACK,
     SUPPLY_CHAIN_ROLE_VALUES,
     SupplyChainRole,
+    SupplyChainStage,
     TraceStep,
     utc_now,
 )
@@ -169,8 +170,52 @@ class AgentService:
             return "rag_only"
         return "unavailable"
 
-    @staticmethod
+    # Evidence priority for the profile stage. The company's own disclosure comes
+    # first; policy material belongs to risk and scenario analysis (doc: Profile
+    # evidence priority).
+    EVIDENCE_TIERS: tuple[tuple[int, tuple[str, ...], str], ...] = (
+        (
+            1,
+            (
+                "company_filing",
+                "company_announcement",
+                "exchange_disclosure",
+                "company_registry",
+                "company_website",
+            ),
+            "company's own disclosure",
+        ),
+        (
+            2,
+            ("company_media", "company_news", "company_interview"),
+            "company-specific reporting",
+        ),
+        (
+            2,
+            ("company_profile_public",),
+            "public reference summary (not the company's own disclosure)",
+        ),
+        (
+            4,
+            ("法规政策", "官方报告", "live_policy", "policy"),
+            "policy / regulatory material",
+        ),
+    )
+
+    @classmethod
+    def _evidence_tier(cls, item: RetrievedEvidence) -> tuple[int, str]:
+        source_type = str(item.source_type or "").strip()
+        for tier, types, reason in cls.EVIDENCE_TIERS:
+            if source_type in types:
+                return tier, reason
+        if item.evidence_scope == "company":
+            return 1, "company's own disclosure"
+        # Industry context: research reports, trade data, cases, news, encyclopaedia.
+        return 3, "industry context"
+
+    @classmethod
     def _enrich_evidence_status(
+        cls,
         evidence: list[RetrievedEvidence],
     ) -> list[RetrievedEvidence]:
         now = datetime.now(timezone.utc)
@@ -216,11 +261,14 @@ class AgentService:
                 verification = "partial"
             else:
                 verification = "unverified"
+            tier, tier_reason = cls._evidence_tier(item)
             enriched.append(
                 item.model_copy(
                     update={
                         "freshness": freshness,
                         "verification_status": verification,
+                        "source_tier": tier,
+                        "source_tier_reason": tier_reason,
                     }
                 )
             )
@@ -329,7 +377,14 @@ class AgentService:
         # only. The full set is still what downstream risk/scenario stages use.
         company_evidence = self._company_evidence(evidence)
         policy_evidence = self._policy_evidence(evidence)
-        profile_evidence = company_evidence or evidence
+        # Profile evidence priority (doc §1.2): the company's own disclosure and
+        # company-specific reporting first, industry context only as a labelled
+        # supplement, policy material not at all.
+        primary_evidence = [item for item in evidence if item.source_tier <= 2]
+        context_evidence = [item for item in evidence if item.source_tier == 3][:2]
+        profile_evidence = (
+            primary_evidence + context_evidence or company_evidence or evidence
+        )
         trace.append(
             self._trace(
                 agent="ResearchAgent",
@@ -337,7 +392,8 @@ class AgentService:
                 status="completed",
                 detail=(
                     f"返回 {len(evidence)} 条证据（公司来源 {len(company_evidence)} 条、"
-                    f"政策来源 {len(policy_evidence)} 条），数据模式为 {data_mode}。"
+                    f"政策来源 {len(policy_evidence)} 条；画像阶段使用 "
+                    f"{len(profile_evidence)} 条），数据模式为 {data_mode}。"
                 ),
                 started=step_started,
             )
@@ -957,6 +1013,121 @@ class AgentService:
                     candidates.append(item)
             return candidates
         return [value]
+
+    # Doc §6: the profile should surface a few gaps that matter, not a dump.
+    GAP_LIMITS = {"critical": 3, "important": 3, "optional": 3}
+    GAP_ORDER = ("critical", "important", "optional")
+    SUPPLY_CHAIN_STAGES = (
+        "raw_material",
+        "component",
+        "manufacturing",
+        "downstream",
+    )
+    # Answers that echo the schema instead of describing the company: a model
+    # occasionally emits the field values themselves as "facts".
+    SCHEMA_NOISE_VALUES = {
+        "user_input",
+        "public_source",
+        "inferred",
+        "to_be_confirmed",
+        "low",
+        "medium",
+        "high",
+        "unknown",
+        "true",
+        "false",
+        "none",
+        "null",
+        "n/a",
+    }
+    _EVIDENCE_ID_LIST = re.compile(
+        r"(evd-[a-z0-9\-]+)(\s*[;,、]\s*evd-[a-z0-9\-]+)*"
+    )
+
+    @classmethod
+    def _is_schema_noise(cls, text: str) -> bool:
+        """True when a "fact" is really a field name or field value."""
+        lowered = str(text or "").strip().lower()
+        if not lowered:
+            return True
+        if lowered in cls.SCHEMA_NOISE_VALUES:
+            return True
+        # A bare list of evidence ids carries no company information.
+        return bool(cls._EVIDENCE_ID_LIST.fullmatch(lowered))
+
+    @classmethod
+    def _cap_information_gaps(
+        cls, gaps: list[InformationGap]
+    ) -> list[InformationGap]:
+        counts = {priority: 0 for priority in cls.GAP_ORDER}
+        kept: list[InformationGap] = []
+        seen: set[str] = set()
+        for gap in sorted(
+            gaps, key=lambda item: cls.GAP_ORDER.index(item.priority)
+            if item.priority in cls.GAP_ORDER
+            else len(cls.GAP_ORDER)
+        ):
+            if gap.priority not in cls.GAP_ORDER:
+                continue
+            key = re.sub(r"\s+", "", gap.item).lower()[:60]
+            if not key or key in seen:
+                continue
+            if counts[gap.priority] >= cls.GAP_LIMITS[gap.priority]:
+                continue
+            seen.add(key)
+            counts[gap.priority] += 1
+            kept.append(gap)
+        return kept
+
+    @classmethod
+    def _coerce_supply_chain_structure(
+        cls,
+        payload: Any,
+        allowed: set[str],
+    ) -> list[SupplyChainStage]:
+        """One structured entry per supply-chain link.
+
+        A percentage is only kept when it is traceable: user input, a company
+        disclosure, or a sourced estimate. Anything else becomes "unknown" so the
+        model cannot invent precision (doc §3.4).
+        """
+        stages: list[SupplyChainStage] = []
+        for item in payload if isinstance(payload, list) else []:
+            if not isinstance(item, dict):
+                continue
+            stage = str(item.get("stage") or "").strip().lower()
+            if stage not in cls.SUPPLY_CHAIN_STAGES:
+                continue
+            if any(existing.stage == stage for existing in stages):
+                continue
+            source_ids = [
+                value
+                for value in (item.get("source_ids") or [])
+                if value in allowed
+            ]
+            basis = str(item.get("share_basis") or "").strip()
+            if basis not in {"user_input", "disclosed", "sourced_estimate", "unknown"}:
+                basis = "unknown"
+            share = str(item.get("share") or "").strip() or "unknown"
+            has_digit = any(char.isdigit() for char in share)
+            if basis == "unknown":
+                share = "unknown"
+            elif basis != "user_input" and not source_ids:
+                # disclosed / sourced_estimate without a citation is not traceable
+                basis = "unknown"
+                share = "unknown" if has_digit else share
+            stages.append(
+                SupplyChainStage(
+                    stage=stage,  # type: ignore[arg-type]
+                    description=str(item.get("description") or "")[:400],
+                    region=str(item.get("region") or "unknown")[:80],
+                    company_role=str(item.get("company_role") or "")[:200],
+                    share=share[:40],
+                    share_basis=basis,  # type: ignore[arg-type]
+                    source_ids=source_ids,
+                )
+            )
+        return stages
 
     @classmethod
     def _coerce_string_list(cls, value: Any) -> list[str]:
@@ -1807,6 +1978,7 @@ class AgentService:
         "overview": 4,
         "production_footprint": 6,
         "supply_chain": 6,
+        "supply_chain_structure": 4,
         "market_position": 4,
         "strategic_context": 2,
         "information_gaps": 5,
@@ -1856,6 +2028,19 @@ class AgentService:
                 intelligence.production_footprint, "production_footprint"
             ),
             "supply_chain": facts(intelligence.supply_chain, "supply_chain"),
+            "supply_chain_structure": [
+                {
+                    "stage": item.stage,
+                    "description": (item.description or "")[:chars],
+                    "region": item.region,
+                    "company_role": item.company_role,
+                    "share": item.share,
+                    "share_basis": item.share_basis,
+                }
+                for item in (intelligence.supply_chain_structure or [])[
+                    : limits["supply_chain_structure"]
+                ]
+            ],
             "market_position": facts(
                 intelligence.market_position, "market_position"
             ),
@@ -1947,15 +2132,20 @@ class AgentService:
             ]
             strategic = [
                 fact(
-                    f"Current Position：{company.company_name} 当前以 {footprint} "
-                    f"的布局服务 {markets}。",
+                    f"公司现状：{company.company_name} 是一家{products}相关企业；"
+                    "具体的业务模式与价值链位置有待公开披露核验。",
                     "user_input",
                 ),
-                fact("供应链结构与依赖：关键供应商与物料依赖仍待确认。", "inferred"),
-                fact("市场与客户定位：目标市场、客户结构和认证状态仍需确认。", "inferred"),
+                fact("供应链结构与依赖：关键供应商与物料来源仍待确认。", "inferred"),
                 fact(
-                    f"决策情境与待补信息：{company.decision_question}；驱动因素为 {drivers}。",
-                    "user_input",
+                    "经营结构与布局逻辑：现有公开证据不足以说明该公司的全球生产与"
+                    "供应链布局逻辑。",
+                    "inferred",
+                ),
+                fact(
+                    "关键未知信息：缺少产能、供应商、客户结构与成本数据，"
+                    "进一步分析前需要补齐。",
+                    "inferred",
                 ),
             ]
             market_position = [
@@ -2259,13 +2449,18 @@ class AgentService:
         ):
             cleaned = []
             for item in self._unwrap_list(payload.get(key), language):
+                # A model that answers a paragraph section with bare strings is
+                # still usable; without this the whole section silently fell back
+                # to the baseline, which repeats the user's form input.
+                if isinstance(item, str):
+                    item = {"fact": item}
                 if not isinstance(item, dict):
                     continue
                 nested = item.get("fact")
                 if isinstance(nested, dict):
                     item = {**item, **nested}
                 text = self._text_of(item.get("fact"))
-                if not text:
+                if not text or self._is_schema_noise(text):
                     continue
                 ids = [
                     value
@@ -2357,6 +2552,8 @@ class AgentService:
                 else InformationGap(item=str(gap))
                 for gap in fallback["information_gaps"]
             ]
+        # Doc §6: "few and useful" — cap each priority band and drop duplicates.
+        gaps = self._cap_information_gaps(gaps)
         entity_payload = self._unwrap_dict(payload.get("entity"))
         resolved_entity = self._coerce_entity(
             entity_payload if isinstance(entity_payload, dict) else None,
@@ -2565,6 +2762,12 @@ class AgentService:
                         for item in manufacturing_sites
                     ],
                     "supply_chain_role": supply_chain_role.model_dump(mode="json"),
+                    "supply_chain_structure": [
+                        item.model_dump(mode="json")
+                        for item in self._coerce_supply_chain_structure(
+                            payload.get("supply_chain_structure"), allowed
+                        )
+                    ],
                     "decision_context": decision_context.model_dump(mode="json"),
                     "evidence_references": [
                         item.model_dump(mode="json") for item in references

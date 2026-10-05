@@ -152,6 +152,11 @@ class RetrievedEvidence(StrictModel):
     is_mock: bool
     evidence_scope: Literal["company", "policy", "market", "unknown"] = "unknown"
     is_self_reported: bool = False
+    # Evidence priority for the profile stage (Company Intelligence revision):
+    # 1 = the company's own disclosure, 2 = company-specific reliable reporting,
+    # 3 = industry context, 4 = policy/regulatory material.
+    source_tier: int = Field(default=4, ge=1, le=4)
+    source_tier_reason: str = ""
     freshness: Literal["current", "aging", "stale", "unknown"] = "unknown"
     verification_status: Literal[
         "verified", "partial", "unverified", "contested", "outdated"
@@ -378,6 +383,26 @@ class SupplyChainRole(StrictModel):
     unknown: list[str] = Field(default_factory=list)
 
 
+class SupplyChainStage(StrictModel):
+    """One link of the reconstructed supply chain (doc: Supply Chain Structure).
+
+    `share` may only carry a number when `share_basis` shows where it came from;
+    an unsourced percentage is replaced with "unknown" during coercion.
+    """
+
+    stage: Literal[
+        "raw_material", "component", "manufacturing", "downstream"
+    ]
+    description: str = ""
+    region: str = "unknown"
+    company_role: str = ""
+    share: str = "unknown"
+    share_basis: Literal[
+        "user_input", "disclosed", "sourced_estimate", "unknown"
+    ] = "unknown"
+    source_ids: list[str] = Field(default_factory=list)
+
+
 class EvidenceReference(StrictModel):
     evidence_id: str
     title: str = ""
@@ -412,6 +437,7 @@ class CompanyIntelligence(StrictModel):
     business_profile: BusinessProfile = Field(default_factory=BusinessProfile)
     manufacturing_footprint: list[ManufacturingSite] = Field(default_factory=list)
     supply_chain_role: SupplyChainRole = Field(default_factory=SupplyChainRole)
+    supply_chain_structure: list[SupplyChainStage] = Field(default_factory=list)
     decision_context: DecisionContext = Field(default_factory=DecisionContext)
     evidence_references: list[EvidenceReference] = Field(default_factory=list)
     information_gaps: list[str | InformationGap] = Field(default_factory=list)
