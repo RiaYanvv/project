@@ -211,37 +211,3 @@ Analyze geopolitical risks for this company.
 输出符合 Risk Schema 的 JSON。
 
 
-数据优化
-1、evaluation
-用于evaluation的Test Set数据库应该包括
-（1）historical case benchmark
-议最终形成：
-
-> 10–14 个真实企业历史案例
-
-优先覆盖：
-
-* China → Southeast Asia；
-* China +1；
-* Southeast Asia → China / partial return；
-* diversification；
-* new manufacturing site；
-* tariff / trade-policy driven decisions；
-* geopolitical-risk driven decisions。
-
-每个 Case 至少记录：
-
-| Field               | 内容                                   |
-| ------------------- | ------------------------------------ |
-| case_id             | CASE-xxx                             |
-| company             | 企业名称                                 |
-| industry            | EV / Battery / related manufacturing |
-| original_footprint  | 原生产布局                                |
-| decision_trigger    | 为什么需要做决策                             |
-| target_market       | 主要市场                                 |
-| key_constraints     | 预算、资产、时间、监管等                         |
-| major_known_risks   | 历史上可识别的主要风险                          |
-| historical_decision | 企业实际采取的行动                            |
-| outcome             | 后续结果                                 |
-| evidence_ids        | 支撑案例事实的来源                            |
-（2）retrieval Evaluation Set

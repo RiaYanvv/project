@@ -18,7 +18,7 @@ Indonesia
 India
 Thailand
 Mexico
-Other（选择后输入）
+Other（选择后输入）（在填写other并填空后，后面分析报告仍采用other而不是具体国家名称，填写内容是否没有进入后端，修正这个问题）
 share填写拉动以10%为幅度，也支持自由填写。允许not sure的选项
 下面加一个小填空框“备注”，不必须填，允许输入例如“China remains the core manufacturing base. CATL has expanded overseas battery manufacturing capacity in Europe, including Germany and Hungary.”的内容
 百分比加起来超过100%时应该出现提示！不允许这样填写。
@@ -33,7 +33,7 @@ United States
 EU
 China
 ASEAN
-Other
+Other（在填写other并填空后，后面分析报告仍采用other而不是具体国家名称，填写内容是否没有进入后端，修正这个问题）
 百分比加起来超过100%时应该出现提示！不允许这样填写。
 5、Decision Question（有一个明显的问题，当用户选择第一个默认预设选项时，进度条不会改变，只有用户选择了其他选项才会改变，请修改）
 快捷选项
