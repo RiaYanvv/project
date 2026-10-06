@@ -22,6 +22,7 @@ from app.schemas import (
     ChatTurn,
     CompanyInput,
     GapUpdate,
+    InformationGap,
 )
 
 
@@ -104,6 +105,62 @@ class ScenarioChatClosedLoopTest(unittest.TestCase):
             updated.chat_analysis.requested_gap,
             "Vietnam plant capacity",
         )
+
+    def test_chat_opening_asks_only_the_highest_priority_gap(self) -> None:
+        agent, _ = self.make_agent(
+            {"action": "answer", "scenario_update_required": False}
+        )
+        assessment = agent.run(make_company(), language="zh")
+        self.assertIsNotNone(assessment.company_intelligence)
+        intelligence = assessment.company_intelligence.model_copy(
+            update={
+                "information_gaps": [
+                    InformationGap(
+                        item="可选信息：品牌授权条款",
+                        priority="optional",
+                    ),
+                    InformationGap(
+                        item="越南工厂年产能",
+                        priority="critical",
+                        why_it_matters="这会直接影响供应链韧性评分。",
+                        recommended_action="请提供产能数值或公开文件。",
+                    ),
+                ]
+            }
+        )
+        assessment = assessment.model_copy(
+            update={"company_intelligence": intelligence}
+        )
+
+        opening = agent.chat_opening(assessment, "zh")
+
+        self.assertEqual(opening.action, "ask_gap")
+        self.assertEqual(opening.requested_gap, "越南工厂年产能")
+        self.assertIn("越南工厂年产能", opening.message)
+        self.assertNotIn("品牌授权条款", opening.message)
+        self.assertIn("resilience", opening.affected_dimensions)
+
+    def test_chat_opening_without_history_or_gaps_is_safe(self) -> None:
+        agent, _ = self.make_agent(
+            {"action": "answer", "scenario_update_required": False}
+        )
+        assessment = agent.run(make_company(), language="zh")
+        self.assertIsNotNone(assessment.company_intelligence)
+        intelligence = assessment.company_intelligence.model_copy(
+            update={"information_gaps": []}
+        )
+        assessment = assessment.model_copy(
+            update={
+                "company_intelligence": intelligence,
+                "chat_history": [],
+            }
+        )
+
+        opening = agent.chat_opening(assessment, "zh")
+
+        self.assertEqual(opening.action, "answer")
+        self.assertEqual(opening.requested_gap, "")
+        self.assertIn("企业画像", opening.message)
 
     def test_chat_answer_triggers_scenario_resimulation(self) -> None:
         action = {

@@ -29,6 +29,8 @@ from .schemas import (
     Assessment,
     AssessmentRequest,
     ChatRequest,
+    ChatOpeningRequest,
+    ChatOpeningResponse,
     CompanyInput,
     RetrievalQuery,
     ScenarioUpdateRequest,
@@ -414,6 +416,20 @@ def get_assessment(assessment_id: str) -> Assessment:
     if assessment is None:
         raise HTTPException(status_code=404, detail="assessment not found")
     return assessment
+
+
+@app.post(
+    "/api/v1/assessments/{assessment_id}/chat/opening",
+    response_model=ChatOpeningResponse,
+)
+def chat_opening(
+    assessment_id: str,
+    request: ChatOpeningRequest,
+) -> ChatOpeningResponse:
+    assessment = repository.get(assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="assessment not found")
+    return agent.chat_opening(assessment, request.language)
 
 
 @app.post("/api/v1/assessments/{assessment_id}/chat", response_model=Assessment)

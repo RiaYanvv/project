@@ -173,6 +173,49 @@ class ScenarioRubricTest(unittest.TestCase):
         self.assertEqual(scenario.weighted_score, weighted)
         self.assertGreater(scenario.weighted_score, 0)
 
+    def test_scenario_confidence_uses_dimension_sources_and_global_gates(self) -> None:
+        evidence_ids = ["EVD-1", "EVD-2", "EVD-3"]
+        company_evidence = [
+            evidence().model_copy(
+                update={
+                    "evidence_id": evidence_id,
+                    "source_type": "company_filing",
+                    "evidence_scope": "company",
+                }
+            )
+            for evidence_id in evidence_ids
+        ]
+        first = scenario_payload()
+        first["evidence_ids"] = []
+        for assessment in first["dimension_assessments"].values():
+            assessment["evidence_ids"] = evidence_ids
+            assessment["source"] = "evidence"
+        second = scenario_payload()
+        second["name"] = "Maintain current layout"
+        second["evidence_ids"] = []
+        for assessment in second["dimension_assessments"].values():
+            assessment["evidence_ids"] = evidence_ids
+            assessment["source"] = "evidence"
+
+        scenarios, _ = self.agent._coerce_scenarios(
+            [first, second],
+            [],
+            company_evidence,
+            company(),
+        )
+        scenario = scenarios[0]
+
+        # Evidence attached only to rubric dimensions must still count.
+        self.assertEqual(scenario.confidence, "high")
+        gated, reasons = AgentService._scenario_confidence(
+            scenario.evidence_ids,
+            company_evidence,
+            scenario=scenario,
+            risk_degraded=True,
+        )
+        self.assertEqual(gated, "low")
+        self.assertTrue(any("RiskAgent" in reason for reason in reasons))
+
 
 if __name__ == "__main__":
     unittest.main()

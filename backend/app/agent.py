@@ -17,6 +17,7 @@ from .schemas import (
     BusinessProfile,
     ChatAnalysis,
     ChatImpact,
+    ChatOpeningResponse,
     ChatRequest,
     ChatTurn,
     CompanyInput,
@@ -139,30 +140,97 @@ class AgentService:
 
     @staticmethod
     def _scenario_confidence(
-        evidence_ids: list[str], evidence: list[RetrievedEvidence]
+        evidence_ids: list[str],
+        evidence: list[RetrievedEvidence],
+        *,
+        scenario: ScenarioResult | None = None,
+        risk_degraded: bool = False,
+        scenario_degraded: bool = False,
+        critical_gap_count: int = 0,
     ) -> tuple[str, list[str]]:
         """Scenario-level confidence derived from the evidence it cites."""
+        if scenario is not None:
+            # The model may attach evidence to individual rubric dimensions
+            # without repeating the same IDs at scenario level. Confidence
+            # should still reflect those concrete citations.
+            evidence_ids = list(
+                dict.fromkeys(
+                    [
+                        *evidence_ids,
+                        *(
+                            evidence_id
+                            for assessment in scenario.dimension_assessments.values()
+                            for evidence_id in assessment.evidence_ids
+                        ),
+                    ]
+                )
+            )
         by_id = {item.evidence_id: item for item in evidence}
         items = [by_id[evidence_id] for evidence_id in evidence_ids if evidence_id in by_id]
+        reasons: list[str] = []
+        max_level = "high"
+        if scenario_degraded:
+            max_level = "low"
+            reasons.append("Capped at LOW: ScenarioAgent used the rule-based fallback.")
+        elif risk_degraded:
+            max_level = "low"
+            reasons.append("Capped at LOW: RiskAgent used the rule-based fallback.")
         if not items:
-            return "low", ["no evidence is linked to this scenario"]
+            return "low", [
+                *reasons,
+                "No qualifying evidence is linked to this scenario.",
+            ]
+        company_items = [
+            item for item in items if item.evidence_scope == "company"
+        ]
+        if not company_items:
+            max_level = "medium" if max_level == "high" else max_level
+            reasons.append(
+                "Capped at MEDIUM: no company-specific evidence is linked."
+            )
+        if critical_gap_count:
+            max_level = "medium" if max_level == "high" else max_level
+            reasons.append(
+                f"Capped at MEDIUM: {critical_gap_count} critical information "
+                "gap(s) remain open."
+            )
+        if scenario is not None and scenario.dimension_assessments:
+            sources = {
+                item.source
+                for item in scenario.dimension_assessments.values()
+            }
+            if sources == {"inference"}:
+                max_level = "low"
+                reasons.append(
+                    "Capped at LOW: all five dimensions are inferred, not evidence-backed."
+                )
         strong = {
             item.authority_level for item in items
         } & {"S", "A+", "A", "B+"}
         mock_only = all(item.is_mock for item in items)
         if len(items) >= 3 and strong and not mock_only:
-            return "high", [
+            candidate, details = "high", [
                 f"{len(items)} linked sources: "
                 + ", ".join(item.evidence_id for item in items)
                 + f" (authority {sorted(strong)[0]})"
             ]
-        if len(items) >= 2:
-            return "medium", [
+        elif len(items) >= 2:
+            candidate, details = "medium", [
                 f"{len(items)} linked sources: "
                 + ", ".join(item.evidence_id for item in items)
                 + (" (test data only)" if mock_only else ", no top-tier authority material")
             ]
-        return "low", [f"only one linked source: {items[0].evidence_id}"]
+        else:
+            candidate, details = "low", [
+                f"Only one linked source: {items[0].evidence_id}"
+            ]
+        rank = {"low": 0, "medium": 1, "high": 2}
+        final_level = (
+            candidate
+            if rank[candidate] <= rank[max_level]
+            else max_level
+        )
+        return final_level, [*reasons, *details]
 
     @staticmethod
     def _resolve_data_mode(evidence: list[RetrievedEvidence]) -> str:
@@ -555,6 +623,9 @@ class AgentService:
             heuristic["scenarios"],
             evidence,
             company,
+            risk_degraded=risk_degraded,
+            scenario_model_ok=scenario_call.ok,
+            intelligence=intelligence,
         )
         scenarios = self._rank_scenarios(scenarios)
         scenario_degraded = scenario_fallback or not scenario_call.ok
@@ -708,6 +779,80 @@ class AgentService:
             llm_calls=llm_calls,
             degraded=degraded,
         )
+
+    def chat_opening(
+        self,
+        assessment: Assessment,
+        language: str = "en",
+    ) -> ChatOpeningResponse:
+        intelligence = assessment.company_intelligence
+        gaps = [
+            gap
+            for gap in (
+                intelligence.information_gaps if intelligence else []
+            )
+            if isinstance(gap, InformationGap)
+            and gap.status != "resolved"
+        ]
+        order = {"critical": 0, "important": 1, "optional": 2}
+        gaps.sort(key=lambda gap: order.get(gap.priority, 3))
+        if not gaps:
+            message = (
+                "我已载入当前企业画像、风险和情景结果。"
+                "你可以直接提问，或补充供应商、产能、成本、客户和合规约束。"
+                if (language or "en").lower() == "zh"
+                else "I have loaded the company profile, risks and scenario results. "
+                "You can ask a question or add supplier, capacity, cost, customer "
+                "or compliance constraints."
+            )
+            return ChatOpeningResponse(message=message)
+        gap = gaps[0]
+        dimensions = self._gap_affected_dimensions(gap.item)
+        if (language or "en").lower() == "zh":
+            message = (
+                f"为了把情景推演做得更准确，请先补充一项关键信息：{gap.item}。"
+                f"它之所以重要，是因为{gap.why_it_matters or '它会直接影响情景判断'}。"
+                f"{gap.recommended_action or '请提供可确认的数值或文件依据。'}"
+            )
+        else:
+            message = (
+                f"To improve the scenario simulation, please confirm one key item: "
+                f"{gap.item}. This matters because "
+                f"{gap.why_it_matters or 'it directly affects the scenario assessment'}. "
+                f"{gap.recommended_action or 'Please provide a verifiable value or source.'}"
+            )
+        return ChatOpeningResponse(
+            message=message,
+            action="ask_gap",
+            requested_gap=gap.item,
+            why_it_matters=gap.why_it_matters,
+            affected_dimensions=dimensions,
+        )
+
+    @staticmethod
+    def _gap_affected_dimensions(gap_item: str) -> list[str]:
+        text = gap_item.lower()
+        dimensions: list[str] = []
+
+        def add(value: str) -> None:
+            if value not in dimensions:
+                dimensions.append(value)
+
+        if any(token in text for token in ("capacity", "factory", "plant", "产能", "工厂", "基地")):
+            add("resilience")
+            add("implementation")
+        if any(token in text for token in ("supplier", "material", "bom", "供应", "材料", "物料")):
+            add("resilience")
+            add("cost")
+        if any(token in text for token in ("cost", "budget", "成本", "预算")):
+            add("cost")
+            add("implementation")
+        if any(token in text for token in ("customer", "market", "客户", "市场", "准入")):
+            add("market_access")
+        if any(token in text for token in ("tariff", "policy", "compliance", "关税", "政策", "合规")):
+            add("geopolitical_risk")
+            add("market_access")
+        return dimensions or ["implementation"]
 
     def chat(self, assessment: Assessment, request: ChatRequest) -> Assessment:
         user_turn = ChatTurn(role="user", content=request.message, created_at=utc_now())
@@ -900,11 +1045,18 @@ class AgentService:
         scenario_payload, scenario_call = self._consume_llm_result(
             scenario_payload, "ScenarioAgent", active_llm
         )
+        risk_degraded = any(
+            step.agent == "RiskAgent" and step.status == "fallback"
+            for step in assessment.trace
+        )
         scenarios, scenario_fallback = self._coerce_scenarios(
             scenario_payload.get("scenarios"),
             heuristic["scenarios"],
             assessment.evidence,
             company,
+            risk_degraded=risk_degraded,
+            scenario_model_ok=scenario_call.ok,
+            intelligence=assessment.company_intelligence,
         )
         scenarios = self._rank_scenarios(scenarios)
         recommendation_payload = active_llm.generate_recommendation(
@@ -2071,11 +2223,24 @@ class AgentService:
         fallback: list[dict[str, Any]],
         evidence: list[RetrievedEvidence],
         company: CompanyInput,
+        *,
+        risk_degraded: bool = False,
+        scenario_model_ok: bool = True,
+        intelligence: CompanyIntelligence | None = None,
     ) -> tuple[list[ScenarioResult], bool]:
         candidates = payload if isinstance(payload, list) else fallback
         allowed_ids = {item.evidence_id for item in evidence}
         scenarios: list[ScenarioResult] = []
         used_fallback = not isinstance(payload, list)
+        critical_gap_count = sum(
+            1
+            for gap in (intelligence.information_gaps if intelligence else [])
+            if (
+                isinstance(gap, InformationGap)
+                and gap.priority == "critical"
+                and gap.status != "resolved"
+            )
+        )
 
         try:
             for index, item in enumerate(candidates[:5], start=1):
@@ -2115,7 +2280,12 @@ class AgentService:
                     update={"scenario_id": f"SCN-{index:03d}"}
                 )
                 confidence_label, confidence_reasons = self._scenario_confidence(
-                    scenario.evidence_ids, evidence
+                    scenario.evidence_ids,
+                    evidence,
+                    scenario=scenario,
+                    risk_degraded=risk_degraded,
+                    scenario_degraded=used_fallback or not scenario_model_ok,
+                    critical_gap_count=critical_gap_count,
                 )
                 scenarios.append(
                     scenario.model_copy(
@@ -2175,7 +2345,12 @@ class AgentService:
                     }
                 )
                 confidence_label, confidence_reasons = self._scenario_confidence(
-                    scenario.evidence_ids, evidence
+                    scenario.evidence_ids,
+                    evidence,
+                    scenario=scenario,
+                    risk_degraded=risk_degraded,
+                    scenario_degraded=True,
+                    critical_gap_count=critical_gap_count,
                 )
                 scenarios.append(
                     scenario.model_copy(

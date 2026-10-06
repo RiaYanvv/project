@@ -330,6 +330,26 @@ class ChatRequest(StrictModel):
     language: Language = "en"
 
 
+class ChatOpeningRequest(StrictModel):
+    language: Language = "en"
+
+
+class ChatOpeningResponse(StrictModel):
+    message: str
+    action: Literal["ask_gap", "answer"] = "answer"
+    requested_gap: str = ""
+    why_it_matters: str = ""
+    affected_dimensions: list[
+        Literal[
+            "cost",
+            "resilience",
+            "geopolitical_risk",
+            "market_access",
+            "implementation",
+        ]
+    ] = Field(default_factory=list)
+
+
 class AssessmentRequest(StrictModel):
     company: CompanyInput
     # Only required when the backend runs in deepseek mode.
