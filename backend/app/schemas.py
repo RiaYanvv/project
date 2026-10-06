@@ -245,11 +245,27 @@ class EvidenceLink(StrictModel):
 
 class ScenarioScoreBreakdown(StrictModel):
     dimension: str
+    band: str = "neutral"
     score: float
     weight: float
     contribution: float
+    reason: str = ""
+    source: Literal["evidence", "inference"] = "inference"
     basis: Literal["evidence", "inference"] = "inference"
     evidence_ids: list[str] = Field(default_factory=list)
+
+
+class ScenarioDimensionAssessment(StrictModel):
+    band: Literal[
+        "very_favourable",
+        "favourable",
+        "neutral",
+        "unfavourable",
+        "very_unfavourable",
+    ] = "neutral"
+    reason: str = ""
+    evidence_ids: list[str] = Field(default_factory=list)
+    source: Literal["evidence", "inference"] = "inference"
 
 
 class ScenarioResult(StrictModel):
@@ -269,6 +285,9 @@ class ScenarioResult(StrictModel):
     applicable_conditions: list[str]
     evidence_ids: list[str]
     dimension_bands: dict[str, str] = Field(default_factory=dict)
+    dimension_assessments: dict[str, ScenarioDimensionAssessment] = Field(
+        default_factory=dict
+    )
     score_breakdown: list[ScenarioScoreBreakdown] = Field(default_factory=list)
     evidence_links: list[EvidenceLink] = Field(default_factory=list)
     insufficient_evidence: bool = False

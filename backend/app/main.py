@@ -181,6 +181,85 @@ def knowledge_stats() -> dict[str, int | bool]:
     return knowledge_repository.stats()
 
 
+@app.get("/api/v1/scenario/rubric")
+def scenario_scoring_rubric() -> dict[str, object]:
+    return {
+        "version": "scenario-rubric-v1",
+        "principle": (
+            "The LLM selects a qualitative band with reasons and evidence. "
+            "The backend maps bands to fixed scores and computes the weighted total."
+        ),
+        "bands": {
+            band: {
+                "score": score,
+                "meaning": meaning,
+            }
+            for band, score, meaning in (
+                (
+                    "very_favourable",
+                    85,
+                    "Evidence clearly supports the scenario with no major uncertainty.",
+                ),
+                (
+                    "favourable",
+                    70,
+                    "Evidence supports the scenario with manageable uncertainty.",
+                ),
+                (
+                    "neutral",
+                    55,
+                    "Evidence is insufficient to distinguish this dimension.",
+                ),
+                (
+                    "unfavourable",
+                    35,
+                    "Evidence points to clear cost, risk or implementation pressure.",
+                ),
+                (
+                    "very_unfavourable",
+                    20,
+                    "Evidence indicates the route is materially exposed or infeasible.",
+                ),
+            )
+        },
+        "dimensions": {
+            "cost_score": {
+                "input_band": "cost",
+                "priority": "cost_reduction",
+                "weight_factor": 1.0,
+            },
+            "resilience_score": {
+                "input_band": "resilience",
+                "priority": "supply_chain_resilience",
+                "weight_factor": 1.0,
+            },
+            "geopolitical_risk_score": {
+                "input_band": "geopolitical_risk",
+                "priority": "political_stability",
+                "weight_factor": 1.0,
+            },
+            "market_access_score": {
+                "input_band": "market_access",
+                "priority": "market_access",
+                "weight_factor": 1.0,
+            },
+            "implementation_score": {
+                "input_band": "implementation",
+                "priority": "compliance",
+                "weight_factor": 0.5,
+            },
+        },
+        "formula": (
+            "weighted_score = sum(dimension_score * effective_priority_weight "
+            "* weight_factor) / sum(effective_priority_weight * weight_factor)"
+        ),
+        "evidence_gate": (
+            "A dimension without qualifying evidence is forced to neutral (55) "
+            "and marked as inference."
+        ),
+    }
+
+
 def _resolve_document_path(document_path: str | None) -> Path | None:
     """Resolve a stored document path to a file on disk (data branch layout)."""
     if not document_path:

@@ -34,6 +34,7 @@ from .schemas import (
     RetrievedEvidence,
     RiskItem,
     ScenarioScoreBreakdown,
+    ScenarioDimensionAssessment,
     ScenarioResult,
     SUPPLY_CHAIN_ROLE_FALLBACK,
     SUPPLY_CHAIN_ROLE_VALUES,
@@ -1452,6 +1453,73 @@ class AgentService:
                 break
         return links
 
+    @classmethod
+    def _normalize_scenario_band(cls, value: Any) -> str | None:
+        if isinstance(value, dict):
+            value = value.get("band") or value.get("rating")
+        text = str(value or "").strip().lower()
+        aliases = {
+            "very favourable": "very_favourable",
+            "favourable": "favourable",
+            "neutral": "neutral",
+            "unfavourable": "unfavourable",
+            "very unfavourable": "very_unfavourable",
+            "very_favorable": "very_favourable",
+            "favorable": "favourable",
+            "very unfavorable": "very_unfavourable",
+            "unfavorable": "unfavourable",
+        }
+        text = aliases.get(text, text)
+        return (
+            text
+            if text in cls.SCENARIO_BAND_SCORES
+            else None
+        )
+
+    def _scenario_dimension_assessments(
+        self,
+        item: dict[str, Any],
+        evidence: list[RetrievedEvidence],
+    ) -> dict[str, ScenarioDimensionAssessment]:
+        raw = item.get("dimension_assessments") or {}
+        if not isinstance(raw, dict):
+            raw = {}
+        allowed_ids = {entry.evidence_id for entry in evidence}
+        assessments: dict[str, ScenarioDimensionAssessment] = {}
+        for metric, (alias, _, _) in self.SCENARIO_METRIC_CONFIG.items():
+            raw_value = (
+                raw.get(metric)
+                or raw.get(alias)
+                or item.get(f"{alias}_band")
+            )
+            detail = raw_value if isinstance(raw_value, dict) else {}
+            band = self._normalize_scenario_band(raw_value)
+            if band is None:
+                legacy_score = item.get(metric)
+                if legacy_score is not None:
+                    band = self._score_band(int(legacy_score))
+                else:
+                    band = "neutral"
+            evidence_ids = [
+                value
+                for value in (detail.get("evidence_ids") or [])
+                if value in allowed_ids
+            ]
+            source = str(detail.get("source") or "").strip().lower()
+            if source not in {"evidence", "inference"}:
+                source = "evidence" if evidence_ids else "inference"
+            if not evidence_ids and source == "evidence":
+                source = "inference"
+            if not evidence_ids:
+                band = "neutral"
+            assessments[metric] = ScenarioDimensionAssessment(
+                band=band,
+                reason=str(detail.get("reason") or ""),
+                evidence_ids=evidence_ids,
+                source=source,
+            )
+        return assessments
+
     @staticmethod
     def _risk_level_from_score(score: int) -> str:
         if score >= 60:
@@ -1881,15 +1949,20 @@ class AgentService:
                 ]
                 filtered["insufficient_evidence"] = not bool(evidence_ids)
                 filtered["weighted_score"] = 0
+                assessments = self._scenario_dimension_assessments(
+                    item, evidence
+                )
+                for metric in self.SCENARIO_METRIC_CONFIG:
+                    filtered[metric] = self.SCENARIO_BAND_SCORES[
+                        assessments[metric].band
+                    ]
+                filtered["dimension_assessments"] = {
+                    metric: assessment.model_dump(mode="json")
+                    for metric, assessment in assessments.items()
+                }
                 filtered["dimension_bands"] = {
-                    key: self._score_band(int(filtered.get(key) or 0))
-                    for key in (
-                        "cost_score",
-                        "resilience_score",
-                        "geopolitical_risk_score",
-                        "market_access_score",
-                        "implementation_score",
-                    )
+                    metric: assessment.band
+                    for metric, assessment in assessments.items()
                 }
                 scenario = ScenarioResult.model_validate(filtered).model_copy(
                     update={"scenario_id": f"SCN-{index:03d}"}
@@ -1928,7 +2001,23 @@ class AgentService:
                     evidence_ids, evidence
                 )
                 evidence_ids = [link.evidence_id for link in links]
-                scenario = ScenarioResult.model_validate(item).model_copy(
+                assessments = self._scenario_dimension_assessments(
+                    item, evidence
+                )
+                scored_item = dict(item)
+                for metric in self.SCENARIO_METRIC_CONFIG:
+                    scored_item[metric] = self.SCENARIO_BAND_SCORES[
+                        assessments[metric].band
+                    ]
+                scored_item["dimension_assessments"] = {
+                    metric: assessment.model_dump(mode="json")
+                    for metric, assessment in assessments.items()
+                }
+                scored_item["dimension_bands"] = {
+                    metric: assessment.band
+                    for metric, assessment in assessments.items()
+                }
+                scenario = ScenarioResult.model_validate(scored_item).model_copy(
                     update={
                         "scenario_id": f"SCN-{index:03d}",
                         "evidence_ids": evidence_ids,
@@ -2159,6 +2248,32 @@ class AgentService:
         "compliance",
     )
     EQUAL_WEIGHT = 3
+    SCENARIO_BAND_SCORES = {
+        "very_favourable": 85,
+        "favourable": 70,
+        "neutral": 55,
+        "unfavourable": 35,
+        "very_unfavourable": 20,
+    }
+    SCENARIO_METRIC_CONFIG = {
+        "cost_score": ("cost", "cost_reduction", 1.0),
+        "resilience_score": (
+            "resilience",
+            "supply_chain_resilience",
+            1.0,
+        ),
+        "geopolitical_risk_score": (
+            "geopolitical_risk",
+            "political_stability",
+            1.0,
+        ),
+        "market_access_score": ("market_access", "market_access", 1.0),
+        "implementation_score": (
+            "implementation",
+            "compliance",
+            0.5,
+        ),
+    }
 
     @classmethod
     def _effective_weights(cls, company: CompanyInput) -> dict[str, int]:
@@ -2241,21 +2356,21 @@ class AgentService:
         for metric, (dimension, factor) in metric_weights.items():
             weight = weights.get(dimension, 3) * factor
             score = float(getattr(scenario, metric))
-            basis = (
-                "evidence"
-                if scenario.evidence_ids and scenario.evidence_links
-                else "inference"
-            )
+            assessment = scenario.dimension_assessments.get(metric)
+            basis = assessment.source if assessment else "inference"
             breakdown.append(
                 {
                     "dimension": metric,
+                    "band": assessment.band if assessment else "neutral",
                     "score": score,
                     "weight": weight,
                     "contribution": round(score * weight / total, 2),
+                    "reason": assessment.reason if assessment else "",
+                    "source": assessment.source if assessment else "inference",
                     "basis": basis,
                     "evidence_ids": (
-                        scenario.evidence_ids[:2]
-                        if basis == "evidence"
+                        assessment.evidence_ids
+                        if assessment
                         else []
                     ),
                 }
