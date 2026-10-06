@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -243,9 +244,17 @@ class EvidenceLink(StrictModel):
     reason: str = ""
 
 
+class ScenarioBand(str, Enum):
+    VERY_FAVOURABLE = "very_favourable"
+    FAVOURABLE = "favourable"
+    NEUTRAL = "neutral"
+    UNFAVOURABLE = "unfavourable"
+    VERY_UNFAVOURABLE = "very_unfavourable"
+
+
 class ScenarioScoreBreakdown(StrictModel):
     dimension: str
-    band: str = "neutral"
+    band: ScenarioBand = ScenarioBand.NEUTRAL
     score: float
     weight: float
     contribution: float
@@ -254,15 +263,8 @@ class ScenarioScoreBreakdown(StrictModel):
     basis: Literal["evidence", "inference"] = "inference"
     evidence_ids: list[str] = Field(default_factory=list)
 
-
 class ScenarioDimensionAssessment(StrictModel):
-    band: Literal[
-        "very_favourable",
-        "favourable",
-        "neutral",
-        "unfavourable",
-        "very_unfavourable",
-    ] = "neutral"
+    band: ScenarioBand = ScenarioBand.NEUTRAL
     reason: str = ""
     evidence_ids: list[str] = Field(default_factory=list)
     source: Literal["evidence", "inference"] = "inference"
@@ -284,7 +286,7 @@ class ScenarioResult(StrictModel):
     risks: list[str]
     applicable_conditions: list[str]
     evidence_ids: list[str]
-    dimension_bands: dict[str, str] = Field(default_factory=dict)
+    dimension_bands: dict[str, ScenarioBand] = Field(default_factory=dict)
     dimension_assessments: dict[str, ScenarioDimensionAssessment] = Field(
         default_factory=dict
     )
@@ -345,6 +347,37 @@ class ChatAnalysis(StrictModel):
     summary: str = ""
 
 
+class GapUpdate(StrictModel):
+    gap_item: str
+    status: Literal["resolved", "partial", "rejected"] = "partial"
+    answer: str = ""
+    source_turn: int = 0
+
+
+class ChatImpact(StrictModel):
+    new_constraints: list[str] = Field(default_factory=list)
+    new_preferences: list[str] = Field(default_factory=list)
+    profile_patch: dict[str, str] = Field(default_factory=dict)
+    gap_updates: list[GapUpdate] = Field(default_factory=list)
+    affected_dimensions: list[
+        Literal[
+            "cost",
+            "resilience",
+            "geopolitical_risk",
+            "market_access",
+            "implementation",
+        ]
+    ] = Field(default_factory=list)
+    requested_gap: str = ""
+    gap_question: str = ""
+    scenario_update_required: bool = False
+    summary: str = ""
+
+
+# Backward-compatible name used by older callers and stored payloads.
+ChatAnalysis = ChatImpact
+
+
 class ScenarioUpdateRequest(StrictModel):
     additional_constraints: list[str] = Field(default_factory=list)
     api_key: str | None = Field(default=None, min_length=10)
@@ -397,6 +430,7 @@ class InformationGap(StrictModel):
     why_it_matters: str = ""
     recommended_action: str = ""
     source_ids: list[str] = Field(default_factory=list)
+    status: Literal["open", "partial", "resolved"] = "open"
 
 
 class ManufacturingSite(StrictModel):
@@ -527,7 +561,7 @@ class Assessment(StrictModel):
     recommendation: Recommendation
     scoring: dict[str, int] = Field(default_factory=dict)
     weighting_mode: Literal["user", "equal"] = "equal"
-    chat_analysis: ChatAnalysis | None = None
+    chat_analysis: ChatImpact | None = None
     chat_history: list[ChatTurn] = Field(default_factory=list)
     trace: list[TraceStep] = Field(default_factory=list)
     limitations: list[str]

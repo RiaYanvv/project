@@ -16,6 +16,7 @@ from .schemas import (
     Assessment,
     BusinessProfile,
     ChatAnalysis,
+    ChatImpact,
     ChatRequest,
     ChatTurn,
     CompanyInput,
@@ -26,6 +27,7 @@ from .schemas import (
     EvidenceLink,
     EvidenceReference,
     FactItem,
+    GapUpdate,
     InformationGap,
     LLMCallRecord,
     ManufacturingSite,
@@ -34,6 +36,7 @@ from .schemas import (
     RetrievedEvidence,
     RiskItem,
     ScenarioScoreBreakdown,
+    ScenarioBand,
     ScenarioDimensionAssessment,
     ScenarioResult,
     SUPPLY_CHAIN_ROLE_FALLBACK,
@@ -149,14 +152,17 @@ class AgentService:
         mock_only = all(item.is_mock for item in items)
         if len(items) >= 3 and strong and not mock_only:
             return "high", [
-                f"{len(items)} linked sources including {sorted(strong)[0]} material"
+                f"{len(items)} linked sources: "
+                + ", ".join(item.evidence_id for item in items)
+                + f" (authority {sorted(strong)[0]})"
             ]
         if len(items) >= 2:
             return "medium", [
-                f"{len(items)} linked sources"
+                f"{len(items)} linked sources: "
+                + ", ".join(item.evidence_id for item in items)
                 + (" (test data only)" if mock_only else ", no top-tier authority material")
             ]
-        return "low", ["only one linked source"]
+        return "low", [f"only one linked source: {items[0].evidence_id}"]
 
     @staticmethod
     def _resolve_data_mode(evidence: list[RetrievedEvidence]) -> str:
@@ -661,6 +667,14 @@ class AgentService:
         )
 
         degraded = bool(degraded_stages)
+        if len(scenarios) >= 2:
+            score_values = [item.weighted_score for item in scenarios]
+            if max(score_values) - min(score_values) < 5:
+                limitations = [
+                    *limitations,
+                    "Scenario scores are highly converged; verify that evidence "
+                    "is sufficient to distinguish the strategic options.",
+                ]
         if degraded:
             limitations = [
                 *limitations,
@@ -721,7 +735,17 @@ class AgentService:
         supplemental_evidence: list[RetrievedEvidence] = []
         trace_status = "completed" if action_call.ok else "fallback"
 
-        if action.get("action") == "search_evidence":
+        action_name = str(action.get("action") or "answer")
+        if action_name == "ask_gap":
+            reply = str(
+                action.get("question")
+                or "请补充当前最关键的信息缺口，以便继续更新风险与情景分析。"
+            )
+            detail = (
+                f"ChatAgent 主动追问信息缺口："
+                f"{action.get('gap_item') or '未指定'}"
+            )
+        elif action_name == "search_evidence":
             query = str(action.get("query") or request.message)[:500]
             supplemental_evidence = self._search_text(query)
             detail = f"ChatAgent 自主调用检索工具，补充 {len(supplemental_evidence)} 条证据。"
@@ -731,21 +755,22 @@ class AgentService:
         else:
             detail = "ChatAgent 判断现有上下文足够，直接调用模型回答。"
 
-        reply = active_llm.answer_chat(
-            assessment,
-            request.message,
-            supplemental_evidence,
-            language,
-            company_intelligence=self.intelligence_brief(
-                assessment.company_intelligence
-            ),
-        )
-        answer_meta = getattr(active_llm, "last_call_meta", None)
-        if isinstance(answer_meta, dict):
-            answer_call = LLMCallRecord.model_validate(answer_meta)
-            chat_calls.append(answer_call)
-            if not answer_call.ok:
-                trace_status = "fallback"
+        if action_name != "ask_gap":
+            reply = active_llm.answer_chat(
+                assessment,
+                request.message,
+                supplemental_evidence,
+                language,
+                company_intelligence=self.intelligence_brief(
+                    assessment.company_intelligence
+                ),
+            )
+            answer_meta = getattr(active_llm, "last_call_meta", None)
+            if isinstance(answer_meta, dict):
+                answer_call = LLMCallRecord.model_validate(answer_meta)
+                chat_calls.append(answer_call)
+                if not answer_call.ok:
+                    trace_status = "fallback"
         chat_analysis = self._chat_analysis(
             action, reply, request.message, supplemental_evidence
         )
@@ -790,6 +815,32 @@ class AgentService:
                 "updated_at": utc_now(),
             }
         )
+        if chat_analysis.scenario_update_required:
+            constraints = [
+                *chat_analysis.new_constraints,
+                *chat_analysis.new_preferences,
+                *[
+                    f"{key}: {value}"
+                    for key, value in chat_analysis.profile_patch.items()
+                ],
+            ]
+            try:
+                updated = self.resimulate(
+                    updated,
+                    additional_constraints=constraints,
+                    api_key=request.api_key,
+                    model_name=updated.model_name,
+                    language=language,
+                )
+            except Exception as exc:  # noqa: BLE001
+                updated = updated.model_copy(
+                    update={
+                        "limitations": [
+                            *updated.limitations,
+                            f"Consultation update could not trigger scenario re-run: {exc}",
+                        ]
+                    }
+                )
         return updated
 
     def resimulate(
@@ -925,7 +976,7 @@ class AgentService:
         reply: str,
         message: str,
         supplemental_evidence: list[RetrievedEvidence],
-    ) -> ChatAnalysis:
+    ) -> ChatImpact:
         """Structured turn outcome for the consultation workspace (UI.md §19)."""
 
         def as_list(value: Any) -> list[str]:
@@ -937,6 +988,34 @@ class AgentService:
 
         new_constraints = as_list(action.get("new_constraints"))
         new_preferences = as_list(action.get("new_preferences"))
+        profile_patch = {
+            str(key): str(value)
+            for key, value in (action.get("profile_patch") or {}).items()
+            if str(key).strip() and str(value).strip()
+        } if isinstance(action.get("profile_patch"), dict) else {}
+        gap_updates: list[GapUpdate] = []
+        for item in action.get("gap_updates") or []:
+            if not isinstance(item, dict):
+                continue
+            gap_item = str(item.get("gap_item") or item.get("gap") or "").strip()
+            if not gap_item:
+                continue
+            try:
+                gap_updates.append(GapUpdate.model_validate(item))
+            except ValidationError:
+                continue
+        affected_dimensions = [
+            str(item)
+            for item in (action.get("affected_dimensions") or [])
+            if str(item)
+            in {
+                "cost",
+                "resilience",
+                "geopolitical_risk",
+                "market_access",
+                "implementation",
+            }
+        ]
         scenario_update_required = bool(action.get("scenario_update_required"))
         if not new_constraints and not new_preferences:
             # Conservative fallback: a substantive message that is not a question
@@ -945,12 +1024,20 @@ class AgentService:
             if substantive:
                 new_constraints = [message.strip()[:400]]
             scenario_update_required = scenario_update_required or substantive
+        scenario_update_required = scenario_update_required or bool(
+            profile_patch or gap_updates or affected_dimensions
+        )
         summary = str(action.get("summary") or "").strip()
         if not summary:
             summary = reply.strip().split("\n", 1)[0][:300]
-        return ChatAnalysis(
+        return ChatImpact(
             new_constraints=new_constraints,
             new_preferences=new_preferences,
+            profile_patch=profile_patch,
+            gap_updates=gap_updates,
+            affected_dimensions=affected_dimensions,
+            requested_gap=str(action.get("gap_item") or ""),
+            gap_question=str(action.get("question") or ""),
             scenario_update_required=scenario_update_required,
             summary=summary,
         )
@@ -1093,10 +1180,11 @@ class AgentService:
         # A bare list of evidence ids carries no company information.
         return bool(cls._EVIDENCE_ID_LIST.fullmatch(lowered))
 
-    @staticmethod
+    @classmethod
     def _patch_intelligence(
+        cls,
         intelligence: CompanyIntelligence | None,
-        analysis: ChatAnalysis,
+        analysis: ChatImpact,
     ) -> tuple[CompanyIntelligence | None, int]:
         """Fold consultation input into the company model.
 
@@ -1107,15 +1195,72 @@ class AgentService:
         if intelligence is None:
             return None, 0
         context = intelligence.decision_context
+        patch_constraints = [
+            f"{key}: {value}"
+            for key, value in analysis.profile_patch.items()
+        ]
         constraints = list(
-            dict.fromkeys([*context.constraints, *analysis.new_constraints])
+            dict.fromkeys(
+                [
+                    *context.constraints,
+                    *analysis.new_constraints,
+                    *patch_constraints,
+                ]
+            )
         )
         drivers = list(
             dict.fromkeys([*context.drivers, *analysis.new_preferences])
         )
+        sites = list(intelligence.manufacturing_footprint)
+        patched_sites = 0
+        for key, value in analysis.profile_patch.items():
+            match = re.match(
+                r"(?:site\.)?([a-z]{2}|[A-Za-z\u4e00-\u9fff]+)\.(capacity|facility|role)$",
+                key,
+            )
+            if not match:
+                continue
+            country, field_name = match.groups()
+            country_key = cls._country_key(country)
+            for index, site in enumerate(sites):
+                if cls._country_key(site.country) != country_key:
+                    continue
+                updates = {field_name: value}
+                if field_name == "capacity":
+                    updates["status"] = "reported"
+                sites[index] = site.model_copy(update=updates)
+                patched_sites += 1
+                break
+
+        gaps = list(intelligence.information_gaps)
+        patched_gaps = 0
+        for update in analysis.gap_updates:
+            target = re.sub(r"\s+", "", update.gap_item).casefold()
+            for index, gap in enumerate(gaps):
+                if isinstance(gap, str):
+                    gap_text = gap
+                    is_struct = False
+                else:
+                    gap_text = gap.item
+                    is_struct = True
+                candidate = re.sub(r"\s+", "", gap_text).casefold()
+                if target[:40] not in candidate and candidate[:40] not in target:
+                    continue
+                if is_struct:
+                    gaps[index] = gap.model_copy(
+                        update={"status": update.status}
+                    )
+                else:
+                    gaps[index] = InformationGap(
+                        item=gap_text,
+                        status=update.status,
+                    )
+                patched_gaps += 1
+                break
+
         added = (len(constraints) - len(context.constraints)) + (
             len(drivers) - len(context.drivers)
-        )
+        ) + patched_sites + patched_gaps
         if added <= 0:
             return intelligence, 0
         return (
@@ -1123,7 +1268,9 @@ class AgentService:
                 update={
                     "decision_context": context.model_copy(
                         update={"constraints": constraints, "drivers": drivers}
-                    )
+                    ),
+                    "manufacturing_footprint": sites,
+                    "information_gaps": gaps,
                 }
             ),
             added,
@@ -1954,7 +2101,7 @@ class AgentService:
                 )
                 for metric in self.SCENARIO_METRIC_CONFIG:
                     filtered[metric] = self.SCENARIO_BAND_SCORES[
-                        assessments[metric].band
+                        assessments[metric].band.value
                     ]
                 filtered["dimension_assessments"] = {
                     metric: assessment.model_dump(mode="json")
@@ -2007,7 +2154,7 @@ class AgentService:
                 scored_item = dict(item)
                 for metric in self.SCENARIO_METRIC_CONFIG:
                     scored_item[metric] = self.SCENARIO_BAND_SCORES[
-                        assessments[metric].band
+                        assessments[metric].band.value
                     ]
                 scored_item["dimension_assessments"] = {
                     metric: assessment.model_dump(mode="json")

@@ -489,6 +489,11 @@ class DeepSeekLLM:
                 "evidence_ids, source。"
                 "band 只能是 very_favourable, favourable, neutral, unfavourable, "
                 "very_unfavourable；source 只能是 evidence 或 inference。"
+                "档位定义：very_favourable=证据明确支持且无重大不确定性；"
+                "favourable=证据支持但存在可控不确定性；"
+                "neutral=证据不足或无法区分优劣；"
+                "unfavourable=证据明确指向成本、风险或实施压力上升；"
+                "very_unfavourable=证据明确指向重大暴露或不可行。"
                 "不要输出 0-100 分数，最终分数由后端 rubric 映射。"
                 "有证据支持时 source=evidence，并在 evidence_ids 中引用证据；"
                 "证据不足时使用 neutral + inference，不得凭感觉给高分或低分。"
@@ -555,14 +560,37 @@ class DeepSeekLLM:
                 language_prefix(language)
                 + "你是 Agent 的决策器。只返回 JSON。若回答需要补充检索，返回 "
                 '{"action":"search_evidence","query":"检索词"}；'
-                '若现有证据足够，返回 {"action":"answer"}。'
-                "判断前先看 company_intelligence 中这家公司是谁。"
-                "不要直接回答问题，只选择下一步动作。"
+                '若现有证据足够，返回 {"action":"answer"}；'
+                '若存在 critical/important 且未解决的 information gap，返回 '
+                '{"action":"ask_gap","gap_item":"...","question":"...",'
+                '"why_it_matters":"...",'
+                '"affected_dimensions":["cost|resilience|geopolitical_risk|market_access|implementation"]}。'
+                "如果用户本轮提供了缺口信息，返回 answer，并输出 "
+                "profile_patch、gap_updates（gap_item/status/answer）、"
+                "affected_dimensions 和 scenario_update_required。"
+                "判断前先看 company_intelligence 中这家公司是谁及其 open gaps。"
+                "不要直接回答普通问题，只选择下一步动作。"
             ),
             payload={
                 "company_intelligence": company_intelligence or {},
                 "company": assessment.company_profile.model_dump(mode="json"),
                 "user_message": message,
+                "open_information_gaps": [
+                    (
+                        gap.model_dump(mode="json")
+                        if not isinstance(gap, str)
+                        else {"item": gap, "priority": "important", "status": "open"}
+                    )
+                    for gap in (
+                        assessment.company_intelligence.information_gaps
+                        if assessment.company_intelligence
+                        else []
+                    )
+                    if (
+                        not isinstance(gap, str)
+                        and gap.status != "resolved"
+                    ) or isinstance(gap, str)
+                ],
                 "chat_history": [
                     turn.model_dump(mode="json")
                     for turn in assessment.chat_history[-10:]

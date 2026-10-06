@@ -76,6 +76,22 @@ REPORT_LABELS: dict[str, dict[str, str]] = {
         "stage_component": "材料/零部件",
         "stage_manufacturing": "制造",
         "stage_downstream": "下游应用",
+        "score_breakdown": "五维评分明细",
+        "col_dimension": "维度",
+        "col_band": "档位",
+        "col_score": "分数",
+        "col_reason": "评分理由",
+        "col_evidence_link": "证据",
+        "band_very_favourable": "非常有利",
+        "band_favourable": "有利",
+        "band_neutral": "中性",
+        "band_unfavourable": "不利",
+        "band_very_unfavourable": "非常不利",
+        "dim_cost_score": "成本影响",
+        "dim_resilience_score": "供应链韧性",
+        "dim_geopolitical_risk_score": "地缘政治风险",
+        "dim_market_access_score": "市场准入",
+        "dim_implementation_score": "落地可行性",
     },
     "en": {
         "document_title": "Supply Chain Relocation Decision Report",
@@ -127,6 +143,22 @@ REPORT_LABELS: dict[str, dict[str, str]] = {
         "stage_component": "Materials / components",
         "stage_manufacturing": "Manufacturing",
         "stage_downstream": "Downstream",
+        "score_breakdown": "Five-dimension score breakdown",
+        "col_dimension": "Dimension",
+        "col_band": "Band",
+        "col_score": "Score",
+        "col_reason": "Reason",
+        "col_evidence_link": "Evidence",
+        "band_very_favourable": "Very favourable",
+        "band_favourable": "Favourable",
+        "band_neutral": "Neutral",
+        "band_unfavourable": "Unfavourable",
+        "band_very_unfavourable": "Very unfavourable",
+        "dim_cost_score": "Cost impact",
+        "dim_resilience_score": "Supply-chain resilience",
+        "dim_geopolitical_risk_score": "Geopolitical risk",
+        "dim_market_access_score": "Market access",
+        "dim_implementation_score": "Implementation feasibility",
     },
 }
 
@@ -502,6 +534,103 @@ def _scenario_detail(
                 styles["Body"],
             )
         )
+        if item.dimension_assessments:
+            evidence_by_id = {
+                evidence.evidence_id: evidence
+                for evidence in assessment.evidence
+            }
+
+            def evidence_cell(evidence_ids: list[str]) -> Paragraph:
+                labels_for_ids = []
+                for evidence_id in evidence_ids:
+                    evidence = evidence_by_id.get(evidence_id)
+                    if evidence is None:
+                        labels_for_ids.append(html.escape(evidence_id))
+                        continue
+                    link = evidence.document_url or evidence.url
+                    if link:
+                        labels_for_ids.append(
+                            f"<a href='{html.escape(link)}'>"
+                            f"{html.escape(evidence_id)}</a>"
+                        )
+                    else:
+                        labels_for_ids.append(html.escape(evidence_id))
+                return Paragraph(
+                    "<br/>".join(labels_for_ids) or labels["unknown"],
+                    styles["Cell"],
+                )
+
+            breakdown_by_metric = {
+                entry.dimension: entry
+                for entry in item.score_breakdown
+            }
+            rows = [
+                [
+                    Paragraph(labels["col_dimension"], styles["CellHeader"]),
+                    Paragraph(labels["col_band"], styles["CellHeader"]),
+                    Paragraph(labels["col_score"], styles["CellHeader"]),
+                    Paragraph(labels["col_reason"], styles["CellHeader"]),
+                    Paragraph(
+                        labels["col_evidence_link"], styles["CellHeader"]
+                    ),
+                ]
+            ]
+            for metric in (
+                "cost_score",
+                "resilience_score",
+                "geopolitical_risk_score",
+                "market_access_score",
+                "implementation_score",
+            ):
+                dimension = item.dimension_assessments.get(metric)
+                breakdown = breakdown_by_metric.get(metric)
+                if dimension is None:
+                    continue
+                band_value = (
+                    dimension.band.value
+                    if hasattr(dimension.band, "value")
+                    else str(dimension.band)
+                )
+                rows.append(
+                    [
+                        Paragraph(
+                            labels.get(
+                                f"dim_{metric}",
+                                metric,
+                            ),
+                            styles["Cell"],
+                        ),
+                        Paragraph(
+                            labels.get(
+                                f"band_{band_value}",
+                                band_value,
+                            ),
+                            styles["Cell"],
+                        ),
+                        Paragraph(
+                            str(breakdown.score if breakdown else ""),
+                            styles["Cell"],
+                        ),
+                        Paragraph(
+                            html.escape(dimension.reason or ""),
+                            styles["Cell"],
+                        ),
+                        evidence_cell(dimension.evidence_ids),
+                    ]
+                )
+            table = Table(
+                rows,
+                colWidths=[27 * mm, 22 * mm, 14 * mm, 68 * mm, 38 * mm],
+                repeatRows=1,
+            )
+            table.setStyle(_table_style())
+            blocks.append(
+                Paragraph(
+                    f"<b>{html.escape(labels['score_breakdown'])}</b>",
+                    styles["Body"],
+                )
+            )
+            blocks.append(table)
         if item.benefits:
             blocks.append(
                 Paragraph(f"<b>{html.escape(labels['benefits'])}</b>", styles["Body"])
@@ -541,17 +670,61 @@ def _consultation_section(
     labels: dict[str, str],
 ) -> list:
     """What the consultation added and how it changed the analysis."""
-    turns = [turn for turn in assessment.chat_history if turn.role == "user"]
+    turns = assessment.chat_history[-8:]
     if not turns:
         return [Paragraph(labels["no_consultation"], styles["Body"])]
-    blocks: list = []
-    for turn in turns[-6:]:
-        blocks.append(Paragraph(html.escape(turn.content[:600]), styles["Cell"]))
+    role_labels = (
+        {"user": "用户", "assistant": "Agent"}
+        if assessment.language == "zh"
+        else {"user": "User", "assistant": "Agent"}
+    )
+    rows = [
+        [
+            Paragraph("角色", styles["CellHeader"]),
+            Paragraph("对话内容", styles["CellHeader"]),
+        ]
+    ]
+    rows.extend(
+        [
+            Paragraph(
+                html.escape(role_labels.get(turn.role, turn.role)),
+                styles["Cell"],
+            ),
+            Paragraph(html.escape(turn.content[:1200]), styles["Cell"]),
+        ]
+        for turn in turns
+    )
+    table = Table(rows, colWidths=[22 * mm, 147 * mm], repeatRows=1)
+    table.setStyle(_table_style())
+    blocks: list = [table]
     analysis = assessment.chat_analysis
     if analysis is not None:
+        if analysis.gap_question:
+            blocks.append(
+                Paragraph(
+                    html.escape(
+                        f"Agent 追问：{analysis.gap_question}"
+                    ),
+                    styles["Small"],
+                )
+            )
         added = [*analysis.new_constraints, *analysis.new_preferences]
+        added.extend(
+            f"{key}: {value}"
+            for key, value in analysis.profile_patch.items()
+        )
         if added:
             blocks.append(_bullet_list(added, styles))
+        if analysis.gap_updates:
+            blocks.append(
+                _bullet_list(
+                    [
+                        f"{update.gap_item}: {update.status} — {update.answer}"
+                        for update in analysis.gap_updates
+                    ],
+                    styles,
+                )
+            )
         if analysis.scenario_update_required:
             blocks.append(
                 Paragraph(
