@@ -193,6 +193,12 @@ input.field-invalid,select.field-invalid,textarea.field-invalid{border-color:#d8
 .scenario-dimensions b{text-align:right;color:#345267;font:600 12px var(--mono)}
 .scenario-toggle{width:100%;margin-top:auto;justify-content:center}
 .scenario-detail{margin-top:18px;padding-top:18px;border-top:1px solid var(--line)}
+.scenario-breakdown-wrap{overflow-x:auto;border:1px solid #dfeaf0}
+.scenario-breakdown table{width:100%;min-width:700px;border-collapse:collapse;background:#fff}
+.scenario-breakdown th,.scenario-breakdown td{padding:9px 10px;border-right:1px solid #e2ecf1;border-bottom:1px solid #e2ecf1;text-align:left;vertical-align:top;font-size:10.5px;line-height:1.55}
+.scenario-breakdown th{color:#31566d;background:#edf5f8;font-weight:700}
+.scenario-breakdown tr:last-child td{border-bottom:0}
+.scenario-breakdown a{color:var(--blue);text-decoration:none;font:600 10px var(--mono)}
 .scenario-block{margin-bottom:16px}
 .scenario-block b{display:block;margin-bottom:8px;color:#345267;font-size:12.5px}
 .scenario-block ul{margin:0;padding-left:18px;color:#5a7182;font-size:13px;line-height:1.75}

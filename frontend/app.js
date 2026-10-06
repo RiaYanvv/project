@@ -806,6 +806,12 @@ function scenarioConfidence(scenario, meta) {
 }
 
 function mapScenario(item, evidenceFor, meta) {
+  const confidenceLabel = String(item.confidence || "").toLowerCase();
+  const confidenceMap = {
+    high: currentLanguage() === "zh" ? "高" : "High",
+    medium: currentLanguage() === "zh" ? "中" : "Medium",
+    low: currentLanguage() === "zh" ? "低" : "Low",
+  };
   const scenario = {
     scenario_id: item.scenario_id || "",
     name: item.name || "Scenario",
@@ -823,11 +829,17 @@ function mapScenario(item, evidenceFor, meta) {
     assumptions: item.applicable_conditions || [],
     breakdown: item.score_breakdown || [],
     bands: item.dimension_bands || {},
+    dimensionAssessments: item.dimension_assessments || {},
     insufficient: Boolean(item.insufficient_evidence),
     links: item.evidence_links || [],
     evidence: (item.evidence_ids || []).map(evidenceFor),
   };
-  scenario.confidence = scenarioConfidence(scenario, meta);
+  scenario.confidence = confidenceMap[confidenceLabel]
+    ? {
+        label: confidenceMap[confidenceLabel],
+        reason: (item.confidence_reasons || []).join("; "),
+      }
+    : scenarioConfidence(scenario, meta);
   return scenario;
 }
 
@@ -1457,12 +1469,44 @@ function scenarioDetail(scenario, index, weighting) {
   const ranked = SCENARIO_DIMENSIONS.map(([key, label]) => ({ label, value: scenario.scores[key] })).sort((a, b) => b.value - a.value);
   const strongest = ranked[0];
   const weakest = ranked[ranked.length - 1];
+  const bandLabels = {
+    very_favourable: L("Very favourable", "非常有利"),
+    favourable: L("Favourable", "有利"),
+    neutral: L("Neutral", "中性"),
+    unfavourable: L("Unfavourable", "不利"),
+    very_unfavourable: L("Very unfavourable", "非常不利"),
+  };
+  const evidenceLink = (evidenceId) => {
+    const item = (scenario.evidence || []).find(entry => entry.evidence_id === evidenceId);
+    const link = item ? sourceLink(item) : "";
+    return link
+      ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(evidenceId)}</a>`
+      : `<span>${escapeHtml(evidenceId)}</span>`;
+  };
+  const breakdownRows = SCENARIO_DIMENSIONS.map(([key, label]) => {
+    const metric = SCENARIO_BREAKDOWN_KEY[key];
+    const assessment = scenario.dimensionAssessments[metric] || {};
+    const breakdown = scenario.breakdown.find(entry => entry.dimension === metric) || {};
+    const band = String(assessment.band || breakdown.band || "neutral");
+    const evidenceIds = assessment.evidence_ids || breakdown.evidence_ids || [];
+    return `<tr>
+      <td>${escapeHtml(label)}</td>
+      <td>${escapeHtml(bandLabels[band] || band)}</td>
+      <td>${escapeHtml(String(breakdown.score ?? scenario.scores[key] ?? ""))}</td>
+      <td>${escapeHtml(assessment.reason || breakdown.reason || "")}</td>
+      <td>${evidenceIds.length ? evidenceIds.map(evidenceLink).join(" · ") : escapeHtml(L("inference", "推断"))}</td>
+    </tr>`;
+  }).join("");
+  const breakdownTable = breakdownRows
+    ? `<div class="scenario-block scenario-breakdown"><b>${L("Five-dimension score breakdown", "五维评分明细")}</b><div class="scenario-breakdown-wrap"><table><thead><tr><th>${L("Dimension", "维度")}</th><th>${L("Band", "档位")}</th><th>${L("Score", "分数")}</th><th>${L("Reason", "理由")}</th><th>${L("Evidence", "证据")}</th></tr></thead><tbody>${breakdownRows}</tbody></table></div></div>`
+    : "";
   const evidence = (scenario.evidence || []).length
     ? `<div class="scenario-block"><b>Evidence support</b><ul class="scenario-evidence">${scenario.evidence.map(item => `<li><span>${escapeHtml(item.publisher)} — ${escapeHtml(item.title)}</span><em>${escapeHtml([item.date, item.authority].filter(Boolean).join(" · "))}</em><span class="evidence-conf">Confidence: ${evidenceConfidence(item)}</span></li>`).join("")}</ul></div>`
     : `<div class="scenario-block"><b>Evidence support</b><p class="muted">No source is linked to this scenario yet.</p></div>`;
   return `
     <div class="scenario-detail" id="scenario-detail-${index}" hidden>
       <div class="scenario-block"><b>Scenario overview</b><p>${escapeHtml(scenario.summary || "")}</p></div>
+      ${breakdownTable}
       ${bulletBlock("Potential benefits", scenario.benefits, "No benefits were listed.")}
       ${bulletBlock("Potential risks", scenario.risks, "No risks were listed.")}
       ${bulletBlock("Key assumptions", scenario.assumptions, "No assumptions were listed.")}
@@ -1569,12 +1613,9 @@ function renderScenarios(assessment) {
     const comparison = state.scenarioComparison;
     if (comparison && (comparison.after || []).length) {
       note.hidden = false;
-      note.innerHTML = `<p class="section-number">UPDATED SCENARIO RESULT</p><ul class="scenario-comparison">${comparison.after.map((item, index) => {
-        const previous = comparison.before[index];
-        const delta = previous ? item.score - previous.score : 0;
-        const arrow = delta > 0 ? `↑ +${delta}` : delta < 0 ? `↓ ${delta}` : "unchanged";
-        const tone = delta > 0 ? "up" : delta < 0 ? "down" : "";
-        return `<li><span>${escapeHtml(item.name)}</span><b>${previous ? `${previous.score} → ${item.score}` : item.score}</b><em class="${tone}">${arrow}</em></li>`;
+      note.innerHTML = `<p class="section-number">UPDATED SCENARIO RESULT</p><ul class="scenario-comparison">${scenarioComparisonRows(comparison.before, comparison.after).map(row => {
+        const tone = row.delta > 0 ? "up" : row.delta < 0 ? "down" : "";
+        return `<li><span>${escapeHtml(row.name)}</span><b>${row.beforeScore} → ${row.afterScore}</b><em class="${tone}">${row.arrow}</em></li>`;
       }).join("")}</ul><p class="scenario-comparison-reason">Reason: ${escapeHtml(comparison.reason)}${comparison.live ? "" : " · preview estimate"}</p>`;
     } else {
       note.hidden = true;
@@ -1693,13 +1734,28 @@ const INFO_CATEGORIES = [
   "Add customer requirements",
 ];
 
-function openChat() {
+async function openChat() {
   if (!state.assessment) {
     showToast("Complete an assessment first — the consultation builds on it.");
     return;
   }
   if (!chatState.seeded) {
-    chatState.messages.push({ id: "msg-open", role: "assistant", at: new Date().toISOString(), content: chatOpeningMessage(state.assessment), explain: true });
+    let opening = chatOpeningMessage(state.assessment);
+    const assessmentId = state.assessment.meta?.assessment_id;
+    if (assessmentId && window.LOCUS_API_BASE) {
+      try {
+        const response = await fetchWithTimeout(`${window.LOCUS_API_BASE}/api/v1/assessments/${assessmentId}/chat/opening`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ language: currentLanguage() === "zh" ? "zh" : "en" }),
+        }, 20000);
+        if (response.ok) {
+          const payload = await response.json();
+          if (payload.message) opening = payload.message;
+        }
+      } catch { /* fall back to local opening */ }
+    }
+    chatState.messages.push({ id: "msg-open", role: "assistant", at: new Date().toISOString(), content: opening, explain: true });
     chatState.seeded = true;
   }
   renderChatCategories();
@@ -1713,22 +1769,18 @@ function openChat() {
 
 function chatOpeningMessage(assessment) {
   const profile = assessment.company_profile || {};
-  const risks = assessment.risks || [];
-  const scenarios = normalizeScenarios(assessment);
-  const top = scenarios[0];
-  const high = risks.filter(risk => SEVERITY_LEVEL[risk.severity] === "high").length;
-  const lines = [`I have reviewed the profile for **${profile.company_name || "your company"}**, the evidence set, the risk assessment and ${scenarios.length} scenario option${scenarios.length === 1 ? "" : "s"}.`];
-  if (top) lines.push(`The current leading option is **${top.name}** at ${top.overall_score}/100, with ${high} high-priority exposure${high === 1 ? "" : "s"} to manage.`);
-  lines.push([
-    "To improve the assessment, additional information would help:",
-    "1. Supplier dependency — which critical inputs or components have only one qualified source",
-    "2. Cost differences between locations, including logistics and duties",
-    "3. Investment constraints and budget ceiling",
-    "4. Customer requirements or certifications that restrict origin",
-    "5. Implementation timeline and capacity ramp-up limits",
-  ].join("\n"));
-  lines.push("You can answer any of these, ask a question, or use **+ Add information** to attach a document or a constraint.");
-  return lines.join("\n\n");
+  const gaps = assessment.company_intelligence?.information_gaps || [];
+  const firstGap = gaps.find(gap => typeof gap !== "string" && gap.status !== "resolved")
+    || gaps[0];
+  if (firstGap) {
+    const text = typeof firstGap === "string" ? firstGap : firstGap.item;
+    return currentLanguage() === "zh"
+      ? `我已核对 **${profile.company_name || "该公司"}** 的企业画像、风险和情景。为了继续提高准确度，请先补充一项关键信息：**${text}**。`
+      : `I reviewed **${profile.company_name || "the company"}**, its risks and scenarios. To improve accuracy, please confirm one key item first: **${text}**.`;
+  }
+  return currentLanguage() === "zh"
+    ? "企业画像、风险和情景已经载入。你可以直接提问，或补充供应商、产能、成本、客户和合规约束。"
+    : "The company profile, risks and scenarios are loaded. Ask a question or add supplier, capacity, cost, customer or compliance constraints.";
 }
 
 function renderChatMeta() {
@@ -1874,6 +1926,7 @@ function previewReply(question) {
 async function sendChatMessage(text) {
   const assessment = state.assessment;
   const live = Boolean(assessment?.meta?.assessment_id && window.LOCUS_API_BASE && window.LOCUS_API_KEY);
+  const before = normalizeScenarios(assessment).map(item => ({ name: item.name, score: item.overall_score }));
   appendChatMessage({ role: "user", content: text });
   markReportOutdated();
   if (!live) {
@@ -1893,6 +1946,17 @@ async function sendChatMessage(text) {
     removeChatMessage(pending);
     appendChatMessage({ role: "assistant", content: reply?.content || "I could not produce a reply for that message.", explain: true });
     state.assessment = mapApiAssessment(updated, assessment.company_profile);
+    const after = normalizeScenarios(state.assessment).map(item => ({ name: item.name, score: item.overall_score }));
+    const changed = scenarioComparisonRows(before, after).filter(row => row.delta !== 0);
+    if (changed.length) {
+      appendChatMessage({
+        role: "assistant",
+        content: [
+          `**${L("Updated scenario scores", "情景分数已更新")}**`,
+          changed.map(row => `- ${row.name}: ${row.beforeScore} → **${row.afterScore}** ${row.arrow}`).join("\n"),
+        ].join("\n\n"),
+      });
+    }
     renderChatContext();
     renderChatMeta();
   } catch (error) {
@@ -1966,14 +2030,23 @@ async function rerunAssessmentForChat() {
   return mapApiAssessment(api, profile);
 }
 
-function comparisonText(before, after) {
+function scenarioComparisonRows(before, after) {
+  const normalise = value => String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
   return after.map((item, index) => {
-    const previous = before[index];
-    if (!previous) return `${item.name}: ${item.score}/100`;
-    const delta = item.score - previous.score;
-    const arrow = delta > 0 ? ` ↑ +${delta}` : delta < 0 ? ` ↓ ${delta}` : " — unchanged";
-    return `${item.name}: ${previous.score} → **${item.score}**${arrow}`;
-  }).join("\n");
+    const key = normalise(item.name);
+    const previous = before.find(candidate => normalise(candidate.name) === key)
+      || before[index];
+    const beforeScore = previous ? previous.score : item.score;
+    const delta = item.score - beforeScore;
+    const arrow = delta > 0 ? `↑ +${delta}` : delta < 0 ? `↓ ${delta}` : L("unchanged", "未变化");
+    return { name: item.name, beforeScore, afterScore: item.score, delta, arrow };
+  });
+}
+
+function comparisonText(before, after) {
+  return scenarioComparisonRows(before, after)
+    .map(row => `${row.name}: ${row.beforeScore} → **${row.afterScore}** ${row.arrow}`)
+    .join("\n");
 }
 
 async function runScenarioUpdate() {
