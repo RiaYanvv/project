@@ -197,31 +197,38 @@ class MockLLM:
         normalized = message.lower()
         if any(term in normalized for term in ("cost", "budget", "成本", "投资", "预算")):
             return (
-                "成本约束已纳入重新评估。下一轮应补充投资预算上限、当地固定资产"
-                "沉没成本，以及中国与现有海外基地的单位成本差。"
+                    "这条成本信息已记录。它可能改变实施可行性和成本判断，"
+                    "但当前正式评分尚未更新；如需纳入模型，请点击“重新模拟”。"
+                    "下一步可补充预算上限、当地固定资产沉没成本，以及中国与"
+                    "现有海外基地的单位成本差。"
                 if zh
-                else "The cost constraint is now part of the assessment. Useful next inputs: "
-                "the investment ceiling, the sunk cost of existing assets, and the unit-cost "
-                "gap between China and the current overseas sites."
+                    else "This cost information is recorded. It may change feasibility and "
+                    "the cost assessment, but the formal scores have not yet been updated. "
+                    "Choose re-simulate to fold it into the model. Useful next inputs: the "
+                    "investment ceiling, the sunk cost of existing assets, and the unit-cost "
+                    "gap between China and the current overseas sites."
             )
         if any(term in normalized for term in ("time", "时间", "期限")):
             return (
-                "决策时间会改变可行方案，建议补充产能爬坡和审批周期。"
+                    "这条时间信息已记录，可能改变可行方案；当前正式评分尚未更新。"
+                    "建议补充产能爬坡和审批周期，再决定是否重新模拟。"
                 if zh
-                else "Timing changes which options stay feasible; adding capacity ramp-up and "
-                "approval lead times would sharpen the comparison."
+                    else "This timing information is recorded and may change which options stay "
+                    "feasible, but the formal scores have not yet been updated. Add capacity "
+                    "ramp-up and approval lead times before deciding whether to re-simulate."
             )
         if any(
             term in normalized
             for term in ("tariff", "关税", "export", "出口管制", "管制")
         ):
             return (
-                "政策风险已提升为重点观察项。建议补充产品 HS/ECCN 编码、"
-                "客户所在地和关键供应商。"
+                "这条政策信息已记录为重点观察项；当前正式评分尚未更新。"
+                "建议补充产品 HS/ECCN 编码、客户所在地和关键供应商，再决定是否重新模拟。"
                 if zh
-                else "Policy exposure has moved up the watch list. Adding HS/ECCN codes, "
-                "customer locations and critical suppliers would make this assessment "
-                "company specific."
+                else "This policy information is recorded as a watch item, but the formal scores "
+                "have not yet been updated. Adding HS/ECCN codes, customer locations and "
+                "critical suppliers would make the assessment more company-specific before "
+                "you choose whether to re-simulate."
             )
         if supplemental_evidence:
             return (
@@ -441,11 +448,18 @@ class DeepSeekLLM:
                 "category 只能使用 TRADE, POLITICAL, SUPPLY_CHAIN, REGULATORY, "
                 "MARKET_ACCESS, OPERATIONAL；Financial/CapEx 归入 OPERATIONAL。"
                 "company_specific_trigger 必须引用 company_intelligence 中的具体"
-                "公司事实，不能只写行业级判断。external_mechanism 必须说明政策、"
-                "贸易、供应链或运营机制。"
+                "公司事实（至少包含一个已披露基地、设施、产品、客户、供应商或"
+                "供应链角色），不能只写行业级判断。title 必须写成"
+                "“具体公司/基地 + 触发机制 + 经营后果”，例如"
+                "“美国海关执法收紧与中国原产地电芯的转运合规风险”；禁止输出"
+                "“关税与原产地规则变化”这类泛化标题。external_mechanism 必须"
+                "说明政策、贸易、供应链或运营机制，并引用具体措施或规则。"
                 "impact_channels 从中选择：cost, lead_time, production_continuity, "
                 "market_access, compliance_burden, capacity_expansion, "
                 "customer_delivery, implementation_feasibility。"
+                "impact_description 必须按“公司触发事实 → 外部机制 → 影响渠道 "
+                "→ 对该公司基地、市场、成本或交付的后果”写完整，不能只写"
+                "“可能推高成本”这类泛化判断。"
                 "supporting_evidence_ids 只能引用输入中的 evidence_id；没有合格证据"
                 "时返回空数组并设置 insufficient_evidence=true。"
                 "不得输出 INFORMATION_QUALITY 或资料质量类风险，这些属于信息缺口。"
@@ -453,6 +467,10 @@ class DeepSeekLLM:
                 "结合其生产基地、供应链角色与目标市场说明暴露路径；不得只给行业级结论"
                 "（例如“电池企业面临关税风险”应改写为结合该公司具体基地与原产地的判断）。"
                 "公司事实取自 company_evidence，政策暴露取自 policy_evidence。"
+                "如果 S/A+ 政策证据直接作用于 company_intelligence 中已经披露的"
+                "基地、产品或目标市场，三组 1-5 评分应按实际暴露区间评估，"
+                "可以直接使用 4-5；如果公司触发事实缺失或无法核实，最多给 3，"
+                "不得用高分补偿证据不足。"
                 "不得把 Mock 证据描述为真实事实。"
             ),
             payload={
@@ -569,6 +587,8 @@ class DeepSeekLLM:
                 "profile_patch、gap_updates（gap_item/status/answer）、"
                 "affected_dimensions 和 scenario_update_required。"
                 "判断前先看 company_intelligence 中这家公司是谁及其 open gaps。"
+                "聊天阶段绝不自动重跑风险或情景，也不得声称已经重算正式分数；"
+                "scenario_update_required 只表示需要提示用户是否进行正式重跑。"
                 "不要直接回答普通问题，只选择下一步动作。"
             ),
             payload={
@@ -619,7 +639,12 @@ class DeepSeekLLM:
                 "回答必须基于已有评估和证据，明确不确定性，不得编造来源。"
                 "回答要先结合 company_intelligence 中这家公司的业务模式、供应链角色、"
                 "生产基地与待补信息，再给结论。"
-                "若新增信息改变判断，要说明影响；对高风险事项建议人工复核。"
+                "区分两类回答：解释已有结果时说明评分依据，不改状态；"
+                "用户提供预算、产能、供应商或客户等新信息时，分析它可能影响"
+                "成本、韧性、市场准入或实施可行性的方向，但明确说明"
+                "“当前正式评分尚未更新”。不得自行重算情景，不得把推测值写成"
+                "已经生效的新分数。若该信息值得纳入正式模型，提示用户点击"
+                "“重新模拟”；对高风险事项建议人工复核。"
             ),
             payload={
                 "company_intelligence": company_intelligence or {},

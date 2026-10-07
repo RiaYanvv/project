@@ -562,6 +562,7 @@ class AgentService:
             heuristic["risks"],
             evidence,
             company,
+            intelligence,
         )
         contested_ids = {
             link.evidence_id
@@ -960,32 +961,9 @@ class AgentService:
                 "updated_at": utc_now(),
             }
         )
-        if chat_analysis.scenario_update_required:
-            constraints = [
-                *chat_analysis.new_constraints,
-                *chat_analysis.new_preferences,
-                *[
-                    f"{key}: {value}"
-                    for key, value in chat_analysis.profile_patch.items()
-                ],
-            ]
-            try:
-                updated = self.resimulate(
-                    updated,
-                    additional_constraints=constraints,
-                    api_key=request.api_key,
-                    model_name=updated.model_name,
-                    language=language,
-                )
-            except Exception as exc:  # noqa: BLE001
-                updated = updated.model_copy(
-                    update={
-                        "limitations": [
-                            *updated.limitations,
-                            f"Consultation update could not trigger scenario re-run: {exc}",
-                        ]
-                    }
-                )
+        # Consultation is deliberately descriptive: new information is stored
+        # and explained, but the formal scenario scores only change when the
+        # user explicitly calls the scenario re-simulation endpoint.
         return updated
 
     def resimulate(
@@ -1845,22 +1823,59 @@ class AgentService:
     def _confidence_rank(value: str) -> int:
         return {"low": 1, "medium": 2, "high": 3}.get(value, 1)
 
-    @staticmethod
-    def _company_specific_trigger(
-        company: CompanyInput,
-        risk_name: str,
-        category_key: str,
-    ) -> str:
-        markets = ", ".join(company.target_markets)
-        footprint = ", ".join(
-            f"{item.country} {item.production_share}%"
-            for item in company.production_locations
+    @classmethod
+    def _countries_in_text(cls, value: str) -> set[str]:
+        text = str(value or "").lower()
+        found: set[str] = set()
+        for alias, canonical in cls.COUNTRY_ALIASES.items():
+            if len(alias) <= 2:
+                if re.search(rf"\b{re.escape(alias)}\b", text):
+                    found.add(canonical)
+            elif alias in text:
+                found.add(canonical)
+        return found
+
+    @classmethod
+    def _has_evidence_backed_company_trigger(
+        cls,
+        risk: dict[str, Any],
+        company: CompanyInput | None,
+        intelligence: CompanyIntelligence | None,
+    ) -> bool:
+        """Whether a policy risk is tied to a sourced company operating fact."""
+        if company is None or intelligence is None:
+            return False
+        trigger = " ".join(
+            str(risk.get(field) or "")
+            for field in (
+                "title",
+                "name",
+                "company_specific_trigger",
+                "impact_description",
+            )
         )
-        return (
-            f"For {company.company_name}, this risk is relevant because its disclosed "
-            f"footprint is {footprint or 'not provided'} while its target markets are "
-            f"{markets or 'not provided'}. The risk category is {category_key}."
-        )
+        if not trigger.strip():
+            return False
+        trigger_terms = cls._terms(trigger)
+        trigger_countries = cls._countries_in_text(trigger)
+        for site in intelligence.manufacturing_footprint:
+            if not site.source_ids:
+                continue
+            site_country = cls._country_key(site.country)
+            if site_country and site_country in trigger_countries:
+                return True
+            site_terms = cls._terms(f"{site.facility} {site.role}")
+            if site_terms and len(site_terms & trigger_terms) >= 2:
+                return True
+        for stage in intelligence.supply_chain_structure:
+            if not stage.source_ids:
+                continue
+            stage_terms = cls._terms(
+                f"{stage.description} {stage.company_role} {stage.region}"
+            )
+            if stage_terms and len(stage_terms & trigger_terms) >= 2:
+                return True
+        return False
 
     def _apply_risk_rubric(
         self,
@@ -1868,6 +1883,7 @@ class AgentService:
         links: list[EvidenceLink],
         evidence: list[RetrievedEvidence],
         company: CompanyInput | None,
+        intelligence: CompanyIntelligence | None = None,
     ) -> dict[str, Any]:
         by_id = {item.evidence_id: item for item in evidence}
         linked = [
@@ -1898,8 +1914,17 @@ class AgentService:
             confidence = "low"
         elif not company_evidence:
             # Industry/policy evidence alone cannot support a HIGH company risk.
-            risk_level = "low" if risk_level == "low" else "medium"
-            confidence = "low"
+            if self._has_evidence_backed_company_trigger(
+                risk, company, intelligence
+            ):
+                verified = all(
+                    item.verification_status == "verified"
+                    for item in external_evidence
+                )
+                confidence = "high" if verified else "medium"
+            else:
+                risk_level = "low" if risk_level == "low" else "medium"
+                confidence = "low"
         elif external_evidence:
             verified = all(
                 item.verification_status == "verified"
@@ -1932,15 +1957,7 @@ class AgentService:
                 ),
                 "company_specific_trigger": str(
                     risk.get("company_specific_trigger")
-                    or (
-                        self._company_specific_trigger(
-                            company,
-                            str(risk.get("name") or risk.get("title") or ""),
-                            str(risk.get("category_key") or "operational"),
-                        )
-                        if company is not None
-                        else "Company-specific trigger requires verification."
-                    )
+                    or "Company-specific trigger requires verification."
                 ),
                 "external_mechanism": str(
                     risk.get("external_mechanism") or ""
@@ -2054,6 +2071,7 @@ class AgentService:
         fallback: list[dict[str, Any]],
         evidence: list[RetrievedEvidence],
         company: CompanyInput | None = None,
+        intelligence: CompanyIntelligence | None = None,
     ) -> tuple[list[RiskItem], bool]:
         candidates = payload if isinstance(payload, list) else fallback
         system_risk_markers = (
@@ -2093,6 +2111,9 @@ class AgentService:
                 ).upper()
                 filtered["title"] = str(
                     filtered.get("title") or filtered.get("name") or "Risk"
+                )
+                filtered["name"] = str(
+                    filtered.get("name") or filtered["title"]
                 )
                 raw_ids = [
                     evidence_id
@@ -2150,7 +2171,7 @@ class AgentService:
                 )
                 filtered["verification_status"] = verification_status
                 filtered = self._apply_risk_rubric(
-                    filtered, links, evidence, company
+                    filtered, links, evidence, company, intelligence
                 )
                 risks.append(
                     RiskItem.model_validate(filtered).model_copy(
@@ -2183,8 +2204,11 @@ class AgentService:
                 item["title"] = str(
                     item.get("title") or item.get("name") or "Risk"
                 )
+                item["name"] = str(
+                    item.get("name") or item["title"]
+                )
                 risk_payload = self._apply_risk_rubric(
-                    item, links, evidence, company
+                    item, links, evidence, company, intelligence
                 )
                 risks.append(
                     RiskItem.model_validate(risk_payload).model_copy(

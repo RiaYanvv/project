@@ -49,7 +49,7 @@ class RecordingChatLLM(MockLLM):
         language="en",
         company_intelligence=None,
     ):
-        return "已记录新增信息，并更新情景分析。"
+        return "已记录新增信息，当前正式评分尚未更新。"
 
 
 def make_company() -> CompanyInput:
@@ -162,7 +162,7 @@ class ScenarioChatClosedLoopTest(unittest.TestCase):
         self.assertEqual(opening.requested_gap, "")
         self.assertIn("企业画像", opening.message)
 
-    def test_chat_answer_triggers_scenario_resimulation(self) -> None:
+    def test_chat_answer_marks_scenario_update_without_resimulating(self) -> None:
         action = {
             "action": "answer",
             "profile_patch": {"site.VN.capacity": "5 GWh/year"},
@@ -191,7 +191,7 @@ class ScenarioChatClosedLoopTest(unittest.TestCase):
                     language="zh",
                 ),
             )
-        resimulate.assert_called_once()
+        resimulate.assert_not_called()
         self.assertTrue(updated.chat_analysis.scenario_update_required)
         self.assertEqual(
             updated.chat_analysis.profile_patch["site.VN.capacity"],

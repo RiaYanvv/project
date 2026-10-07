@@ -10,7 +10,12 @@ sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.agent import AgentService
 from app.llm import MockLLM
-from app.schemas import CompanyInput, RetrievedEvidence
+from app.schemas import (
+    CompanyInput,
+    CompanyIntelligence,
+    ManufacturingSite,
+    RetrievedEvidence,
+)
 
 
 class StaticRetrieval:
@@ -121,6 +126,48 @@ class RiskAssessmentReviewTest(unittest.TestCase):
         )
         self.assertEqual(risks[0].risk_level, "medium")
         self.assertEqual(risks[0].confidence, "low")
+
+    def test_sourced_company_site_can_support_high_policy_exposure(self) -> None:
+        items = [
+            evidence("EVD-POLICY", "policy", "US tariff and origin enforcement applies to battery imports."),
+        ]
+        intelligence = CompanyIntelligence(
+            manufacturing_footprint=[
+                ManufacturingSite(
+                    country="CN",
+                    facility="LGES Nanjing",
+                    role="battery cell manufacturing",
+                    source_ids=["EVD-COMPANY"],
+                )
+            ]
+        )
+        payload = risk_payload()
+        payload["company_specific_trigger"] = (
+            "LGES manufactures cells at its Nanjing base in China for export."
+        )
+        payload["impact_description"] = (
+            "China-origin cells exported to the US can face customs and origin enforcement."
+        )
+        risks, _ = self.agent._coerce_risks(
+            [payload], [], items, company(), intelligence
+        )
+        self.assertEqual(risks[0].risk_level, "high")
+        self.assertEqual(risks[0].confidence, "high")
+
+    def test_title_only_model_output_is_not_replaced_by_generic_fallback(self) -> None:
+        payload = risk_payload(
+            "US customs enforcement and China-origin battery transshipment risk"
+        )
+        payload.pop("name")
+        items = [
+            evidence("EVD-POLICY", "policy", "US customs enforcement targets battery transshipment."),
+        ]
+        risks, used_fallback = self.agent._coerce_risks(
+            [payload], [], items, company()
+        )
+        self.assertFalse(used_fallback)
+        self.assertEqual(risks[0].name, payload["title"])
+        self.assertEqual(risks[0].title, payload["title"])
 
     def test_no_evidence_cannot_be_high(self) -> None:
         risks, _ = self.agent._coerce_risks(
