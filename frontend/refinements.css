@@ -203,10 +203,6 @@ input.field-invalid,select.field-invalid,textarea.field-invalid{border-color:#d8
 .scenario-block b{display:block;margin-bottom:8px;color:#345267;font-size:12.5px}
 .scenario-block ul{margin:0;padding-left:18px;color:#5a7182;font-size:13px;line-height:1.75}
 .scenario-block p{margin:0;color:#5a7182;font-size:13px;line-height:1.75}
-.scenario-evidence{list-style:none;padding-left:0!important}
-.scenario-evidence li{display:grid;gap:3px;padding:10px 12px;border:1px solid #e2ecf1;background:#fbfdfe}
-.scenario-evidence em{color:#7b8f9e;font:500 10.5px var(--mono);font-style:normal}
-.evidence-conf{color:var(--blue);font:600 10.5px var(--mono)}
 .scenario-why{margin-top:6px;border-top:1px solid var(--line)}
 .scenario-why summary{display:flex;justify-content:space-between;padding:13px 0;color:var(--blue);font-size:12.5px;font-weight:700;cursor:pointer}
 .scenario-why summary span{transition:transform .2s ease}

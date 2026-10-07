@@ -5,6 +5,7 @@ const state = {
   projectId: null,
   parentProjectId: null,
   reportOutdated: false,
+  scenarioVersion: 1,
   // True once the user actually reorders the priority list. Until then the
   // scenario score must treat every factor as equally important.
   prioritiesDeclared: false,
@@ -552,6 +553,7 @@ function mapApiAssessment(api, profile) {
       requires_human_review: Boolean(recommendation.requires_human_review),
     },
     company_intelligence: api.company_intelligence || null,
+    chat_analysis: api.chat_analysis || null,
     limitations: api.limitations || [],
     trace: (api.trace || []).map(step => ({ agent: step.agent, action: step.action, detail: step.detail, status: step.status })),
     scenarios: (api.scenarios || []).map(item => mapScenario(item, evidenceFor, { data_mode: api.data_mode || "" })),
@@ -783,15 +785,8 @@ const SCENARIO_DIMENSIONS = [
   ["feasibility", "Feasibility"],
 ];
 
-function evidenceConfidence(item) {
-  const level = String(item.authority || "");
-  if (level.includes("A")) return "High";
-  if (level.includes("B")) return "Medium";
-  return "Low";
-}
-
-/* The Agent API has no per-scenario confidence field, so it is derived from the
-   evidence linked to the scenario and whether a real retrieval run happened. */
+/* Older saved assessments may not carry the backend confidence fields, so the
+   UI keeps a local fallback for those records. */
 function scenarioConfidence(scenario, meta) {
   const items = scenario.evidence || [];
   const zh = currentLanguage() === "zh";
@@ -1500,9 +1495,6 @@ function scenarioDetail(scenario, index, weighting) {
   const breakdownTable = breakdownRows
     ? `<div class="scenario-block scenario-breakdown"><b>${L("Five-dimension score breakdown", "五维评分明细")}</b><div class="scenario-breakdown-wrap"><table><thead><tr><th>${L("Dimension", "维度")}</th><th>${L("Band", "档位")}</th><th>${L("Score", "分数")}</th><th>${L("Reason", "理由")}</th><th>${L("Evidence", "证据")}</th></tr></thead><tbody>${breakdownRows}</tbody></table></div></div>`
     : "";
-  const evidence = (scenario.evidence || []).length
-    ? `<div class="scenario-block"><b>Evidence support</b><ul class="scenario-evidence">${scenario.evidence.map(item => `<li><span>${escapeHtml(item.publisher)} — ${escapeHtml(item.title)}</span><em>${escapeHtml([item.date, item.authority].filter(Boolean).join(" · "))}</em><span class="evidence-conf">Confidence: ${evidenceConfidence(item)}</span></li>`).join("")}</ul></div>`
-    : `<div class="scenario-block"><b>Evidence support</b><p class="muted">No source is linked to this scenario yet.</p></div>`;
   return `
     <div class="scenario-detail" id="scenario-detail-${index}" hidden>
       <div class="scenario-block"><b>Scenario overview</b><p>${escapeHtml(scenario.summary || "")}</p></div>
@@ -1510,7 +1502,6 @@ function scenarioDetail(scenario, index, weighting) {
       ${bulletBlock("Potential benefits", scenario.benefits, "No benefits were listed.")}
       ${bulletBlock("Potential risks", scenario.risks, "No risks were listed.")}
       ${bulletBlock("Key assumptions", scenario.assumptions, "No assumptions were listed.")}
-      ${evidence}
       <details class="scenario-why">
         <summary>Why this assessment? <span>+</span></summary>
         <div class="scenario-why-body">
@@ -1596,11 +1587,13 @@ function renderScenarios(assessment) {
   const weighting = weightingMode === "user" && priorities.length
     ? `The overall score is weighted by your stated priorities: ${priorities.join(" > ")}.`
     : "No priority ranking was provided, so the five dimensions are weighted equally.";
+  const scenarioVersion = state.scenarioVersion || currentProject()?.scenario_version || 1;
   $("#scenario-grid").innerHTML = scenarios.map((scenario, index) => scenarioCard(scenario, index, assessment.recommendation?.recommended_scenario_id || "", weighting)).join("");
   const metaLine = $("#scenario-meta");
   if (metaLine) {
     metaLine.textContent = [
       meta.assessment_id ? `Assessment ${meta.assessment_id}` : "",
+      L(`Scenario v${scenarioVersion}`, `情景 v${scenarioVersion}`),
       meta.data_mode === "preview" ? "Scenario estimates" : "Scenario analysis from the latest assessment",
       meta.model_name && meta.model_name !== "preview" ? meta.model_name : "",
       `${scenarios.length} scenario${scenarios.length === 1 ? "" : "s"} compared`,
@@ -1617,6 +1610,13 @@ function renderScenarios(assessment) {
         const tone = row.delta > 0 ? "up" : row.delta < 0 ? "down" : "";
         return `<li><span>${escapeHtml(row.name)}</span><b>${row.beforeScore} → ${row.afterScore}</b><em class="${tone}">${row.arrow}</em></li>`;
       }).join("")}</ul><p class="scenario-comparison-reason">Reason: ${escapeHtml(comparison.reason)}${comparison.live ? "" : " · preview estimate"}</p>`;
+    } else if ((currentProject()?.scenario_versions || []).length > 1) {
+      const versions = currentProject().scenario_versions;
+      note.hidden = false;
+      note.innerHTML = `<p class="section-number">${L("SCENARIO VERSION HISTORY", "情景版本记录")}</p><ul class="scenario-comparison">${versions.slice(-4).map(item => {
+        const top = normalizeScenarios({ scenarios: item.scenarios || [] })[0];
+        return `<li><span>Scenario v${Number(item.version) || 1}</span><b>${escapeHtml(top?.name || "No leading scenario")}</b><em>${top ? `${top.overall_score}/100` : ""}</em></li>`;
+      }).join("")}</ul>`;
     } else {
       note.hidden = true;
       note.innerHTML = "";
@@ -1792,6 +1792,10 @@ function renderChatMeta() {
   if (line) {
     line.textContent = [
       meta.assessment_id ? `Assessment ${meta.assessment_id}` : "",
+      L(
+        `Scenario v${state.scenarioVersion || currentProject()?.scenario_version || 1}`,
+        `情景 v${state.scenarioVersion || currentProject()?.scenario_version || 1}`,
+      ),
       live ? "Consultation runs against the retrieved evidence set" : "Preview consultation · Agent service not connected",
       `${chatState.messages.length} message${chatState.messages.length === 1 ? "" : "s"} in this session`,
     ].filter(Boolean).join(" · ");
@@ -1884,7 +1888,7 @@ function chatBubble(message) {
         <p class="chat-role">${mine ? "You" : "Locus consultant"}</p>
         <div class="chat-text">${renderRichText(message.content)}</div>
         ${message.explain && !mine ? chatExplainPanel() : ""}
-        ${message.prompt ? `<div class="chat-prompt"><p>Would you like to update the scenario analysis?</p><div class="chat-prompt-actions"><button class="button button-secondary" type="button" data-chat-review>Review first</button><button class="button button-primary" type="button" data-chat-update>Update scenario</button></div></div>` : ""}
+        ${message.prompt ? `<div class="chat-prompt"><p>${L("Run a formal scenario re-simulation?", "是否进行正式重新模拟？")}</p><div class="chat-prompt-actions"><button class="button button-secondary" type="button" data-chat-review>${L("Keep discussing", "继续讨论")}</button><button class="button button-primary" type="button" data-chat-update>${L("Re-simulate", "重新模拟")}</button></div></div>` : ""}
       </div>
     </article>`;
 }
@@ -1901,6 +1905,7 @@ function appendChatMessage(message) {
   chatState.messages.push({ id, at: new Date().toISOString(), ...message });
   renderChatLog();
   renderChatMeta();
+  syncChatIntoProject();
   return id;
 }
 
@@ -1908,6 +1913,7 @@ function removeChatMessage(id) {
   chatState.messages = chatState.messages.filter(message => message.id !== id);
   renderChatLog();
   renderChatMeta();
+  syncChatIntoProject();
 }
 
 function previewReply(question) {
@@ -1926,7 +1932,6 @@ function previewReply(question) {
 async function sendChatMessage(text) {
   const assessment = state.assessment;
   const live = Boolean(assessment?.meta?.assessment_id && window.LOCUS_API_BASE && window.LOCUS_API_KEY);
-  const before = normalizeScenarios(assessment).map(item => ({ name: item.name, score: item.overall_score }));
   appendChatMessage({ role: "user", content: text });
   markReportOutdated();
   if (!live) {
@@ -1944,19 +1949,14 @@ async function sendChatMessage(text) {
     const updated = await response.json();
     const reply = (updated.chat_history || []).filter(turn => turn.role === "assistant").slice(-1)[0];
     removeChatMessage(pending);
-    appendChatMessage({ role: "assistant", content: reply?.content || "I could not produce a reply for that message.", explain: true });
     state.assessment = mapApiAssessment(updated, assessment.company_profile);
-    const after = normalizeScenarios(state.assessment).map(item => ({ name: item.name, score: item.overall_score }));
-    const changed = scenarioComparisonRows(before, after).filter(row => row.delta !== 0);
-    if (changed.length) {
-      appendChatMessage({
-        role: "assistant",
-        content: [
-          `**${L("Updated scenario scores", "情景分数已更新")}**`,
-          changed.map(row => `- ${row.name}: ${row.beforeScore} → **${row.afterScore}** ${row.arrow}`).join("\n"),
-        ].join("\n\n"),
-      });
-    }
+    appendChatMessage({
+      role: "assistant",
+      content: reply?.content || "I could not produce a reply for that message.",
+      explain: true,
+      prompt: Boolean(updated.chat_analysis?.scenario_update_required),
+    });
+    syncChatIntoProject();
     renderChatContext();
     renderChatMeta();
   } catch (error) {
@@ -2049,6 +2049,42 @@ function comparisonText(before, after) {
     .join("\n");
 }
 
+function recordScenarioVersion(assessment) {
+  const project = currentProject();
+  if (!project) return;
+  const version = Number(project.scenario_version) || 1;
+  const versions = project.scenario_versions || [];
+  if (versions.some(item => Number(item.version) === version)) return;
+  updateCurrentProject({
+    scenario_versions: [
+      ...versions,
+      {
+        version,
+        scenarios: assessment?.scenarios || [],
+        saved_at: new Date().toISOString(),
+      },
+    ],
+  });
+}
+
+function advanceScenarioVersion(assessment) {
+  const project = currentProject();
+  if (!project) return;
+  const version = (Number(project.scenario_version) || 1) + 1;
+  state.scenarioVersion = version;
+  updateCurrentProject({
+    scenario_version: version,
+    scenario_versions: [
+      ...(project.scenario_versions || []),
+      {
+        version,
+        scenarios: assessment?.scenarios || [],
+        saved_at: new Date().toISOString(),
+      },
+    ],
+  });
+}
+
 async function runScenarioUpdate() {
   const assessment = state.assessment;
   if (!assessment) return;
@@ -2088,8 +2124,15 @@ async function runScenarioUpdate() {
       scenarios: normalizeScenarios(assessment).map(item => ({ ...item, overall_score: Math.min(100, item.overall_score + bump) })),
     };
   }
+  recordScenarioVersion(assessment);
+  advanceScenarioVersion(state.assessment);
   const after = normalizeScenarios(state.assessment).map(item => ({ name: item.name, score: item.overall_score }));
-  const reason = [...chatState.updated, ...chatState.documents.map(name => `document: ${name}`)].join("; ") || "no new constraints were added";
+  const chatSummary = state.assessment?.chat_analysis?.summary || "";
+  const reason = [
+    chatSummary,
+    ...chatState.updated,
+    ...chatState.documents.map(name => `document: ${name}`),
+  ].filter(Boolean).join("; ") || "no new constraints were added";
   state.scenarioComparison = { before, after, reason, live };
   panel.hidden = true;
   appendChatMessage({
@@ -2109,7 +2152,13 @@ async function runScenarioUpdate() {
 }
 
 function reviewFirst() {
-  appendChatMessage({ role: "assistant", content: "Sure — the new information is listed under **Updated information** in the context panel. Tell me when you want it folded into the scenario scores, or keep asking questions first." });
+  appendChatMessage({
+    role: "assistant",
+    content: L(
+      "The new information is recorded. The formal scores have not changed; keep discussing or choose **Re-simulate** when you want to update them.",
+      "新信息已经记录，当前正式评分没有变化。你可以继续讨论，或在需要更新分数时点击 **重新模拟**。",
+    ),
+  });
 }
 
 /* ------------------------------------------------- final decision report
@@ -2459,6 +2508,9 @@ function migrateProject(record) {
     report_id: record.report_id || null,
     report_url: record.report_url || null,
     parent_decision_project_id: record.parent_decision_project_id || null,
+    name_confirmed: record.name_confirmed === true,
+    scenario_version: Number(record.scenario_version) || 1,
+    scenario_versions: Array.isArray(record.scenario_versions) ? record.scenario_versions : [],
     created_at: record.created_at || new Date().toISOString(),
     updated_at: record.updated_at || record.created_at || new Date().toISOString(),
   };
@@ -2509,6 +2561,16 @@ function saveProject(assessment, profile) {
     final_decision: null,
     report_id: null,
     report_url: null,
+    name_confirmed: false,
+    scenario_version: 1,
+    scenario_versions: [
+      {
+        version: 1,
+        scenarios: assessment.scenarios || [],
+        saved_at: now,
+        label: "Initial scenario simulation",
+      },
+    ],
     parent_decision_project_id: state.parentProjectId || null,
     assessment,
     created_at: now,
@@ -2517,6 +2579,7 @@ function saveProject(assessment, profile) {
   writeProjects([project, ...readProjects().filter(item => item.decision_project_id !== project.decision_project_id)]);
   state.projectId = project.decision_project_id;
   state.parentProjectId = null;
+  state.scenarioVersion = 1;
 }
 
 function currentProject() {
@@ -2541,11 +2604,79 @@ function advanceProjectStage(stage) {
 }
 
 function syncChatIntoProject() {
+  const assessment = state.assessment;
   updateCurrentProject({
     conversation_history: chatState.messages.map(message => ({ role: message.role, content: message.content, at: message.at })),
     updated_constraints: [...chatState.updated],
     uploaded_documents: [...chatState.documents],
+    ...(assessment
+      ? {
+          assessment,
+          company_profile: assessment.company_profile || currentProject()?.company_profile || {},
+          risk_assessment: { risks: assessment.risks || [] },
+          scenario_results: { scenarios: assessment.scenarios || [] },
+        }
+      : {}),
   });
+}
+
+function renameProject(id) {
+  const projects = readProjects();
+  const index = projects.findIndex(item => item.decision_project_id === id);
+  if (index < 0) {
+    showToast("This decision project could not be found — reload My Decisions.");
+    return;
+  }
+  const project = projects[index];
+  const nextName = window.prompt(
+    currentLanguage() === "zh"
+      ? "请输入这次决策的名称："
+      : "Enter a name for this decision:",
+    project.name || project.company_name || "Untitled decision",
+  );
+  if (nextName === null) return;
+  const name = nextName.trim();
+  if (!name) {
+    showToast(currentLanguage() === "zh" ? "决策名称不能为空。" : "The decision name cannot be empty.");
+    return;
+  }
+  projects[index] = {
+    ...project,
+    name,
+    name_confirmed: true,
+    updated_at: new Date().toISOString(),
+  };
+  writeProjects(projects);
+  renderProjects();
+  showToast(currentLanguage() === "zh" ? "决策名称已更新。" : "Decision name updated.");
+}
+
+function confirmProjectNameBeforeLeaving(nextScreen) {
+  const project = currentProject();
+  const currentScreen = document.querySelector(".screen.active")?.id || "";
+  if (
+    !project
+    || project.status === "COMPLETED"
+    || project.name_confirmed
+    || currentScreen === nextScreen
+    || !["home", "history", "consultation"].includes(nextScreen)
+  ) {
+    return true;
+  }
+  const nextName = window.prompt(
+    currentLanguage() === "zh"
+      ? "离开前请为本次决策命名，之后可在 My Decisions 中重命名："
+      : "Name this decision before leaving. You can rename it later in My Decisions:",
+    project.name || project.company_name || "Untitled decision",
+  );
+  if (nextName === null) return false;
+  const name = nextName.trim();
+  if (!name) {
+    showToast(currentLanguage() === "zh" ? "决策名称不能为空。" : "The decision name cannot be empty.");
+    return false;
+  }
+  updateCurrentProject({ name, name_confirmed: true });
+  return true;
 }
 
 /* Deleting always asks for confirmation first (UI.md: delete history records). */
@@ -2626,6 +2757,7 @@ function restoreChatFromProject(project) {
   chatState.updated = [...(project.updated_constraints || [])];
   chatState.documents = [...(project.uploaded_documents || [])];
   chatState.seeded = chatState.messages.length > 0;
+  state.scenarioVersion = Number(project.scenario_version) || 1;
 }
 
 function openProjectById(id) {
@@ -2671,6 +2803,9 @@ function openProjectById(id) {
   } else if (stage === "SCENARIO_SIMULATION" && state.assessment) {
     renderScenarios(state.assessment);
     showScreen("scenarios");
+  } else if (stage === "AI_CONSULTATION" && state.assessment) {
+    openChat();
+    showScreen("chat");
   } else if (stage === "REPORT" && currentReport()) {
     renderReportPage();
     showScreen("report");
@@ -2693,6 +2828,7 @@ function reassessProject(id) {
   }
   state.parentProjectId = project.decision_project_id;
   state.projectId = null;
+  state.scenarioVersion = 1;
   formFromProfile(project.company_profile || {});
   chatState.messages = [];
   chatState.updated = [];
@@ -2782,6 +2918,7 @@ function projectCard(project) {
       <div class="project-actions">
         <button class="button button-primary" type="button" data-open-project="${escapeHtml(project.decision_project_id)}">${completed ? "Open decision overview" : "Resume Decision"} <span>→</span></button>
         ${completed ? `<button class="button button-secondary" type="button" data-reassess-project="${escapeHtml(project.decision_project_id)}">Re-assess Decision <span>↻</span></button>` : ""}
+        <button class="text-button" type="button" data-rename-project="${escapeHtml(project.decision_project_id)}">Rename</button>
         <button class="text-button project-delete" type="button" data-delete-project="${escapeHtml(project.decision_project_id)}">Delete</button>
       </div>
     </article>`;
@@ -2832,6 +2969,7 @@ function restoreDraft() {
 
 document.addEventListener("click", event => {
   const target = event.target.closest("[data-screen-target]");
+  if (target && !confirmProjectNameBeforeLeaving(target.dataset.screenTarget)) return;
   if (target) showScreen(target.dataset.screenTarget);
   if (event.target.closest("#add-production")) addLocation("production");
   if (event.target.closest("#add-market")) addLocation("markets");
@@ -2895,6 +3033,8 @@ document.addEventListener("click", event => {
   if (reassessButton) return reassessProject(reassessButton.dataset.reassessProject);
   const deleteButton = event.target.closest("[data-delete-project]");
   if (deleteButton) return askDeleteProject(deleteButton.dataset.deleteProject);
+  const renameButton = event.target.closest("[data-rename-project]");
+  if (renameButton) return renameProject(renameButton.dataset.renameProject);
   if (event.target.closest("#confirm-cancel")) return closeDeleteConfirm();
   if (event.target.closest("#confirm-delete")) return confirmDeleteProject();
   if (event.target.closest("#report-back")) {
@@ -3004,6 +3144,13 @@ $("#decision-form").addEventListener("submit", event => {
   if (issues.length) return showValidationError(issues);
   clearValidationError();
   runAnalysis(profile);
+});
+
+window.addEventListener("beforeunload", event => {
+  const project = currentProject();
+  if (!project || project.status === "COMPLETED" || project.name_confirmed) return;
+  event.preventDefault();
+  event.returnValue = "";
 });
 
 restoreDraft();

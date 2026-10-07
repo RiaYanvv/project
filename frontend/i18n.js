@@ -22,6 +22,7 @@ const ZH_TEXT = {
   "No decision projects yet. Complete a consultation and the Agent stores the company profile here.": "还没有决策项目。完成一次咨询后，Agent 会在这里保存企业画像。",
   "Start new decision": "开始新决策",
   "Open assessment": "查看评估",
+  "Rename": "重命名",
   "Relevant policy signals, soon.": "相关政策信号，敬请期待。",
   "News monitoring is reserved for a future release and does not interrupt your decision workflow.": "资讯监测是后续版本的功能，不会打断你的决策流程。",
 
