@@ -1438,7 +1438,22 @@ const SCENARIO_BREAKDOWN_KEY = {
   feasibility: "implementation_score",
 };
 
-function dimensionList(scores, breakdown) {
+function scoreDeltaMarkup(before, after) {
+  const delta = Number(after) - Number(before);
+  if (!Number.isFinite(delta) || delta === 0) return "";
+  const tone = delta > 0 ? "up" : "down";
+  const arrow = delta > 0 ? `↑ +${delta}` : `↓ ${delta}`;
+  return `<span class="score-delta ${tone}">${arrow}</span>`;
+}
+
+function dimensionList(scores, breakdown, previousScores = null) {
+  const bandLabels = {
+    very_favourable: L("Very favourable", "非常有利"),
+    favourable: L("Favourable", "有利"),
+    neutral: L("Neutral", "中性"),
+    unfavourable: L("Unfavourable", "不利"),
+    very_unfavourable: L("Very unfavourable", "非常不利"),
+  };
   const byDimension = {};
   (breakdown || []).forEach(entry => { byDimension[entry.dimension] = entry; });
   return SCENARIO_DIMENSIONS.map(([key, label]) => {
@@ -1449,7 +1464,9 @@ function dimensionList(scores, breakdown) {
       : entry.basis === "evidence"
         ? `<span class="dim-basis evidence" title="${escapeHtml(L("Backed by linked evidence", "有证据支撑"))}">${L("evidence", "证据")}</span>`
         : `<span class="dim-basis inference" title="${escapeHtml(L("Model inference — no evidence linked", "模型推断——未关联证据"))}">${L("inference", "推断")}</span>`;
-    return `<li><span class="dim-label">${escapeHtml(label)}${basis}</span><span class="dim-bar"><i style="width:${value}%"></i></span><b>${value}</b></li>`;
+    const band = bandLabels[entry?.band] || "";
+    const delta = previousScores ? scoreDeltaMarkup(previousScores[key], value) : "";
+    return `<li><span class="dim-label">${escapeHtml(label)}${basis}${band ? `<em class="dim-band">${escapeHtml(band)}</em>` : ""}</span><span class="dim-bar"><i style="width:${value}%"></i></span><b>${value}${delta}</b></li>`;
   }).join("");
 }
 
@@ -1514,9 +1531,12 @@ function scenarioDetail(scenario, index, weighting) {
     </div>`;
 }
 
-function scenarioCard(scenario, index, recommendedId, weighting) {
+function scenarioCard(scenario, index, recommendedId, weighting, previousScenario = null) {
   const letter = String.fromCharCode(65 + index);
   const recommended = Boolean(scenario.scenario_id && scenario.scenario_id === recommendedId);
+  const overallDelta = previousScenario
+    ? scoreDeltaMarkup(previousScenario.overall_score, scenario.overall_score)
+    : "";
   return `
   <article class="scenario-card${recommended ? " recommended" : ""}">
     <header class="scenario-card-head">
@@ -1524,9 +1544,9 @@ function scenarioCard(scenario, index, recommendedId, weighting) {
       ${recommended ? `<span class="scenario-badge">Recommended</span>` : ""}
     </header>
     <p class="scenario-summary">${escapeHtml(scenario.summary || "")}</p>
-    <div class="scenario-score"><b>${scenario.overall_score}</b><span>/ 100</span></div>
+    <div class="scenario-score"><b>${scenario.overall_score}</b><span>/ 100</span>${overallDelta}</div>
     <p class="scenario-score-label">Overall score · Confidence: <b>${escapeHtml(scenario.confidence.label)}</b></p>
-    <ul class="scenario-dimensions">${dimensionList(scenario.scores, scenario.breakdown)}</ul>
+    <ul class="scenario-dimensions">${dimensionList(scenario.scores, scenario.breakdown, previousScenario?.scores || null)}</ul>
     <button class="button button-secondary scenario-toggle" type="button" data-scenario-toggle="${index}" aria-expanded="false">View Analysis <span>→</span></button>
     ${scenarioDetail(scenario, index, weighting)}
   </article>`;
@@ -1588,7 +1608,16 @@ function renderScenarios(assessment) {
     ? `The overall score is weighted by your stated priorities: ${priorities.join(" > ")}.`
     : "No priority ranking was provided, so the five dimensions are weighted equally.";
   const scenarioVersion = state.scenarioVersion || currentProject()?.scenario_version || 1;
-  $("#scenario-grid").innerHTML = scenarios.map((scenario, index) => scenarioCard(scenario, index, assessment.recommendation?.recommended_scenario_id || "", weighting)).join("");
+  const previousByName = new Map(
+    (state.scenarioComparison?.beforeScenarios || []).map(item => [item.name, item]),
+  );
+  $("#scenario-grid").innerHTML = scenarios.map((scenario, index) => scenarioCard(
+    scenario,
+    index,
+    assessment.recommendation?.recommended_scenario_id || "",
+    weighting,
+    previousByName.get(scenario.name) || null,
+  )).join("");
   const metaLine = $("#scenario-meta");
   if (metaLine) {
     metaLine.textContent = [
@@ -1613,10 +1642,10 @@ function renderScenarios(assessment) {
     } else if ((currentProject()?.scenario_versions || []).length > 1) {
       const versions = currentProject().scenario_versions;
       note.hidden = false;
-      note.innerHTML = `<p class="section-number">${L("SCENARIO VERSION HISTORY", "情景版本记录")}</p><ul class="scenario-comparison">${versions.slice(-4).map(item => {
-        const top = normalizeScenarios({ scenarios: item.scenarios || [] })[0];
-        return `<li><span>Scenario v${Number(item.version) || 1}</span><b>${escapeHtml(top?.name || "No leading scenario")}</b><em>${top ? `${top.overall_score}/100` : ""}</em></li>`;
-      }).join("")}</ul>`;
+      note.innerHTML = `<p class="section-number">${L("SCENARIO VERSION HISTORY", "情景版本记录")}</p><div class="scenario-version-list">${versions.slice(-4).reverse().map(item => {
+        const versionScenarios = normalizeScenarios({ scenarios: item.scenarios || [] });
+        return `<details><summary><span>${L(`Scenario v${Number(item.version) || 1}`, `情景 v${Number(item.version) || 1}`)}</span><b>${escapeHtml(versionScenarios[0]?.name || L("No leading scenario", "暂无领先方案"))}</b><em>${versionScenarios[0] ? `${versionScenarios[0].overall_score}/100` : ""}</em></summary><ul>${versionScenarios.map(scenario => `<li><span>${escapeHtml(scenario.name)}</span><b>${scenario.overall_score}/100</b></li>`).join("")}</ul></details>`;
+      }).join("")}</div>`;
     } else {
       note.hidden = true;
       note.innerHTML = "";
@@ -1724,7 +1753,14 @@ document.addEventListener("visibilitychange", () => {
 
 /* -------------------------------------------------------------- chat page */
 
-const chatState = { messages: [], documents: [], updated: [], seeded: false, pendingCategory: "" };
+const chatState = {
+  messages: [],
+  documents: [],
+  updated: [],
+  informationUpdates: [],
+  seeded: false,
+  pendingCategory: "",
+};
 
 const INFO_CATEGORIES = [
   "Add supplier information",
@@ -1733,6 +1769,68 @@ const INFO_CATEGORIES = [
   "Add cost information",
   "Add customer requirements",
 ];
+
+function updateId() {
+  return `upd-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function addInformationUpdate(category, label, value = "") {
+  const cleanLabel = String(label || "").trim();
+  const cleanValue = String(value || "").trim();
+  if (!cleanLabel && !cleanValue) return;
+  const fingerprint = `${category}|${cleanLabel}|${cleanValue}`.replace(/\s+/g, " ").toLowerCase();
+  const exists = chatState.informationUpdates.some(item =>
+    `${item.category}|${item.label}|${item.value}`.replace(/\s+/g, " ").toLowerCase() === fingerprint);
+  if (exists) return;
+  chatState.informationUpdates.push({
+    id: updateId(),
+    category: category || L("New information", "新信息"),
+    label: cleanLabel || cleanValue,
+    value: cleanLabel ? cleanValue : "",
+    created_at: new Date().toISOString(),
+  });
+}
+
+function syncLegacyUpdated() {
+  chatState.updated = chatState.informationUpdates.map(item =>
+    [item.category, item.label, item.value].filter(Boolean).join(": "));
+}
+
+function updateItemsFromAnalysis(analysis) {
+  if (!analysis?.scenario_update_required) return;
+  Object.entries(analysis.profile_patch || {}).forEach(([key, value]) => {
+    addInformationUpdate(L("Operating data", "经营数据"), key, value);
+  });
+  (analysis.new_preferences || []).forEach(value => {
+    addInformationUpdate(L("Management assumption", "管理层假设"), value);
+  });
+  (analysis.new_constraints || []).forEach(value => {
+    addInformationUpdate(L("Management constraint", "管理约束"), value);
+  });
+  if (!Object.keys(analysis.profile_patch || {}).length
+      && !(analysis.new_preferences || []).length
+      && !(analysis.new_constraints || []).length
+      && analysis.summary) {
+    addInformationUpdate(L("New information", "新信息"), analysis.summary);
+  }
+  syncLegacyUpdated();
+}
+
+function restoredInformationUpdates(project) {
+  const stored = Array.isArray(project.information_updates) ? project.information_updates : [];
+  const legacy = Array.isArray(project.updated_constraints) ? project.updated_constraints : [];
+  const combined = [
+    ...stored,
+    ...legacy.filter(item => typeof item === "string").map(item => ({
+      id: updateId(),
+      category: L("New information", "新信息"),
+      label: item,
+      value: "",
+      created_at: project.updated_at || new Date().toISOString(),
+    })),
+  ];
+  return combined.filter(item => item && (item.label || item.value));
+}
 
 async function openChat() {
   if (!state.assessment) {
@@ -1835,9 +1933,9 @@ function renderChatContext() {
       ${scenarios.length ? `<ul class="context-scenarios">${scenarios.map(item => `<li><span>${escapeHtml(item.name)}</span><b>${item.overall_score}/100</b></li>`).join("")}</ul>` : `<p class="muted">No scenarios yet</p>`}
     </div>
     <div class="context-block">
-      <p class="context-label">Updated information</p>
-      ${chatState.updated.length || chatState.documents.length
-        ? `<ul class="context-list">${chatState.updated.map(item => `<li>${escapeHtml(item)}</li>`).join("")}${chatState.documents.map(name => `<li>Document: ${escapeHtml(name)}</li>`).join("")}</ul>`
+      <p class="context-label">${L("New information", "新信息")}</p>
+      ${chatState.informationUpdates.length || chatState.documents.length
+        ? `<ul class="information-update-list">${chatState.informationUpdates.map(item => `<li><div><span>${escapeHtml(item.category)}</span><b>${escapeHtml(item.label)}</b>${item.value ? `<p>${escapeHtml(item.value)}</p>` : ""}</div><button type="button" data-remove-update="${escapeHtml(item.id)}" aria-label="${L("Remove update", "删除这条更新")}">×</button></li>`).join("")}${chatState.documents.map(name => `<li><div><span>${L("Document", "文档")}</span><b>${escapeHtml(name)}</b></div></li>`).join("")}</ul>`
         : `<p class="muted">Nothing added yet</p>`}
     </div>`;
 }
@@ -1953,6 +2051,7 @@ async function sendChatMessage(text) {
     const reply = (updated.chat_history || []).filter(turn => turn.role === "assistant").slice(-1)[0];
     removeChatMessage(pending);
     state.assessment = mapApiAssessment(updated, assessment.company_profile);
+    updateItemsFromAnalysis(updated.chat_analysis || {});
     appendChatMessage({
       role: "assistant",
       content: reply?.content || "I could not produce a reply for that message.",
@@ -1980,7 +2079,8 @@ async function sendChatMessage(text) {
 
 function addInformation(kind, detail) {
   markReportOutdated();
-  chatState.updated.push(detail ? `${kind}: ${detail}` : kind);
+  addInformationUpdate(kind, detail || kind);
+  syncLegacyUpdated();
   renderChatContext();
   appendChatMessage({ role: "user", content: detail ? `${kind}: ${detail}` : kind });
   appendChatMessage({ role: "assistant", content: "New information received.", prompt: true });
@@ -2062,6 +2162,55 @@ function comparisonText(before, after) {
     .join("\n");
 }
 
+function closeScenarioChangeModal() {
+  const modal = $("#scenario-change-modal");
+  if (modal) modal.hidden = true;
+}
+
+function showScenarioChangeModal() {
+  const modal = $("#scenario-change-modal");
+  const body = $("#scenario-change-body");
+  const comparison = state.scenarioComparison;
+  if (!modal || !body || !comparison?.afterScenarios?.length) return;
+  const rows = scenarioComparisonRows(comparison.before, comparison.after);
+  const biggest = [...rows].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))[0];
+  const current = comparison.afterScenarios.find(item => item.name === biggest?.name)
+    || comparison.afterScenarios[0];
+  const previous = comparison.beforeScenarios?.find(item => item.name === current.name)
+    || comparison.beforeScenarios?.[0];
+  const dimensions = SCENARIO_DIMENSIONS.map(([key, label]) => {
+    const beforeScore = Number(previous?.scores?.[key] ?? 0);
+    const afterScore = Number(current?.scores?.[key] ?? 0);
+    const delta = afterScore - beforeScore;
+    const metric = SCENARIO_BREAKDOWN_KEY[key];
+    const assessment = current?.dimensionAssessments?.[metric] || {};
+    const breakdown = (current?.breakdown || []).find(entry => entry.dimension === metric) || {};
+    return {
+      label,
+      beforeScore,
+      afterScore,
+      delta,
+      reason: assessment.reason || breakdown.reason || "",
+    };
+  });
+  const applied = comparison.appliedUpdates || [];
+  body.innerHTML = `
+    <p class="scenario-change-summary"><b>${escapeHtml(L(`Applied ${applied.length} new information item${applied.length === 1 ? "" : "s"}`, `已应用 ${applied.length} 项新信息`))}</b>${biggest ? `<br />${escapeHtml(L(`Largest change: ${biggest.name} overall score ${biggest.beforeScore} → ${biggest.afterScore}`, `最大变化：${biggest.name} 综合评分 ${biggest.beforeScore} → ${biggest.afterScore}`))}` : ""}</p>
+    ${applied.length ? `<ul class="scenario-change-applied">${applied.map(item => `<li><span>${escapeHtml(item.category)}</span>${escapeHtml([item.label, item.value].filter(Boolean).join(": "))}</li>`).join("")}</ul>` : ""}
+    <p class="scenario-change-summary">${escapeHtml(L(`Score changes for ${current.name}`, `${current.name} 的分数变化`))}</p>
+    <table class="scenario-change-table">
+      <thead><tr><th>${L("Dimension", "维度")}</th><th>v${Math.max(1, (state.scenarioVersion || 1) - 1)}</th><th>v${state.scenarioVersion || 1}</th><th>${L("Change", "变化")}</th></tr></thead>
+      <tbody>${dimensions.map(item => {
+        const tone = item.delta > 0 ? "up" : item.delta < 0 ? "down" : "";
+        const delta = item.delta > 0 ? `↑ +${item.delta}` : item.delta < 0 ? `↓ ${item.delta}` : "—";
+        return `<tr><td>${escapeHtml(item.label)}</td><td>${item.beforeScore}</td><td>${item.afterScore}</td><td class="${tone}">${delta}</td></tr>`;
+      }).join("")}</tbody>
+    </table>
+    ${dimensions.filter(item => item.reason).map(item => `<p class="scenario-change-reason"><b>${escapeHtml(item.label)}：</b>${escapeHtml(item.reason)}</p>`).join("")}
+  `;
+  modal.hidden = false;
+}
+
 function recordScenarioVersion(assessment) {
   const project = currentProject();
   if (!project) return;
@@ -2102,7 +2251,9 @@ async function runScenarioUpdate() {
   const assessment = state.assessment;
   if (!assessment) return;
   markReportOutdated();
-  const before = normalizeScenarios(assessment).map(item => ({ name: item.name, score: item.overall_score }));
+  const beforeScenarios = normalizeScenarios(assessment);
+  const before = beforeScenarios.map(item => ({ name: item.name, score: item.overall_score }));
+  const appliedUpdates = chatState.informationUpdates.map(item => ({ ...item }));
   const steps = ["New business constraints", "Updated risk factors", "Additional evidence", "User preferences"];
   const panel = $("#chat-update-state");
   panel.hidden = false;
@@ -2139,29 +2290,40 @@ async function runScenarioUpdate() {
   }
   recordScenarioVersion(assessment);
   advanceScenarioVersion(state.assessment);
-  const after = normalizeScenarios(state.assessment).map(item => ({ name: item.name, score: item.overall_score }));
+  const afterScenarios = normalizeScenarios(state.assessment);
+  const after = afterScenarios.map(item => ({ name: item.name, score: item.overall_score }));
   const chatSummary = state.assessment?.chat_analysis?.summary || "";
   const reason = [
     chatSummary,
-    ...chatState.updated,
+    ...appliedUpdates.map(item => [item.category, item.label, item.value].filter(Boolean).join(": ")),
     ...chatState.documents.map(name => `document: ${name}`),
   ].filter(Boolean).join("; ") || "no new constraints were added";
-  state.scenarioComparison = { before, after, reason, live };
+  state.scenarioComparison = {
+    before,
+    after,
+    beforeScenarios,
+    afterScenarios,
+    reason,
+    live,
+    appliedUpdates,
+  };
   panel.hidden = true;
   appendChatMessage({
     role: "assistant",
     content: [
-      "Scenario analysis updated.",
+      L("Formal scenario re-simulation completed.", "正式情景重新模拟已完成。"),
       comparisonText(before, after),
       `Reason: ${reason}.`,
       live ? "" : "**Preview mode:** scores were adjusted illustratively because the Agent service is not connected.",
     ].filter(Boolean).join("\n\n"),
     explain: true,
   });
+  chatState.informationUpdates = [];
+  syncLegacyUpdated();
   renderScenarios(state.assessment);
   renderChatContext();
+  showScenarioChangeModal();
   showToast(live ? "Scenario analysis updated from the Agent run." : "Scenario analysis updated (preview estimate).");
-  setTimeout(() => showScreen("scenarios"), 700);
 }
 
 function reviewFirst() {
@@ -2517,6 +2679,7 @@ function migrateProject(record) {
     conversation_history: record.conversation_history || [],
     uploaded_documents: record.uploaded_documents || [],
     updated_constraints: record.updated_constraints || [],
+    information_updates: Array.isArray(record.information_updates) ? record.information_updates : [],
     final_decision: record.final_decision || null,
     report_id: record.report_id || null,
     report_url: record.report_url || null,
@@ -2571,6 +2734,7 @@ function saveProject(assessment, profile) {
     conversation_history: [],
     uploaded_documents: [],
     updated_constraints: [],
+    information_updates: [],
     final_decision: null,
     report_id: null,
     report_url: null,
@@ -2621,6 +2785,7 @@ function syncChatIntoProject() {
   updateCurrentProject({
     conversation_history: chatState.messages.map(message => ({ role: message.role, content: message.content, at: message.at })),
     updated_constraints: [...chatState.updated],
+    information_updates: chatState.informationUpdates.map(item => ({ ...item })),
     uploaded_documents: [...chatState.documents],
     ...(assessment
       ? {
@@ -2817,7 +2982,8 @@ function formFromProfile(profile) {
 
 function restoreChatFromProject(project) {
   chatState.messages = (project.conversation_history || []).map((turn, index) => ({ id: `saved-${index}`, ...turn }));
-  chatState.updated = [...(project.updated_constraints || [])];
+  chatState.informationUpdates = restoredInformationUpdates(project);
+  syncLegacyUpdated();
   chatState.documents = [...(project.uploaded_documents || [])];
   chatState.seeded = chatState.messages.length > 0;
   state.scenarioVersion = Number(project.scenario_version) || 1;
@@ -2839,6 +3005,7 @@ function openProjectById(id) {
     formFromProfile(project.company_profile || {});
     chatState.messages = [];
     chatState.updated = [];
+    chatState.informationUpdates = [];
     chatState.documents = [];
     chatState.seeded = false;
     showToast("This project has no saved assessment yet — review the profile and run the analysis.");
@@ -2895,6 +3062,7 @@ function reassessProject(id) {
   formFromProfile(project.company_profile || {});
   chatState.messages = [];
   chatState.updated = [];
+  chatState.informationUpdates = [];
   chatState.documents = [];
   chatState.seeded = false;
   showToast("New assessment created from this decision — review the profile and run the analysis again.");
@@ -3055,11 +3223,36 @@ document.addEventListener("click", async event => {
   if (event.target.closest("#report-confirm")) confirmReport();
   if (event.target.closest("#name-modal-confirm")) { closeNameDialog("ok"); return; }
   if (event.target.closest("#name-modal-cancel")) { closeNameDialog("cancelled"); return; }
+  if (event.target.closest("#scenario-change-close")) { closeScenarioChangeModal(); return; }
+  if (event.target.closest("#scenario-change-full")) {
+    closeScenarioChangeModal();
+    renderScenarios(state.assessment);
+    showScreen("scenarios");
+    return;
+  }
+  if (event.target.closest("#scenario-change-history")) {
+    closeScenarioChangeModal();
+    renderScenarios(state.assessment);
+    showScreen("scenarios");
+    document.querySelector("#scenario-update-note")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
   if (event.target.closest("#chat-add-toggle")) { const panel = $("#chat-add"); if (panel) panel.hidden = !panel.hidden; }
   if (event.target.closest("#chat-add-close")) { const panel = $("#chat-add"); if (panel) panel.hidden = true; }
+  const removeUpdate = event.target.closest("[data-remove-update]");
+  if (removeUpdate) {
+    chatState.informationUpdates = chatState.informationUpdates.filter(item => item.id !== removeUpdate.dataset.removeUpdate);
+    syncLegacyUpdated();
+    renderChatContext();
+    syncChatIntoProject();
+    return;
+  }
   const chatCategory = event.target.closest("[data-chat-category]");
   if (chatCategory) {
     chatState.pendingCategory = chatCategory.dataset.chatCategory;
+    document.querySelectorAll("[data-chat-category]").forEach(button => {
+      button.classList.toggle("selected", button === chatCategory);
+    });
     const field = $("#chat-add-field");
     if (field) field.hidden = false;
     $("#chat-add-text")?.focus();

@@ -23,6 +23,11 @@ const ZH_TEXT = {
   "Start new decision": "开始新决策",
   "Open assessment": "查看评估",
   "Rename": "重命名",
+  "Re-simulation complete": "重新模拟完成",
+  "History": "历史版本",
+  "Keep discussing": "继续讨论",
+  "View full scenarios": "查看完整情景",
+  "New information": "新信息",
   "Relevant policy signals, soon.": "相关政策信号，敬请期待。",
   "News monitoring is reserved for a future release and does not interrupt your decision workflow.": "资讯监测是后续版本的功能，不会打断你的决策流程。",
 

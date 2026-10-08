@@ -273,6 +273,32 @@ input.field-invalid,select.field-invalid,textarea.field-invalid{border-color:#d8
 .chat-add-categories{display:flex;flex-wrap:wrap;gap:8px}
 .chat-category{padding:8px 13px;border:1px solid #c5d8e3;border-radius:17px;background:#fff;color:#4c6678;font:600 12px var(--sans);cursor:pointer}
 .chat-category:hover{border-color:#65a2c1;color:var(--blue)}
+.chat-category.selected{border-color:var(--blue);background:#e9f4f9;color:var(--blue);box-shadow:0 0 0 2px #125f9a14}
+.information-update-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.information-update-list li{display:grid;grid-template-columns:1fr 24px;gap:8px;align-items:start;padding:9px 10px;border:1px solid #d8e8f0;background:#fff}
+.information-update-list span{display:block;color:#7890a0;font:500 9px var(--mono);text-transform:uppercase;letter-spacing:.06em}
+.information-update-list b{display:block;margin-top:3px;color:#345267;font-size:11px;line-height:1.45}
+.information-update-list p{margin:4px 0 0;color:#60798a;font-size:11px;line-height:1.5}
+.information-update-list button{border:0;background:none;color:#9aabb6;font-size:17px;cursor:pointer}
+.scenario-change-card{width:min(820px,94vw);max-height:88vh;overflow:auto}
+.scenario-change-summary{margin:5px 0 16px;color:#557083;font-size:12px;line-height:1.65}
+.scenario-change-applied{list-style:none;margin:0 0 18px;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.scenario-change-applied li{padding:8px 10px;border:1px solid #dce9ef;background:#f7fbfd;color:#466477;font-size:11px}
+.scenario-change-applied span{display:block;color:#8295a2;font:500 8.5px var(--mono);text-transform:uppercase}
+.scenario-change-table{width:100%;border-collapse:collapse;margin:8px 0 16px}
+.scenario-change-table th,.scenario-change-table td{padding:8px 9px;border-bottom:1px solid #e0ebf0;text-align:left;font-size:11px}
+.scenario-change-table th{color:#7890a0;font:600 9px var(--mono);text-transform:uppercase}
+.scenario-change-table .up{color:#29734a;font-weight:700}
+.scenario-change-table .down{color:#a33b2b;font-weight:700}
+.scenario-change-reason{margin:10px 0;padding-left:10px;border-left:2px solid #9fc6d9;color:#5b7384;font-size:11px;line-height:1.65}
+.scenario-change-actions{flex-wrap:wrap}
+.scenario-version-list{display:grid;gap:6px}
+.scenario-version-list details{border:1px solid #dce8ee;background:#fff}
+.scenario-version-list summary{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;padding:10px 12px;cursor:pointer;color:#47677b;font-size:11px}
+.scenario-version-list summary b{font-size:11px;color:#294861}
+.scenario-version-list summary em{font:600 10px var(--mono);font-style:normal;color:#6f8797}
+.scenario-version-list ul{list-style:none;margin:0;padding:0 12px 10px 24px;display:grid;gap:5px}
+.scenario-version-list li{display:flex;justify-content:space-between;color:#60798a;font-size:11px}
 .chat-add-field{margin-top:14px;display:grid;gap:10px;justify-items:start}
 .chat-add-field textarea{width:100%}
 .chat-update-state{padding:20px;border:1px solid #cfe3ee;background:#f8fbfd}
@@ -462,6 +488,10 @@ input.field-invalid,select.field-invalid,textarea.field-invalid{border-color:#d8
 .dim-basis{display:inline-block;margin-left:6px;padding:1px 5px;border:1px solid #cbdde7;border-radius:2px;background:#f4f9fc;color:#5b7c92;font:500 8px var(--mono);letter-spacing:.04em;text-transform:uppercase}
 .dim-basis.evidence{border-color:#b9d8ca;background:#eef7f1;color:#2f7a52}
 .dim-basis.inference{border-color:#e8d7b0;background:#fdf7e9;color:#966b1d}
+.dim-band{display:inline-block;margin-left:6px;color:#7a8f9d;font:500 9px var(--mono);font-style:normal}
+.score-delta{display:inline-block;margin-left:7px;font:700 9px var(--mono)}
+.score-delta.up{color:#28734a}
+.score-delta.down{color:#a33b2b}
 
 /* Step 2 Company Intelligence: structured footprint table, supply-chain role
    chips and prioritised information gaps. */
