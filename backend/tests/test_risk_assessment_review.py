@@ -159,6 +159,8 @@ class RiskAssessmentReviewTest(unittest.TestCase):
             "US customs enforcement and China-origin battery transshipment risk"
         )
         payload.pop("name")
+        payload.pop("business_impact")
+        payload.pop("uncertainty")
         items = [
             evidence("EVD-POLICY", "policy", "US customs enforcement targets battery transshipment."),
         ]
@@ -168,6 +170,11 @@ class RiskAssessmentReviewTest(unittest.TestCase):
         self.assertFalse(used_fallback)
         self.assertEqual(risks[0].name, payload["title"])
         self.assertEqual(risks[0].title, payload["title"])
+        self.assertEqual(
+            risks[0].business_impact,
+            payload["impact_description"],
+        )
+        self.assertIn("US export share", risks[0].uncertainty)
 
     def test_no_evidence_cannot_be_high(self) -> None:
         risks, _ = self.agent._coerce_risks(

@@ -85,7 +85,7 @@ class RecordingLLM(MockLLM):
         self.calls["analyze_risks"] = {"company_intelligence": company_intelligence}
         return {"risks": baseline}
 
-    def simulate_scenarios(self, company, evidence, risks, baseline, language="en", company_intelligence=None):
+    def simulate_scenarios(self, company, evidence, risks, baseline, language="en", company_intelligence=None, revision_context=None):
         self.calls["simulate_scenarios"] = {"company_intelligence": company_intelligence}
         return {"scenarios": baseline}
 

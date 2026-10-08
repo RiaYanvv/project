@@ -13,7 +13,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.agent import AgentService
-from app.llm import MockLLM
+from app.llm import DeepSeekLLM, MockLLM
 from app.pdf_report import build_assessment_pdf
 from app.retrieval import MockRetrievalProvider
 from app.schemas import (
@@ -194,6 +194,10 @@ class ScenarioChatClosedLoopTest(unittest.TestCase):
         resimulate.assert_not_called()
         self.assertTrue(updated.chat_analysis.scenario_update_required)
         self.assertEqual(
+            updated.company_intelligence,
+            assessment.company_intelligence,
+        )
+        self.assertEqual(
             updated.chat_analysis.profile_patch["site.VN.capacity"],
             "5 GWh/year",
         )
@@ -212,6 +216,11 @@ class ScenarioChatClosedLoopTest(unittest.TestCase):
             ChatRequest(message="第二轮问题", language="zh"),
         )
         self.assertEqual(llm.seen_history, [0, 2])
+
+    def test_chat_answer_is_capped_for_consultation_use(self) -> None:
+        answer = DeepSeekLLM._bounded_chat_answer("影响。\n" + ("补充分析" * 400))
+        self.assertLessEqual(len(answer), 1501)
+        self.assertTrue(answer.endswith("…"))
 
     def test_pdf_contains_score_breakdown_and_chat_history(self) -> None:
         agent, _ = self.make_agent(

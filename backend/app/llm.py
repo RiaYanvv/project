@@ -78,6 +78,7 @@ class LLMProvider(Protocol):
         baseline: list[dict[str, Any]],
         language: str = "en",
         company_intelligence: dict[str, Any] | None = None,
+        revision_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         ...
 
@@ -161,6 +162,7 @@ class MockLLM:
         baseline: list[dict[str, Any]],
         language: str = "en",
         company_intelligence: dict[str, Any] | None = None,
+        revision_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         return {"scenarios": baseline}
 
@@ -438,11 +440,14 @@ class DeepSeekLLM:
                 language_prefix(language)
                 + "你是供应链地缘政治风险分析师。只返回 JSON，顶层键必须为 risks。"
                 "最终只保留 4-5 个核心风险，不要输出高度重叠的风险。"
-                "每条风险必须包含 title, category, company_specific_trigger, "
+                "每条风险必须包含 name, title, category, company_specific_trigger, "
                 "external_mechanism, impact_channels, impact_description, "
+                "business_impact, uncertainty, "
                 "likelihood_score, impact_score, company_exposure_score, "
                 "decision_relevance, uncertainty_reasons, "
                 "what_would_change_assessment, supporting_evidence_ids。"
+                "name 与 title 必须内容完全一致，business_impact 与 "
+                "impact_description 必须内容完全一致。"
                 "likelihood_score / impact_score / company_exposure_score 必须是 "
                 "1-5 整数；decision_relevance 只能是 low/medium/high。"
                 "category 只能使用 TRADE, POLITICAL, SUPPLY_CHAIN, REGULATORY, "
@@ -493,7 +498,16 @@ class DeepSeekLLM:
         baseline: list[dict[str, Any]],
         language: str = "en",
         company_intelligence: dict[str, Any] | None = None,
+        revision_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        revision_instruction = ""
+        if revision_context:
+            revision_instruction = (
+                "这是基于咨询新增信息的再模拟，不是重新生成一份无关报告。"
+                "只对新增信息直接影响的维度做最小必要改动，其他维度尽量保持"
+                "上一版档位。每个发生变化或保持不变的维度，都要在 reason 中"
+                "结合新增信息解释为什么变化或为什么没有变化。"
+            )
         return self._call_json(
             stage="ScenarioAgent",
             system=(
@@ -518,6 +532,7 @@ class DeepSeekLLM:
                 "evidence_ids 只能引用输入中的 evidence_id。"
                 "情景必须结合 company_intelligence 中的现有生产基地、供应链角色与"
                 "目标市场来描述，而不是给通用方案；不同公司的同一方案应体现其自身布局。"
+                + revision_instruction
             ),
             payload={
                 "task": "比较维持海外布局、提高中国生产比例和混合布局",
@@ -526,6 +541,7 @@ class DeepSeekLLM:
                 "risks": risks,
                 **self._split_evidence_payload(evidence),
                 "deterministic_baseline": baseline,
+                "revision_context": revision_context or {},
             },
             fallback={"scenarios": baseline},
         )
@@ -637,14 +653,17 @@ class DeepSeekLLM:
                 + "你是供应链决策顾问。只返回 JSON，顶层键为 answer，"
                 "answer 必须是字符串。"
                 "回答必须基于已有评估和证据，明确不确定性，不得编造来源。"
-                "回答要先结合 company_intelligence 中这家公司的业务模式、供应链角色、"
-                "生产基地与待补信息，再给结论。"
-                "区分两类回答：解释已有结果时说明评分依据，不改状态；"
+                "不要重复企业画像、现有风险清单或长篇待补信息。"
+                "解释已有结果时直接说明评分依据，不改状态。"
                 "用户提供预算、产能、供应商或客户等新信息时，分析它可能影响"
                 "成本、韧性、市场准入或实施可行性的方向，但明确说明"
                 "“当前正式评分尚未更新”。不得自行重算情景，不得把推测值写成"
                 "已经生效的新分数。若该信息值得纳入正式模型，提示用户点击"
                 "“重新模拟”；对高风险事项建议人工复核。"
+                "输出尽量控制在 1000-1500 字，使用三到四个短段："
+                "1）“可能影响的方向”，把结论直接合并在本段；"
+                "2）“不确定性”，只保留最关键的一到两点；"
+                "3）“下一步”，最多一句。不要写公司画像、待补信息清单或正式报告抬头。"
             ),
             payload={
                 "company_intelligence": company_intelligence or {},
@@ -683,10 +702,23 @@ class DeepSeekLLM:
                 str(item).strip() for item in sections if item
             )
             if normalized:
-                return normalized
+                return self._bounded_chat_answer(normalized)
         if not isinstance(answer, str) or not answer.strip():
             return "当前模型未能生成有效回答，请稍后重试。"
-        return answer.strip()
+        return self._bounded_chat_answer(answer.strip())
+
+    @staticmethod
+    def _bounded_chat_answer(answer: str, limit: int = 1500) -> str:
+        if len(answer) <= limit:
+            return answer
+        window = answer[:limit]
+        cut = max(
+            window.rfind(mark)
+            for mark in ("\n", "。", "；", ". ", "; ")
+        )
+        if cut < int(limit * 0.6):
+            cut = limit
+        return answer[:cut].rstrip() + "…"
 
     def _call_json(
         self,

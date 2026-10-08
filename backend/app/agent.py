@@ -930,29 +930,13 @@ class AgentService:
 
         assistant_turn = ChatTurn(role="assistant", content=reply, created_at=utc_now())
         history = [*assessment.chat_history, user_turn, assistant_turn]
-        # Doc §10: information the user adds during the consultation is folded
-        # back into the company model so later stages use the same context.
-        patched_intelligence, patch_count = self._patch_intelligence(
-            assessment.company_intelligence, chat_analysis
-        )
-        patch_trace = None
-        if patch_count:
-            patch_trace = self._trace(
-                agent="ChatAgent",
-                action="将咨询新增信息并入企业画像",
-                status="completed",
-                detail=f"新增 {patch_count} 条约束/偏好到决策情境。",
-                started=step_started,
-            )
         updated = assessment.model_copy(
             update={
                 "chat_history": history,
                 "chat_analysis": chat_analysis,
-                "company_intelligence": patched_intelligence,
                 "trace": [
                     *assessment.trace,
                     chat_trace,
-                    *([patch_trace] if patch_trace else []),
                 ],
                 "llm_calls": chat_calls,
                 "degraded": assessment.degraded or any(
@@ -1019,6 +1003,17 @@ class AgentService:
             heuristic["scenarios"],
             language,
             company_intelligence=resim_intelligence,
+            revision_context={
+                "previous_scenarios": [
+                    item.model_dump(mode="json")
+                    for item in assessment.scenarios
+                ],
+                "new_information": constraints,
+                "instruction": (
+                    "Compare against previous_scenarios and explain the score "
+                    "change or non-change for each affected dimension."
+                ),
+            },
         )
         scenario_payload, scenario_call = self._consume_llm_result(
             scenario_payload, "ScenarioAgent", active_llm
@@ -2115,6 +2110,21 @@ class AgentService:
                 filtered["name"] = str(
                     filtered.get("name") or filtered["title"]
                 )
+                filtered["business_impact"] = str(
+                    filtered.get("business_impact")
+                    or filtered.get("impact_description")
+                    or ""
+                )
+                uncertain_reasons = filtered.get("uncertainty_reasons") or []
+                filtered["uncertainty"] = str(
+                    filtered.get("uncertainty")
+                    or (
+                        "; ".join(str(item) for item in uncertain_reasons)
+                        if isinstance(uncertain_reasons, list)
+                        else uncertain_reasons
+                    )
+                    or "Uncertainty requires validation."
+                )
                 raw_ids = [
                     evidence_id
                     for evidence_id in (
@@ -2206,6 +2216,21 @@ class AgentService:
                 )
                 item["name"] = str(
                     item.get("name") or item["title"]
+                )
+                item["business_impact"] = str(
+                    item.get("business_impact")
+                    or item.get("impact_description")
+                    or ""
+                )
+                uncertain_reasons = item.get("uncertainty_reasons") or []
+                item["uncertainty"] = str(
+                    item.get("uncertainty")
+                    or (
+                        "; ".join(str(value) for value in uncertain_reasons)
+                        if isinstance(uncertain_reasons, list)
+                        else uncertain_reasons
+                    )
+                    or "Uncertainty requires validation."
                 )
                 risk_payload = self._apply_risk_rubric(
                     item, links, evidence, company, intelligence
