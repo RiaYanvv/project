@@ -308,6 +308,22 @@
         </div>
       </div>
 
+      <!-- Naming a decision used window.prompt(), which is disabled in sandboxed
+           and embedded browsers and took the page down when it threw. The naming
+           flows use this modal instead (app.js: openNameDialog). -->
+      <div class="modal" id="name-modal" hidden>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="name-modal-title">
+          <p class="eyebrow">Decision name</p>
+          <h3 id="name-modal-title">Name this decision</h3>
+          <label for="name-modal-input">Decision name<input id="name-modal-input" type="text" maxlength="80" autocomplete="off" /></label>
+          <p class="modal-note" id="name-modal-note">You can rename it later in My Decisions.</p>
+          <div class="modal-actions">
+            <button class="button button-secondary" type="button" id="name-modal-cancel">Cancel</button>
+            <button class="button button-primary" type="button" id="name-modal-confirm">Save name</button>
+          </div>
+        </div>
+      </div>
+
       <section class="screen analysis-screen" id="report-loading" aria-live="polite">
         <div class="analysis-panel">
           <span class="analysis-orbit"></span>
@@ -442,9 +458,35 @@
           );
           return;
         }
+        /* Once app.js has booted, an uncaught error is a runtime fault inside a
+           working page, not a start-up failure: report it without telling the
+           user the app failed to start. */
+        var booted = false;
+        window.__locusMarkBooted = function () { booted = true; };
+        function runtimeWarn(message) {
+          var box = document.getElementById("runtime-error");
+          if (!box) {
+            box = document.createElement("div");
+            box.id = "runtime-error";
+            box.style.cssText =
+              "position:fixed;z-index:99998;left:0;right:0;bottom:0;padding:12px 20px;" +
+              "background:#f6e8c8;color:#6b4a12;font:600 12px/1.6 system-ui,sans-serif";
+            box.title = "Click to dismiss";
+            box.addEventListener("click", function () { box.remove(); });
+            (document.body || document.documentElement).appendChild(box);
+          }
+          box.textContent = message + " (click to dismiss)";
+        }
         window.addEventListener("error", function (event) {
           var file = String(event.filename || "");
           if (file.indexOf("app.js") === -1 && file.indexOf("i18n.js") === -1) { return; }
+          if (booted) {
+            if (window.console && window.console.warn) {
+              window.console.warn("Locus runtime error:", event.message, "line", event.lineno);
+            }
+            runtimeWarn("Locus hit a problem on this action — the rest of the page still works: " + (event.message || "unknown error") + " (line " + event.lineno + ").");
+            return;
+          }
           warn(
             "Locus failed to start: " + (event.message || "unknown error") +
             " (line " + event.lineno + "). Please send this line to the team."

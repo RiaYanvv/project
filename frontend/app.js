@@ -1944,7 +1944,10 @@ async function sendChatMessage(text) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: text, api_key: window.LOCUS_API_KEY, language: currentLanguage() === "zh" ? "zh" : "en" }),
-    }, 30000);
+      // A consultation turn runs two model calls (action choice + answer) and can
+      // re-simulate the scenarios, which the backend has measured at ~100s. The
+      // old 30s limit aborted the request long before the Agent was done.
+    }, 120000);
     if (!response.ok) throw new Error(`chat service returned ${response.status}`);
     const updated = await response.json();
     const reply = (updated.chat_history || []).filter(turn => turn.role === "assistant").slice(-1)[0];
@@ -1961,7 +1964,17 @@ async function sendChatMessage(text) {
     renderChatMeta();
   } catch (error) {
     removeChatMessage(pending);
-    appendChatMessage({ role: "assistant", content: `I could not reach the Agent service: ${error.message}. Your message is kept in this session.` });
+    const aborted = Boolean(error && (error.name === "AbortError" || /abort/i.test(String(error.message || ""))));
+    const content = aborted
+      ? L(
+          "The consultation is still running on the server — a full re-simulation can take up to two minutes. Wait a moment, then reload this decision to see the reply.",
+          "本次咨询仍在服务端处理中（完整重算最长约两分钟）。稍等一下，然后重新打开这条决策即可看到回复。",
+        )
+      : L(
+          `I could not reach the Agent service: ${error && error.message ? error.message : error}. Your message is kept in this session.`,
+          `无法连接分析服务：${error && error.message ? error.message : error}。你的消息已保留在本次会话中。`,
+        );
+    appendChatMessage({ role: "assistant", content, explain: true });
   }
 }
 
@@ -2620,7 +2633,44 @@ function syncChatIntoProject() {
   });
 }
 
-function renameProject(id) {
+/* The naming flows used window.prompt(), which is disabled in sandboxed and
+   embedded browsers: it threw "prompt() is not supported." and the uncaught
+   error took the whole page down. They use the app's own modal instead, and fall
+   back to the name the decision already has if even that is unavailable. */
+let nameDialogResolve = null;
+
+function openNameDialog(options) {
+  const modal = $("#name-modal");
+  const input = $("#name-modal-input");
+  if (!modal || !input) return Promise.resolve({ status: "unavailable" });
+  const title = $("#name-modal-title");
+  if (title) title.textContent = options.title || "";
+  const note = $("#name-modal-note");
+  if (note) {
+    note.textContent = options.note || "";
+    note.hidden = !options.note;
+  }
+  const confirm = $("#name-modal-confirm");
+  if (confirm) confirm.textContent = options.confirmLabel || L("Save name", "保存名称");
+  input.value = options.value || "";
+  modal.hidden = false;
+  input.focus();
+  input.select();
+  return new Promise(resolve => { nameDialogResolve = resolve; });
+}
+
+function closeNameDialog(status) {
+  const modal = $("#name-modal");
+  const input = $("#name-modal-input");
+  const resolve = nameDialogResolve;
+  nameDialogResolve = null;
+  if (modal) modal.hidden = true;
+  if (resolve) {
+    resolve({ status, value: status === "ok" && input ? input.value : "" });
+  }
+}
+
+async function renameProject(id) {
   const projects = readProjects();
   const index = projects.findIndex(item => item.decision_project_id === id);
   if (index < 0) {
@@ -2628,16 +2678,20 @@ function renameProject(id) {
     return;
   }
   const project = projects[index];
-  const nextName = window.prompt(
-    currentLanguage() === "zh"
-      ? "请输入这次决策的名称："
-      : "Enter a name for this decision:",
-    project.name || project.company_name || "Untitled decision",
-  );
-  if (nextName === null) return;
-  const name = nextName.trim();
+  const result = await openNameDialog({
+    title: L("Rename this decision", "重命名这次决策"),
+    note: L("The name is stored in this browser.", "名称保存在本机浏览器中。"),
+    value: project.name || project.company_name || "Untitled decision",
+    confirmLabel: L("Save name", "保存名称"),
+  });
+  if (result.status === "unavailable") {
+    showToast(L("This browser cannot show the rename dialog.", "当前浏览器无法显示重命名弹窗。"));
+    return;
+  }
+  if (result.status !== "ok") return;
+  const name = String(result.value || "").trim();
   if (!name) {
-    showToast(currentLanguage() === "zh" ? "决策名称不能为空。" : "The decision name cannot be empty.");
+    showToast(L("The decision name cannot be empty.", "决策名称不能为空。"));
     return;
   }
   projects[index] = {
@@ -2648,10 +2702,10 @@ function renameProject(id) {
   };
   writeProjects(projects);
   renderProjects();
-  showToast(currentLanguage() === "zh" ? "决策名称已更新。" : "Decision name updated.");
+  showToast(L("Decision name updated.", "决策名称已更新。"));
 }
 
-function confirmProjectNameBeforeLeaving(nextScreen) {
+async function confirmProjectNameBeforeLeaving(nextScreen) {
   const project = currentProject();
   const currentScreen = document.querySelector(".screen.active")?.id || "";
   if (
@@ -2663,16 +2717,25 @@ function confirmProjectNameBeforeLeaving(nextScreen) {
   ) {
     return true;
   }
-  const nextName = window.prompt(
-    currentLanguage() === "zh"
-      ? "离开前请为本次决策命名，之后可在 My Decisions 中重命名："
-      : "Name this decision before leaving. You can rename it later in My Decisions:",
-    project.name || project.company_name || "Untitled decision",
-  );
-  if (nextName === null) return false;
-  const name = nextName.trim();
+  const existing = String(project.name || project.company_name || "").trim();
+  const result = await openNameDialog({
+    title: L("Name this decision before leaving", "离开前请为本次决策命名"),
+    note: L("You can rename it later in My Decisions.", "之后可在 My Decisions 中重命名。"),
+    value: existing || "Untitled decision",
+    confirmLabel: L("Save and continue", "保存并继续"),
+  });
+  if (result.status === "unavailable") {
+    // Missing markup or a browser that cannot render the dialog: keep the
+    // decision named with what it already has instead of trapping the user.
+    const fallback = existing || "Untitled decision";
+    updateCurrentProject({ name: fallback, name_confirmed: true });
+    showToast(L(`Saved as "${fallback}". Rename it in My Decisions.`, `已命名为「${fallback}」，可在 My Decisions 中修改。`));
+    return true;
+  }
+  if (result.status !== "ok") return false;
+  const name = String(result.value || "").trim();
   if (!name) {
-    showToast(currentLanguage() === "zh" ? "决策名称不能为空。" : "The decision name cannot be empty.");
+    showToast(L("The decision name cannot be empty.", "决策名称不能为空。"));
     return false;
   }
   updateCurrentProject({ name, name_confirmed: true });
@@ -2967,9 +3030,9 @@ function restoreDraft() {
 
 /* --------------------------------------------------------------- bindings */
 
-document.addEventListener("click", event => {
+document.addEventListener("click", async event => {
   const target = event.target.closest("[data-screen-target]");
-  if (target && !confirmProjectNameBeforeLeaving(target.dataset.screenTarget)) return;
+  if (target && !(await confirmProjectNameBeforeLeaving(target.dataset.screenTarget))) return;
   if (target) showScreen(target.dataset.screenTarget);
   if (event.target.closest("#add-production")) addLocation("production");
   if (event.target.closest("#add-market")) addLocation("markets");
@@ -2990,6 +3053,8 @@ document.addEventListener("click", event => {
   if (event.target.closest("#chat-report")) openReportModal();
   if (event.target.closest("#report-cancel")) closeReportModal();
   if (event.target.closest("#report-confirm")) confirmReport();
+  if (event.target.closest("#name-modal-confirm")) { closeNameDialog("ok"); return; }
+  if (event.target.closest("#name-modal-cancel")) { closeNameDialog("cancelled"); return; }
   if (event.target.closest("#chat-add-toggle")) { const panel = $("#chat-add"); if (panel) panel.hidden = !panel.hidden; }
   if (event.target.closest("#chat-add-close")) { const panel = $("#chat-add"); if (panel) panel.hidden = true; }
   const chatCategory = event.target.closest("[data-chat-category]");
@@ -3053,6 +3118,13 @@ document.addEventListener("click", event => {
   }
   const overviewReassess = event.target.closest("#overview-reassess");
   if (overviewReassess?.dataset.projectId) return reassessProject(overviewReassess.dataset.projectId);
+});
+
+/* Enter saves the name, Escape cancels: this dialog replaces window.prompt(),
+   which sandboxed and embedded browsers refuse to show. */
+$("#name-modal-input")?.addEventListener("keydown", event => {
+  if (event.key === "Enter") { event.preventDefault(); closeNameDialog("ok"); }
+  if (event.key === "Escape") { event.preventDefault(); closeNameDialog("cancelled"); }
 });
 
 document.addEventListener("change", event => {
@@ -3168,3 +3240,6 @@ updateFormProgress();
 i18nObserver.observe(document.body, { childList: true, subtree: true });
 applyLanguage(storedLanguage());
 checkAgentConnection();
+/* The page is running: from here on an uncaught error is reported as a runtime
+   problem instead of the "Locus failed to start" banner (index.html). */
+if (typeof window.__locusMarkBooted === "function") window.__locusMarkBooted();
