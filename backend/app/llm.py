@@ -199,38 +199,35 @@ class MockLLM:
         normalized = message.lower()
         if any(term in normalized for term in ("cost", "budget", "成本", "投资", "预算")):
             return (
-                    "这条成本信息已记录。它可能改变实施可行性和成本判断，"
-                    "但当前正式评分尚未更新；如需纳入模型，请点击“重新模拟”。"
-                    "下一步可补充预算上限、当地固定资产沉没成本，以及中国与"
-                    "现有海外基地的单位成本差。"
+                "这条成本信息已记录。它可能改变实施可行性和成本判断，"
+                "下一步可补充预算上限、当地固定资产沉没成本，以及中国与"
+                "现有海外基地的单位成本差，以便进一步推演。"
                 if zh
-                    else "This cost information is recorded. It may change feasibility and "
-                    "the cost assessment, but the formal scores have not yet been updated. "
-                    "Choose re-simulate to fold it into the model. Useful next inputs: the "
-                    "investment ceiling, the sunk cost of existing assets, and the unit-cost "
-                    "gap between China and the current overseas sites."
+                else "This cost information is recorded. It may change feasibility and "
+                "the cost assessment. Useful next inputs are the investment ceiling, "
+                "the sunk cost of existing assets, and the unit-cost gap between "
+                "China and the current overseas sites."
             )
         if any(term in normalized for term in ("time", "时间", "期限")):
             return (
-                    "这条时间信息已记录，可能改变可行方案；当前正式评分尚未更新。"
-                    "建议补充产能爬坡和审批周期，再决定是否重新模拟。"
+                "这条时间信息已记录，可能改变可行方案。"
+                "建议补充产能爬坡和审批周期，以便进一步推演。"
                 if zh
-                    else "This timing information is recorded and may change which options stay "
-                    "feasible, but the formal scores have not yet been updated. Add capacity "
-                    "ramp-up and approval lead times before deciding whether to re-simulate."
+                else "This timing information is recorded and may change which options stay "
+                "feasible. Add capacity ramp-up and approval lead times to refine the "
+                "assessment."
             )
         if any(
             term in normalized
             for term in ("tariff", "关税", "export", "出口管制", "管制")
         ):
             return (
-                "这条政策信息已记录为重点观察项；当前正式评分尚未更新。"
-                "建议补充产品 HS/ECCN 编码、客户所在地和关键供应商，再决定是否重新模拟。"
+                "这条政策信息已记录为重点观察项。"
+                "建议补充产品 HS/ECCN 编码、客户所在地和关键供应商，以便进一步推演。"
                 if zh
-                else "This policy information is recorded as a watch item, but the formal scores "
-                "have not yet been updated. Adding HS/ECCN codes, customer locations and "
-                "critical suppliers would make the assessment more company-specific before "
-                "you choose whether to re-simulate."
+                else "This policy information is recorded as a watch item. Adding HS/ECCN "
+                "codes, customer locations and critical suppliers would make the assessment "
+                "more company-specific."
             )
         if supplemental_evidence:
             return (
@@ -240,10 +237,10 @@ class MockLLM:
                 "specific constraint you care about and I will fold it into the analysis."
             )
         return (
-            "信息已记录。当前回答基于现有证据，补充约束后可重新运行评估。"
+            "信息已记录。当前回答基于现有证据，可补充具体约束以便进一步推演。"
             if zh
             else "Noted. This answer is based on the evidence already retrieved; add a concrete "
-            "constraint and the scenario analysis can be re-run."
+            "constraint to refine the logic-based assessment."
         )
 
 
@@ -638,6 +635,29 @@ class DeepSeekLLM:
             fallback={"action": "answer"},
         )
 
+    @staticmethod
+    def _chat_answer_system_prompt(language: str) -> str:
+        return (
+            language_prefix(language)
+            + "你是供应链决策顾问。只返回 JSON，顶层键为 answer，"
+            "answer 必须是字符串。"
+            "回答必须基于已有评估和证据，明确不确定性，不得编造来源。"
+            "不要重复企业画像、现有风险清单或长篇待补信息。"
+            "用户询问已有结果时，只解释评分依据和业务逻辑。"
+            "用户提供预算、产能、供应商或客户等新信息时，只陈述逻辑推演，"
+            "使用“将会”“可能”“倾向于”等措辞，说明可能影响成本、韧性、"
+            "市场准入或实施可行性的方向。"
+            "严禁声明正式评分是否已经更新，不得提及“未重算”“维持不变”"
+            "“系统尚未更新”或其他系统计分状态。分数更新由用户后续的明确"
+            "操作决定。"
+            "输出尽量控制在 1000-1500 字，使用三到四个短段："
+            "1）“可能影响的方向”，把结论直接合并在本段；"
+            "2）“不确定性”，只保留最关键的一到两点；"
+            "3）“下一步”，最多一句。不要写公司画像、待补信息清单或正式报告抬头。"
+            "必须使用 Markdown：段落之间留空行，关键结论用 **加粗**，"
+            "并列影响使用短横线列表，禁止输出一整块文字墙。"
+        )
+
     def answer_chat(
         self,
         assessment: Assessment,
@@ -648,25 +668,7 @@ class DeepSeekLLM:
     ) -> str:
         result = self._call_json(
             stage="ChatAgent",
-            system=(
-                language_prefix(language)
-                + "你是供应链决策顾问。只返回 JSON，顶层键为 answer，"
-                "answer 必须是字符串。"
-                "回答必须基于已有评估和证据，明确不确定性，不得编造来源。"
-                "不要重复企业画像、现有风险清单或长篇待补信息。"
-                "解释已有结果时直接说明评分依据，不改状态。"
-                "用户提供预算、产能、供应商或客户等新信息时，分析它可能影响"
-                "成本、韧性、市场准入或实施可行性的方向，但明确说明"
-                "“当前正式评分尚未更新”。不得自行重算情景，不得把推测值写成"
-                "已经生效的新分数。若该信息值得纳入正式模型，提示用户点击"
-                "“重新模拟”；对高风险事项建议人工复核。"
-                "输出尽量控制在 1000-1500 字，使用三到四个短段："
-                "1）“可能影响的方向”，把结论直接合并在本段；"
-                "2）“不确定性”，只保留最关键的一到两点；"
-                "3）“下一步”，最多一句。不要写公司画像、待补信息清单或正式报告抬头。"
-                "必须使用 Markdown：段落之间留空行，关键结论用 **加粗**，"
-                "并列影响使用短横线列表，禁止输出一整块文字墙。"
-            ),
+            system=self._chat_answer_system_prompt(language),
             payload={
                 "company_intelligence": company_intelligence or {},
                 "company": assessment.company_profile.model_dump(mode="json"),

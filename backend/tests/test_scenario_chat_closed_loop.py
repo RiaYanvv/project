@@ -298,6 +298,55 @@ class ScenarioChatClosedLoopTest(unittest.TestCase):
         self.assertNotIn("battery_cell_self_production", text)
         self.assertNotIn("{'self_produced_ratio'", text)
 
+    def test_pdf_uses_key_whitelist_and_filters_internal_names(self) -> None:
+        agent, _ = self.make_agent(
+            {"action": "answer", "scenario_update_required": False}
+        )
+        assessment = agent.run(make_company(), language="zh")
+        assessment = assessment.model_copy(
+            update={
+                "chat_history": [
+                    ChatTurn(
+                        role="assistant",
+                        content="已记录补充信息。",
+                        created_at="2026-10-09T00:00:00+00:00",
+                    )
+                ],
+                "chat_analysis": ChatImpact(
+                    profile_patch={
+                        "primary": "BATTERY_CELL",
+                        "evaluation_scope": "XPeng Inc.",
+                        "scope_caveats": "本轮澄清的是部门职责范围。",
+                        "value_chain_role": "oem_integrator",
+                    },
+                    scenario_update_required=False,
+                ),
+            }
+        )
+
+        pdf = build_assessment_pdf(assessment)
+        text = "\n".join(
+            page.extract_text() or ""
+            for page in PdfReader(io.BytesIO(pdf)).pages
+        )
+
+        self.assertIn("核心角色：电池电芯制造", text)
+        self.assertIn("评估范围：XPeng Inc.", text)
+        self.assertIn("范围警示：本轮澄清的是部门职责范围。", text)
+        self.assertNotIn("primary:", text)
+        self.assertNotIn("evaluation_scope:", text)
+        self.assertNotIn("scope_caveats:", text)
+        self.assertNotIn("value_chain_role", text)
+        self.assertNotIn("oem_integrator", text)
+
+    def test_chat_prompt_is_neutral_about_score_state(self) -> None:
+        prompt = DeepSeekLLM._chat_answer_system_prompt("zh")
+        self.assertIn("只陈述逻辑推演", prompt)
+        self.assertIn("严禁声明正式评分是否已经更新", prompt)
+        self.assertNotIn("当前正式评分尚未更新", prompt)
+        self.assertNotIn("请点击“重新模拟”", prompt)
+        self.assertNotIn("分数维持不变", prompt)
+
     def test_pdf_renders_chat_markdown_and_summary_headers(self) -> None:
         agent, _ = self.make_agent(
             {"action": "answer", "scenario_update_required": False}

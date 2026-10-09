@@ -378,32 +378,54 @@ def _parse_structured_value(value: object) -> object:
         return value
 
 
-def _human_update_key(key: str, language: str) -> str:
-    known = {
-        "supply_chain": ("供应链", "Supply chain"),
-        "battery_cell_self_production": (
-            "电池电芯自产情况",
-            "Battery-cell self-production",
-        ),
-        "battery_cell_suppliers": ("电芯供应商", "Battery-cell suppliers"),
-        "suppliers": ("供应商", "Suppliers"),
-        "self_produced_ratio": ("自产比例", "Self-produced ratio"),
-        "external_purchased_ratio": ("外购比例", "Externally purchased ratio"),
-        "products_note": ("产品定义说明", "Product definition note"),
-        "capacity": ("产能", "Capacity"),
-        "facility": ("设施", "Facility"),
-        "role": ("角色", "Role"),
-        "basis": ("数据依据", "Basis"),
-        "as_of": ("数据时点", "As of"),
-        "notes": ("说明", "Notes"),
-        "source_type": ("来源类型", "Source type"),
-    }
+UPDATE_KEY_LABELS: dict[str, tuple[str, str]] = {
+    "primary": ("核心角色", "Primary role"),
+    "evaluation_scope": ("评估范围", "Evaluation scope"),
+    "scope_caveats": ("范围警示", "Scope caveats"),
+    "supply_chain": ("供应链", "Supply chain"),
+    "battery_cell_self_production": (
+        "电池电芯自产情况",
+        "Battery-cell self-production",
+    ),
+    "battery_cell_suppliers": ("电芯供应商", "Battery-cell suppliers"),
+    "suppliers": ("供应商", "Suppliers"),
+    "self_produced_ratio": ("自产比例", "Self-produced ratio"),
+    "external_purchased_ratio": ("外购比例", "Externally purchased ratio"),
+    "products_note": ("产品定义说明", "Product definition note"),
+    "capacity": ("产能", "Capacity"),
+    "facility": ("设施", "Facility"),
+    "role": ("角色", "Role"),
+    "basis": ("数据依据", "Basis"),
+    "as_of": ("数据时点", "As of"),
+    "notes": ("说明", "Notes"),
+}
+
+UPDATE_VALUE_LABELS: dict[str, tuple[str, str]] = {
+    "BATTERY_CELL": ("电池电芯制造", "Battery-cell manufacturing"),
+    "UPSTREAM_RAW_MATERIAL": ("上游原材料", "Upstream raw material"),
+    "UPSTREAM_COMPONENT": ("上游零部件", "Upstream component"),
+    "BATTERY_MANUFACTURING": ("电池制造", "Battery manufacturing"),
+    "DOWNSTREAM_APPLICATION": ("下游应用", "Downstream application"),
+    "INTEGRATED_BATTERY_COMPANY": (
+        "一体化电池企业",
+        "Integrated battery company",
+    ),
+    "OTHER": ("其他", "Other"),
+}
+
+
+def _human_update_key(key: str, language: str) -> str | None:
     parts = [part for part in str(key or "").split(".") if part]
-    leaf = parts[-1] if parts else str(key)
-    if leaf in known:
-        return known[leaf][0 if language == "zh" else 1]
-    display = leaf.replace("_", " ").strip()
-    return display or ("企业画像更新" if language == "zh" else "Company profile update")
+    leaf = (
+        (parts[-1] if parts else str(key))
+        .strip()
+        .lower()
+        .replace(" ", "_")
+    )
+    labels = UPDATE_KEY_LABELS.get(leaf)
+    if labels is None:
+        return None
+    return labels[0 if language == "zh" else 1]
 
 
 def _format_update_value(value: object, language: str) -> str:
@@ -417,6 +439,11 @@ def _format_update_value(value: object, language: str) -> str:
         return "未知" if language == "zh" else "unknown"
     if isinstance(value, (int, float)):
         return str(value)
+    if isinstance(value, str):
+        normalized = value.strip().upper()
+        mapped = UPDATE_VALUE_LABELS.get(normalized)
+        if mapped is not None:
+            return mapped[0 if language == "zh" else 1]
     return (
         str(value)
         .replace("{", "")
@@ -473,6 +500,8 @@ def _format_profile_patch(
     for key, raw_value in profile_patch.items():
         parsed = _parse_structured_value(raw_value)
         label = _human_update_key(key, language)
+        if label is None:
+            continue
         flattened = _flatten_update_values(parsed)
         if isinstance(parsed, (dict, list)) and len(flattened) > 4:
             items.append(
@@ -482,11 +511,9 @@ def _format_profile_patch(
             )
             continue
         for child_key, child_value in flattened:
-            child_label = (
-                _human_update_key(child_key, language)
-                if child_key
-                else label
-            )
+            child_label = _human_update_key(child_key, language) if child_key else label
+            if child_label is None:
+                continue
             value_text = _format_update_value(child_value, language)
             if not value_text:
                 continue
