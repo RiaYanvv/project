@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import ast
 import html
+import re
 from io import BytesIO
 
 from reportlab.lib import colors
@@ -13,6 +15,8 @@ from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.platypus import (
     HRFlowable,
     KeepTogether,
+    ListFlowable,
+    ListItem,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -202,17 +206,20 @@ def build_assessment_pdf(assessment: Assessment) -> bytes:
         _metadata_table(assessment, styles),
         Spacer(1, 7 * mm),
         _section(labels["summary"], styles),
-        Paragraph(
-            html.escape(assessment.company_profile.summary),
-            styles["Body"],
-        ),
-        Paragraph(
-            f"<b>{html.escape(assessment.recommendation.headline)}</b>",
-            styles["Body"],
-        ),
-        Paragraph(
-            html.escape(assessment.recommendation.rationale),
-            styles["Body"],
+        KeepTogether(
+            [
+                Paragraph(
+                    html.escape(assessment.company_profile.summary),
+                    styles["Body"],
+                ),
+                Spacer(1, 3 * mm),
+                _executive_summary_table(assessment, styles),
+                Spacer(1, 3 * mm),
+                Paragraph(
+                    f"<b>{html.escape(assessment.recommendation.headline)}</b>",
+                    styles["Body"],
+                ),
+            ]
         ),
         Spacer(1, 5 * mm),
         _section(labels["profile"], styles),
@@ -224,6 +231,11 @@ def build_assessment_pdf(assessment: Assessment) -> bytes:
         Spacer(1, 6 * mm),
         _section(labels["scenarios"], styles),
         _scenario_table(assessment, styles),
+        Spacer(1, 3 * mm),
+        Paragraph(
+            html.escape(assessment.recommendation.rationale),
+            styles["Body"],
+        ),
         Spacer(1, 6 * mm),
         _section(labels["detail"], styles),
         *_scenario_detail(assessment, styles, labels),
@@ -351,6 +363,272 @@ def _table_style() -> TableStyle:
             ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
         ]
     )
+
+
+def _parse_structured_value(value: object) -> object:
+    """Recover dict/list strings stored by older ChatImpact payloads."""
+    if not isinstance(value, str):
+        return value
+    text = value.strip()
+    if not text or text[0] not in "[{":
+        return value
+    try:
+        return ast.literal_eval(text)
+    except (ValueError, SyntaxError):
+        return value
+
+
+def _human_update_key(key: str, language: str) -> str:
+    known = {
+        "supply_chain": ("供应链", "Supply chain"),
+        "battery_cell_self_production": (
+            "电池电芯自产情况",
+            "Battery-cell self-production",
+        ),
+        "battery_cell_suppliers": ("电芯供应商", "Battery-cell suppliers"),
+        "suppliers": ("供应商", "Suppliers"),
+        "self_produced_ratio": ("自产比例", "Self-produced ratio"),
+        "external_purchased_ratio": ("外购比例", "Externally purchased ratio"),
+        "products_note": ("产品定义说明", "Product definition note"),
+        "capacity": ("产能", "Capacity"),
+        "facility": ("设施", "Facility"),
+        "role": ("角色", "Role"),
+        "basis": ("数据依据", "Basis"),
+        "as_of": ("数据时点", "As of"),
+        "notes": ("说明", "Notes"),
+        "source_type": ("来源类型", "Source type"),
+    }
+    parts = [part for part in str(key or "").split(".") if part]
+    leaf = parts[-1] if parts else str(key)
+    if leaf in known:
+        return known[leaf][0 if language == "zh" else 1]
+    display = leaf.replace("_", " ").strip()
+    return display or ("企业画像更新" if language == "zh" else "Company profile update")
+
+
+def _format_update_value(value: object, language: str) -> str:
+    if isinstance(value, float) and 0 <= value <= 1:
+        return f"{value * 100:.0f}%"
+    if isinstance(value, bool):
+        if language == "zh":
+            return "是" if value else "否"
+        return "yes" if value else "no"
+    if value is None:
+        return "未知" if language == "zh" else "unknown"
+    if isinstance(value, (int, float)):
+        return str(value)
+    return (
+        str(value)
+        .replace("{", "")
+        .replace("}", "")
+        .replace("[", "")
+        .replace("]", "")
+        .strip()
+    )
+
+
+def _flatten_update_values(
+    value: object,
+    prefix: str = "",
+) -> list[tuple[str, object]]:
+    if isinstance(value, dict):
+        flattened: list[tuple[str, object]] = []
+        for key, child in value.items():
+            child_prefix = f"{prefix}.{key}" if prefix else str(key)
+            flattened.extend(_flatten_update_values(child, child_prefix))
+        return flattened
+    if isinstance(value, list):
+        if value and all(isinstance(item, dict) for item in value):
+            labels: list[str] = []
+            for item in value:
+                name = (
+                    item.get("name")
+                    or item.get("alias")
+                    or item.get("country")
+                    or ""
+                )
+                country = item.get("country") or ""
+                label = str(name)
+                if country and str(country) not in label:
+                    label = f"{label} ({country})".strip()
+                if label:
+                    labels.append(label)
+            return [(prefix or "suppliers", "；".join(labels))] if labels else []
+        flattened = []
+        for item in value:
+            if isinstance(item, (dict, list)):
+                flattened.extend(_flatten_update_values(item, prefix))
+            elif str(item).strip():
+                flattened.append((prefix, item))
+        return flattened
+    return [(prefix, value)]
+
+
+def _format_profile_patch(
+    profile_patch: dict[str, str],
+    language: str,
+) -> list[str]:
+    """Convert structured profile patches into report-safe prose."""
+    items: list[str] = []
+    for key, raw_value in profile_patch.items():
+        parsed = _parse_structured_value(raw_value)
+        label = _human_update_key(key, language)
+        flattened = _flatten_update_values(parsed)
+        if isinstance(parsed, (dict, list)) and len(flattened) > 4:
+            items.append(
+                f"已更新企业画像中的 1 项结构化信息：{label}"
+                if language == "zh"
+                else f"1 structured company-profile update recorded: {label}"
+            )
+            continue
+        for child_key, child_value in flattened:
+            child_label = (
+                _human_update_key(child_key, language)
+                if child_key
+                else label
+            )
+            value_text = _format_update_value(child_value, language)
+            if not value_text:
+                continue
+            separator = "：" if language == "zh" else ": "
+            items.append(f"{child_label}{separator}{value_text}")
+    return items
+
+
+def _markdown_to_flowables(
+    text: str,
+    styles: dict[str, ParagraphStyle],
+    limit: int = 1200,
+) -> list:
+    """Small Markdown renderer for chat content in ReportLab."""
+    source = str(text or "")[:limit]
+    if not source.strip():
+        return [Paragraph("", styles["Cell"])]
+
+    def inline(value: str) -> str:
+        escaped = html.escape(value)
+        escaped = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", escaped)
+        escaped = re.sub(r"`(.+?)`", r"<font name='Courier'>\1</font>", escaped)
+        return escaped
+
+    flowables: list = []
+    paragraph_lines: list[str] = []
+    bullets: list[str] = []
+
+    def flush_paragraph() -> None:
+        if not paragraph_lines:
+            return
+        flowables.append(
+            Paragraph("<br/>".join(inline(line) for line in paragraph_lines), styles["Cell"])
+        )
+        paragraph_lines.clear()
+
+    def flush_bullets() -> None:
+        if not bullets:
+            return
+        flowables.append(
+            ListFlowable(
+                [
+                    ListItem(
+                        Paragraph(inline(item), styles["Cell"]),
+                        leftIndent=10,
+                    )
+                    for item in bullets
+                ],
+                bulletType="bullet",
+                start="•",
+                leftIndent=10,
+                bulletFontName=FONT_NAME,
+                bulletFontSize=7.5,
+            )
+        )
+        bullets.clear()
+
+    for raw_line in source.splitlines():
+        line = raw_line.strip()
+        if not line:
+            flush_paragraph()
+            flush_bullets()
+            continue
+        if re.match(r"^[-*]\s+", line):
+            flush_paragraph()
+            bullets.append(re.sub(r"^[-*]\s+", "", line))
+            continue
+        if re.match(r"^\d+[.)]\s+", line):
+            flush_paragraph()
+            bullets.append(re.sub(r"^\d+[.)]\s+", "", line))
+            continue
+        if line.startswith("#"):
+            flush_paragraph()
+            flush_bullets()
+            heading = line.lstrip("#").strip()
+            flowables.append(Paragraph(f"<b>{inline(heading)}</b>", styles["Cell"]))
+            continue
+        flush_bullets()
+        paragraph_lines.append(line)
+    flush_paragraph()
+    flush_bullets()
+    return flowables or [Paragraph("", styles["Cell"])]
+
+
+def _executive_summary_table(
+    assessment: Assessment,
+    styles: dict[str, ParagraphStyle],
+) -> Table:
+    language = getattr(assessment, "language", "en")
+    zh = language == "zh"
+    recommended = next(
+        (
+            item
+            for item in assessment.scenarios
+            if item.scenario_id == assessment.recommendation.recommended_scenario_id
+        ),
+        assessment.scenarios[0] if assessment.scenarios else None,
+    )
+    if recommended is None:
+        return Table([])
+    advantages = "；".join(recommended.benefits[:2]) or (
+        "未列明" if zh else "Not specified"
+    )
+    risks = "；".join(recommended.risks[:2]) or (
+        "未列明" if zh else "Not specified"
+    )
+    rows = [
+        [
+            Paragraph("推荐方案" if zh else "Recommended option", styles["CellHeader"]),
+            Paragraph("综合分" if zh else "Score", styles["CellHeader"]),
+            Paragraph("主要优势" if zh else "Main advantages", styles["CellHeader"]),
+            Paragraph("主要风险" if zh else "Main risks", styles["CellHeader"]),
+            Paragraph("人工复核" if zh else "Human review", styles["CellHeader"]),
+        ],
+        [
+            Paragraph(html.escape(recommended.name), styles["Cell"]),
+            Paragraph(str(recommended.weighted_score), styles["Cell"]),
+            Paragraph(html.escape(advantages), styles["Cell"]),
+            Paragraph(html.escape(risks), styles["Cell"]),
+            Paragraph(
+                (
+                    "需要"
+                    if assessment.recommendation.requires_human_review
+                    else "不需要"
+                )
+                if zh
+                else (
+                    "Yes"
+                    if assessment.recommendation.requires_human_review
+                    else "No"
+                ),
+                styles["Cell"],
+            ),
+        ],
+    ]
+    table = Table(
+        rows,
+        colWidths=[42 * mm, 18 * mm, 48 * mm, 52 * mm, 14 * mm],
+        repeatRows=1,
+    )
+    table.setStyle(_table_style())
+    return table
 
 
 def _profile_table(
@@ -690,7 +968,11 @@ def _consultation_section(
                 html.escape(role_labels.get(turn.role, turn.role)),
                 styles["Cell"],
             ),
-            Paragraph(html.escape(turn.content[:1200]), styles["Cell"]),
+            (
+                _markdown_to_flowables(turn.content, styles)
+                if turn.role == "assistant"
+                else Paragraph(html.escape(turn.content[:1200]), styles["Cell"])
+            ),
         ]
         for turn in turns
     )
@@ -708,11 +990,11 @@ def _consultation_section(
                     styles["Small"],
                 )
             )
-        added = [*analysis.new_constraints, *analysis.new_preferences]
-        added.extend(
-            f"{key}: {value}"
-            for key, value in analysis.profile_patch.items()
-        )
+        added = [
+            *_format_profile_patch(analysis.profile_patch, assessment.language),
+            *analysis.new_constraints,
+            *analysis.new_preferences,
+        ]
         if added:
             blocks.append(_bullet_list(added, styles))
         if analysis.gap_updates:
@@ -725,7 +1007,14 @@ def _consultation_section(
                     styles,
                 )
             )
-        if analysis.scenario_update_required:
+        if analysis.scenario_change_summary:
+            blocks.append(
+                Paragraph(
+                    html.escape(analysis.scenario_change_summary),
+                    styles["Small"],
+                )
+            )
+        elif analysis.scenario_update_required:
             blocks.append(
                 Paragraph(
                     html.escape(

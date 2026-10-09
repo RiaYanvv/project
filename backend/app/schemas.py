@@ -391,6 +391,8 @@ class ChatImpact(StrictModel):
     requested_gap: str = ""
     gap_question: str = ""
     scenario_update_required: bool = False
+    scenario_recalculated: bool = False
+    scenario_change_summary: str = ""
     summary: str = ""
 
 

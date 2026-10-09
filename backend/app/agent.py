@@ -855,6 +855,90 @@ class AgentService:
             add("market_access")
         return dimensions or ["implementation"]
 
+    @classmethod
+    def _scenario_change_summary(
+        cls,
+        before: list[ScenarioResult],
+        after: list[ScenarioResult],
+        language: str,
+    ) -> str:
+        zh = (language or "en").lower() == "zh"
+        if not after:
+            return (
+                "系统提示：已根据本次咨询新增信息完成正式重算。"
+                if zh
+                else "System note: formal scenario re-simulation completed."
+            )
+        before_by_name = {item.name: item for item in before}
+        candidates = [
+            (
+                item,
+                before_by_name.get(item.name),
+            )
+            for item in after
+        ]
+        changed = [
+            (new, old, new.weighted_score - old.weighted_score)
+            for new, old in candidates
+            if old is not None
+        ]
+        selected, previous, _delta = max(
+            changed,
+            key=lambda item: abs(item[2]),
+            default=(after[0], before_by_name.get(after[0].name), 0.0),
+        )
+        prefix = (
+            "系统提示：已根据本次咨询新增信息完成正式重算。"
+            if zh
+            else "System note: formal scenario re-simulation completed with "
+            "the new consultation information."
+        )
+        if previous is None:
+            return f"{prefix} {selected.scenario_id} = {selected.weighted_score}."
+        delta_text = (
+            f"{previous.weighted_score} → {selected.weighted_score}"
+            if zh
+            else f"{previous.weighted_score} -> {selected.weighted_score}"
+        )
+        score_line = (
+            f"{selected.scenario_id} 综合分由 {delta_text}。"
+            if zh
+            else f"{selected.scenario_id} weighted score changed from {delta_text}."
+        )
+        dimension_labels = {
+            "cost_score": ("成本影响", "Cost impact"),
+            "resilience_score": ("供应链韧性", "Supply-chain resilience"),
+            "geopolitical_risk_score": ("地缘政治风险", "Geopolitical risk"),
+            "market_access_score": ("市场准入", "Market access"),
+            "implementation_score": ("落地可行性", "Implementation feasibility"),
+        }
+        dimension_changes: list[str] = []
+        for metric, (zh_label, en_label) in dimension_labels.items():
+            old_value = getattr(previous, metric)
+            new_value = getattr(selected, metric)
+            if old_value == new_value:
+                continue
+            direction = "↑" if new_value > old_value else "↓"
+            label = zh_label if zh else en_label
+            dimension_changes.append(
+                f"{label} {old_value}→{new_value} {direction}"
+                if zh
+                else f"{label} {old_value}->{new_value} {direction}"
+            )
+        detail = (
+            "；".join(dimension_changes[:3])
+            if dimension_changes
+            else ("各维度未发生材料性变化。" if zh else "No material dimension change.")
+        )
+        if not dimension_changes:
+            score_line = (
+                f"{selected.scenario_id} 综合分保持 {selected.weighted_score}。"
+                if zh
+                else f"{selected.scenario_id} weighted score remains "
+                f"{selected.weighted_score}."
+            )
+        return f"{prefix} {score_line} {detail}"
+
     def chat(self, assessment: Assessment, request: ChatRequest) -> Assessment:
         user_turn = ChatTurn(role="user", content=request.message, created_at=utc_now())
         step_started = time.perf_counter()
@@ -1060,6 +1144,29 @@ class AgentService:
             assessment.risks,
             scenarios,
         )
+        change_summary = self._scenario_change_summary(
+            assessment.scenarios,
+            scenarios,
+            language,
+        )
+        chat_updates: dict[str, Any] = {}
+        if assessment.chat_history or assessment.chat_analysis is not None:
+            chat_updates["chat_history"] = [
+                *assessment.chat_history,
+                ChatTurn(
+                    role="assistant",
+                    content=change_summary,
+                    created_at=utc_now(),
+                ),
+            ]
+            previous_analysis = assessment.chat_analysis or ChatImpact()
+            chat_updates["chat_analysis"] = previous_analysis.model_copy(
+                update={
+                    "scenario_update_required": False,
+                    "scenario_recalculated": True,
+                    "scenario_change_summary": change_summary,
+                }
+            )
         trace_step = self._trace(
             agent="ScenarioAgent",
             action="按咨询新增约束重跑情景模拟",
@@ -1092,6 +1199,7 @@ class AgentService:
                     not item.ok for item in resim_calls
                 ),
                 "updated_at": utc_now(),
+                **chat_updates,
             }
         )
 

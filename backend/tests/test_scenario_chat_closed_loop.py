@@ -222,6 +222,115 @@ class ScenarioChatClosedLoopTest(unittest.TestCase):
         self.assertLessEqual(len(answer), 1501)
         self.assertTrue(answer.endswith("…"))
 
+    def test_resimulation_appends_system_change_note(self) -> None:
+        agent, _ = self.make_agent(
+            {"action": "answer", "scenario_update_required": False}
+        )
+        assessment = agent.run(make_company(), language="zh")
+        assessment = assessment.model_copy(
+            update={
+                "chat_history": [
+                    ChatTurn(
+                        role="user",
+                        content="补充电芯自产比例。",
+                        created_at="2026-10-09T00:00:00+00:00",
+                    )
+                ],
+                "chat_analysis": ChatImpact(
+                    scenario_update_required=True,
+                    summary="补充电芯自产比例。",
+                ),
+            }
+        )
+
+        updated = agent.resimulate(
+            assessment,
+            additional_constraints=["电池电芯自产比例 78%"],
+            language="zh",
+        )
+
+        self.assertTrue(updated.chat_analysis.scenario_recalculated)
+        self.assertFalse(updated.chat_analysis.scenario_update_required)
+        self.assertIn(
+            "系统提示",
+            updated.chat_analysis.scenario_change_summary,
+        )
+        self.assertIn("系统提示", updated.chat_history[-1].content)
+
+    def test_pdf_humanises_nested_profile_patch(self) -> None:
+        agent, _ = self.make_agent(
+            {"action": "answer", "scenario_update_required": False}
+        )
+        assessment = agent.run(make_company(), language="zh")
+        assessment = assessment.model_copy(
+            update={
+                "chat_history": [
+                    ChatTurn(
+                        role="user",
+                        content="电池自产比例 78%。",
+                        created_at="2026-10-09T00:00:00+00:00",
+                    ),
+                    ChatTurn(
+                        role="assistant",
+                        content="已记录该信息。",
+                        created_at="2026-10-09T00:00:01+00:00",
+                    ),
+                ],
+                "chat_analysis": ChatImpact(
+                    profile_patch={
+                        "supply_chain": (
+                            "{'battery_cell_self_production': "
+                            "{'self_produced_ratio': 0.78}}"
+                        )
+                    },
+                    scenario_update_required=False,
+                ),
+            }
+        )
+
+        pdf = build_assessment_pdf(assessment)
+        text = "\n".join(
+            page.extract_text() or ""
+            for page in PdfReader(io.BytesIO(pdf)).pages
+        )
+
+        self.assertIn("78%", text)
+        self.assertNotIn("battery_cell_self_production", text)
+        self.assertNotIn("{'self_produced_ratio'", text)
+
+    def test_pdf_renders_chat_markdown_and_summary_headers(self) -> None:
+        agent, _ = self.make_agent(
+            {"action": "answer", "scenario_update_required": False}
+        )
+        assessment = agent.run(make_company(), language="zh")
+        assessment = assessment.model_copy(
+            update={
+                "chat_history": [
+                    ChatTurn(
+                        role="assistant",
+                        content=(
+                            "**关键结论**\n\n"
+                            "- 成本压力上升\n"
+                            "- 供应链韧性下降"
+                        ),
+                        created_at="2026-10-09T00:00:00+00:00",
+                    )
+                ]
+            }
+        )
+
+        pdf = build_assessment_pdf(assessment)
+        text = "\n".join(
+            page.extract_text() or ""
+            for page in PdfReader(io.BytesIO(pdf)).pages
+        )
+
+        self.assertIn("关键结论", text)
+        self.assertIn("成本压力上升", text)
+        self.assertNotIn("**关键结论**", text)
+        self.assertIn("推荐方案", text)
+        self.assertIn("主要优势", text)
+
     def test_pdf_contains_score_breakdown_and_chat_history(self) -> None:
         agent, _ = self.make_agent(
             {"action": "answer", "scenario_update_required": False}
