@@ -280,6 +280,10 @@ input.field-invalid,select.field-invalid,textarea.field-invalid{border-color:#d8
 .information-update-list b{display:block;margin-top:3px;color:#345267;font-size:11px;line-height:1.45}
 .information-update-list p{margin:4px 0 0;color:#60798a;font-size:11px;line-height:1.5}
 .information-update-list button{border:0;background:none;color:#9aabb6;font-size:17px;cursor:pointer}
+.context-update-groups{display:grid;gap:12px}
+.context-update-group>p{margin:0 0 7px;color:#7890a0;font:600 9px var(--mono);letter-spacing:.08em;text-transform:uppercase}
+.information-update-list li.conflict{border-color:#e6c98d;background:#fffaf0}
+.information-update-list small{display:block;margin-top:5px;color:#9a6b1e;font-size:9.5px;line-height:1.45}
 .scenario-change-card{width:min(820px,94vw);max-height:88vh;overflow:auto}
 .scenario-change-summary{margin:5px 0 16px;color:#557083;font-size:12px;line-height:1.65}
 .scenario-change-applied{list-style:none;margin:0 0 18px;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}

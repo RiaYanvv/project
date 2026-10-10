@@ -497,6 +497,86 @@ async function streamAssessment(payload, onStage) {
   return assessment;
 }
 
+const CONTEXT_TYPE_LABELS = {
+  operational_fact: ["经营事实", "Operational fact"],
+  operational_estimate: ["经营估算", "Operational estimate"],
+  cost_estimate: ["成本估算", "Cost estimate"],
+  supply_chain_assessment: ["供应链判断", "Supply-chain assessment"],
+  demand_forecast: ["需求预测", "Demand forecast"],
+  strategic_preference: ["战略偏好", "Strategic preference"],
+  hard_constraint: ["硬约束", "Hard constraint"],
+  soft_preference: ["软偏好", "Soft preference"],
+  correction: ["修正", "Correction"],
+  assumption: ["假设", "Assumption"],
+};
+
+const CONTEXT_STATUS_LABELS = {
+  pending: ["待应用", "Pending"],
+  applied: ["已应用", "Applied"],
+  rejected: ["已拒绝", "Rejected"],
+  superseded: ["已替代", "Superseded"],
+};
+
+const CONTEXT_FIELD_LABELS = {
+  utilization_rate: ["利用率", "Utilization rate"],
+  annual_capacity_gwh: ["年产能", "Annual capacity"],
+  capacity_gwh: ["产能", "Capacity"],
+  production_share: ["生产占比", "Production share"],
+  demand_growth: ["需求增长", "Demand growth"],
+  asian_dependency: ["亚洲依赖", "Asian dependency"],
+  cost_index_vs_asia: ["相对亚洲成本指数", "Cost index vs Asia"],
+  supplier_name: ["供应商", "Supplier"],
+  supplier_list: ["供应商名单", "Supplier list"],
+};
+
+function contextFieldLabel(field) {
+  const key = String(field || "").trim().toLowerCase().replace(/\s+/g, "_");
+  const labels = CONTEXT_FIELD_LABELS[key];
+  if (labels) return L(labels[1], labels[0]);
+  return "";
+}
+
+function contextDisplayValue(value) {
+  if (value === null || value === undefined || value === "") return L("Unknown", "未知");
+  if (Array.isArray(value)) {
+    return value.map(item => contextDisplayValue(item)).filter(Boolean).join(L("; ", "；"));
+  }
+  if (typeof value === "object") {
+    return Object.entries(value).map(([key, child]) => {
+      const label = contextFieldLabel(key) || L("Update detail", "更新项");
+      return `${label}: ${contextDisplayValue(child)}`;
+    }).join(L("; ", "；"));
+  }
+  const text = String(value).trim();
+  if (/^[\[{]/.test(text)) {
+    return L("Structured update recorded", "已记录结构化更新");
+  }
+  return text;
+}
+
+function mapContextUpdate(update, index = 0) {
+  const typeLabels = CONTEXT_TYPE_LABELS[update.information_type] || ["补充信息", "Update"];
+  const statusLabels = CONTEXT_STATUS_LABELS[update.update_status] || ["待应用", "Pending"];
+  const fieldLabel = contextFieldLabel(update.field);
+  const fallbackLabel = L(typeLabels[1], typeLabels[0]);
+  const entity = String(update.entity || "").trim();
+  return {
+    id: update.update_id || `context-${index}`,
+    category: L(typeLabels[1], typeLabels[0]),
+    label: [entity, fieldLabel || fallbackLabel].filter(Boolean).join(" · "),
+    value: contextDisplayValue(update.value),
+    unit: update.unit || "",
+    status: update.update_status || "pending",
+    statusLabel: L(statusLabels[1], statusLabels[0]),
+    scenario_version: update.scenario_version || null,
+    source_type: update.source_type || "user_input",
+    verification_status: update.verification_status || "unverified",
+    conflict: Boolean(update.conflict),
+    previous_value: update.previous_value,
+    information_type: update.information_type || "assumption",
+  };
+}
+
 function mapApiAssessment(api, profile) {
   const library = api.evidence || [];
   const evidenceFor = (id) => {
@@ -561,12 +641,14 @@ function mapApiAssessment(api, profile) {
       assessment_id: api.assessment_id || "",
       model_name: api.model_name || "",
       data_mode: api.data_mode || "",
+      scenario_version: Number(api.scenario_version) || 1,
       weighting_mode: api.weighting_mode || "",
       // Which language the Agent wrote this analysis in. Kept so the UI can tell
       // the user when the content no longer matches the interface language.
       language: api.language || "",
       evidence_count: library.length,
     },
+    context_updates: (api.context_updates || []).map(mapContextUpdate),
   };
 }
 
@@ -693,6 +775,8 @@ function handleStageEvent(event) {
    the next "Start New Decision" begins from a clean sheet. */
 function finishRun(assessment, profile, thenSimulate = false) {
   state.assessment = assessment;
+  state.scenarioComparison = null;
+  state.scenarioVersion = Number(assessment.meta?.scenario_version) || 1;
   runInFlight = false;
   const submitButton = $("#decision-form button[type='submit']");
   if (submitButton) submitButton.disabled = false;
@@ -1477,6 +1561,13 @@ function bulletBlock(title, items, emptyText) {
   return emptyText ? `<div class="scenario-block"><b>${title}</b><p class="muted">${emptyText}</p></div>` : "";
 }
 
+function highlightScenarioReason(text) {
+  return escapeHtml(text || "").replace(
+    /(新增信息|新增数据|本轮新增|管理估算|推断|估算|保持不变|较上一版)/g,
+    "<b>$1</b>",
+  );
+}
+
 function scenarioDetail(scenario, index, weighting) {
   const ranked = SCENARIO_DIMENSIONS.map(([key, label]) => ({ label, value: scenario.scores[key] })).sort((a, b) => b.value - a.value);
   const strongest = ranked[0];
@@ -1505,7 +1596,7 @@ function scenarioDetail(scenario, index, weighting) {
       <td>${escapeHtml(label)}</td>
       <td>${escapeHtml(bandLabels[band] || band)}</td>
       <td>${escapeHtml(String(breakdown.score ?? scenario.scores[key] ?? ""))}</td>
-      <td>${escapeHtml(assessment.reason || breakdown.reason || "")}</td>
+      <td>${highlightScenarioReason(assessment.reason || breakdown.reason || "")}</td>
       <td>${evidenceIds.length ? evidenceIds.map(evidenceLink).join(" · ") : escapeHtml(L("inference", "推断"))}</td>
     </tr>`;
   }).join("");
@@ -1770,62 +1861,98 @@ const INFO_CATEGORIES = [
   "Add customer requirements",
 ];
 
-function updateId() {
-  return `upd-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
-}
-
-function addInformationUpdate(category, label, value = "") {
-  const cleanLabel = String(label || "").trim();
-  const cleanValue = String(value || "").trim();
-  if (!cleanLabel && !cleanValue) return;
-  const fingerprint = `${category}|${cleanLabel}|${cleanValue}`.replace(/\s+/g, " ").toLowerCase();
-  const exists = chatState.informationUpdates.some(item =>
-    `${item.category}|${item.label}|${item.value}`.replace(/\s+/g, " ").toLowerCase() === fingerprint);
-  if (exists) return;
-  chatState.informationUpdates.push({
-    id: updateId(),
-    category: category || L("New information", "新信息"),
-    label: cleanLabel || cleanValue,
-    value: cleanLabel ? cleanValue : "",
-    created_at: new Date().toISOString(),
-  });
-}
-
 function syncLegacyUpdated() {
-  chatState.updated = chatState.informationUpdates.map(item =>
-    [item.category, item.label, item.value].filter(Boolean).join(": "));
+  chatState.updated = chatState.informationUpdates
+    .filter(item => item.status === "pending")
+    .map(item => [item.category, item.label, item.value].filter(Boolean).join(": "));
 }
 
-function updateItemsFromAnalysis(analysis) {
-  if (!analysis?.scenario_update_required) return;
-  Object.entries(analysis.profile_patch || {}).forEach(([key, value]) => {
-    addInformationUpdate(L("Operating data", "经营数据"), key, value);
-  });
-  (analysis.new_preferences || []).forEach(value => {
-    addInformationUpdate(L("Management assumption", "管理层假设"), value);
-  });
-  (analysis.new_constraints || []).forEach(value => {
-    addInformationUpdate(L("Management constraint", "管理约束"), value);
-  });
-  if (!Object.keys(analysis.profile_patch || {}).length
-      && !(analysis.new_preferences || []).length
-      && !(analysis.new_constraints || []).length
-      && analysis.summary) {
-    addInformationUpdate(L("New information", "新信息"), analysis.summary);
+function syncContextUpdatesFromAssessment() {
+  chatState.informationUpdates = (state.assessment?.context_updates || [])
+    .filter(item => item && item.id)
+    .map(item => ({ ...item }));
+  if (!chatState.informationUpdates.length && state.assessment?.chat_analysis) {
+    const analysis = state.assessment.chat_analysis;
+    const status = analysis.scenario_update_required ? "pending" : "applied";
+    const statusLabel = status === "pending" ? L("Pending", "待应用") : L("Applied", "已应用");
+    chatState.informationUpdates = [
+      ...Object.entries(analysis.profile_patch || {}).map(([key, value], index) => ({
+        id: `legacy-patch-${index}`,
+        category: L("Company profile update", "企业画像更新"),
+        label: contextFieldLabel(key) || L("Update detail", "更新项"),
+        value: contextDisplayValue(value),
+        status,
+        statusLabel,
+        scenario_version: analysis.scenario_recalculated ? state.assessment.meta?.scenario_version : null,
+        source_type: "user_input",
+        verification_status: "unverified",
+        conflict: false,
+      })),
+      ...(analysis.new_constraints || []).map((value, index) => ({
+        id: `legacy-constraint-${index}`,
+        category: L("Hard constraint", "硬约束"),
+        label: value,
+        value: "",
+        status,
+        statusLabel,
+        scenario_version: null,
+        source_type: "user_input",
+        verification_status: "unverified",
+        conflict: false,
+      })),
+    ];
   }
   syncLegacyUpdated();
 }
 
+async function deleteContextUpdate(updateId) {
+  const assessmentId = state.assessment?.meta?.assessment_id;
+  if (assessmentId && window.LOCUS_API_BASE && !String(updateId).startsWith("legacy-")) {
+    try {
+      const response = await fetchWithTimeout(
+        `${window.LOCUS_API_BASE}/api/v1/assessments/${assessmentId}/context-updates/${encodeURIComponent(updateId)}`,
+        { method: "DELETE" },
+        20000,
+      );
+      if (!response.ok) throw new Error(`delete service returned ${response.status}`);
+      state.assessment = mapApiAssessment(
+        await response.json(),
+        state.assessment.company_profile,
+      );
+      syncContextUpdatesFromAssessment();
+    } catch (error) {
+      showToast(`Could not delete the update: ${error.message}`);
+      return;
+    }
+  } else {
+    chatState.informationUpdates = chatState.informationUpdates.filter(
+      item => item.id !== updateId,
+    );
+    syncLegacyUpdated();
+  }
+  renderChatContext();
+  syncChatIntoProject();
+}
+
 function restoredInformationUpdates(project) {
+  const assessmentUpdates = project.assessment?.context_updates;
+  if (Array.isArray(assessmentUpdates) && assessmentUpdates.length) {
+    return assessmentUpdates.map((item, index) =>
+      item && item.category && item.statusLabel
+        ? { ...item }
+        : mapContextUpdate(item, index));
+  }
   const stored = Array.isArray(project.information_updates) ? project.information_updates : [];
   const legacy = Array.isArray(project.updated_constraints) ? project.updated_constraints : [];
   const combined = [
     ...stored,
     ...legacy.filter(item => typeof item === "string").map(item => ({
-      id: updateId(),
+      id: `legacy-${Math.random().toString(36).slice(2, 9)}`,
       category: L("New information", "新信息"),
       label: item,
       value: "",
+      status: "pending",
+      statusLabel: L("Pending", "待应用"),
       created_at: project.updated_at || new Date().toISOString(),
     })),
   ];
@@ -1935,7 +2062,14 @@ function renderChatContext() {
     <div class="context-block">
       <p class="context-label">${L("New information", "新信息")}</p>
       ${chatState.informationUpdates.length || chatState.documents.length
-        ? `<ul class="information-update-list">${chatState.informationUpdates.map(item => `<li><div><span>${escapeHtml(item.category)}</span><b>${escapeHtml(item.label)}</b>${item.value ? `<p>${escapeHtml(item.value)}</p>` : ""}</div><button type="button" data-remove-update="${escapeHtml(item.id)}" aria-label="${L("Remove update", "删除这条更新")}">×</button></li>`).join("")}${chatState.documents.map(name => `<li><div><span>${L("Document", "文档")}</span><b>${escapeHtml(name)}</b></div></li>`).join("")}</ul>`
+        ? `<div class="context-update-groups">${[
+            ["pending", L("Pending", "待应用")],
+            ["applied", L("Applied", "已应用")],
+          ].map(([status, label]) => {
+            const items = chatState.informationUpdates.filter(item => item.status === status);
+            if (!items.length) return "";
+            return `<div class="context-update-group"><p>${escapeHtml(label)} · ${items.length}</p><ul class="information-update-list">${items.map(item => `<li class="${item.conflict ? "conflict" : ""}"><div><span>${escapeHtml(item.category)}</span><b>${escapeHtml(item.label)}</b>${item.value ? `<p>${escapeHtml(item.value)}</p>` : ""}${item.conflict ? `<small>${L("Conflicts with the previous value: ", "与原有值冲突：")}${escapeHtml(contextDisplayValue(item.previous_value))}</small>` : ""}</div><button type="button" data-remove-update="${escapeHtml(item.id)}" aria-label="${L("Remove update", "删除这条更新")}">×</button></li>`).join("")}</ul></div>`;
+          }).join("")}${chatState.documents.map(name => `<div class="context-update-group"><p>${L("Documents", "文档")}</p><ul class="information-update-list"><li><div><span>${L("Document", "文档")}</span><b>${escapeHtml(name)}</b></div></li></ul></div>`).join("")}</div>`
         : `<p class="muted">Nothing added yet</p>`}
     </div>`;
 }
@@ -2033,6 +2167,20 @@ async function sendChatMessage(text) {
   appendChatMessage({ role: "user", content: text });
   markReportOutdated();
   if (!live) {
+    chatState.informationUpdates.push({
+      id: `legacy-${Date.now().toString(36)}`,
+      category: L("Preview information", "预览信息"),
+      label: text,
+      value: "",
+      status: "pending",
+      statusLabel: L("Pending", "待应用"),
+      scenario_version: null,
+      source_type: "user_input",
+      verification_status: "unverified",
+      conflict: false,
+    });
+    syncLegacyUpdated();
+    renderChatContext();
     setTimeout(() => appendChatMessage({ role: "assistant", content: previewReply(text), explain: true }), 500);
     return;
   }
@@ -2051,7 +2199,7 @@ async function sendChatMessage(text) {
     const reply = (updated.chat_history || []).filter(turn => turn.role === "assistant").slice(-1)[0];
     removeChatMessage(pending);
     state.assessment = mapApiAssessment(updated, assessment.company_profile);
-    updateItemsFromAnalysis(updated.chat_analysis || {});
+    syncContextUpdatesFromAssessment();
     appendChatMessage({
       role: "assistant",
       content: reply?.content || "I could not produce a reply for that message.",
@@ -2079,15 +2227,12 @@ async function sendChatMessage(text) {
 
 function addInformation(kind, detail) {
   markReportOutdated();
-  addInformationUpdate(kind, detail || kind);
-  syncLegacyUpdated();
-  renderChatContext();
-  appendChatMessage({ role: "user", content: detail ? `${kind}: ${detail}` : kind });
-  appendChatMessage({ role: "assistant", content: "New information received.", prompt: true });
+  const message = detail ? `${kind}: ${detail}` : kind;
   $("#chat-add").hidden = true;
   $("#chat-add-field").hidden = true;
   $("#chat-add-text").value = "";
   chatState.pendingCategory = "";
+  sendChatMessage(message);
 }
 
 function handleChatFiles(files) {
@@ -2115,19 +2260,25 @@ async function rerunScenariosForChat() {
   const meta = state.assessment?.meta || {};
   if (!meta.assessment_id || !window.LOCUS_API_BASE) return null;
   const constraints = [
-    ...chatState.updated,
+    ...chatState.informationUpdates
+      .filter(item => item.status === "pending" && String(item.id).startsWith("legacy-"))
+      .map(item => [item.category, item.label, item.value].filter(Boolean).join(": ")),
     ...chatState.documents.map(name => `Document provided: ${name}`),
   ];
+  const updateIds = chatState.informationUpdates
+    .filter(item => item.status === "pending" && !String(item.id).startsWith("legacy-"))
+    .map(item => item.id);
   const response = await fetchWithTimeout(`${window.LOCUS_API_BASE}/api/v1/assessments/${meta.assessment_id}/scenarios`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       additional_constraints: constraints,
+      update_ids: updateIds,
       api_key: window.LOCUS_API_KEY,
       llm_model: window.LOCUS_MODEL || "deepseek-flash",
       language: currentLanguage() === "zh" ? "zh" : "en",
     }),
-  }, 90000);
+  }, 180000);
   if (!response.ok) throw new Error(`scenario service returned ${response.status}`);
   const updated = await response.json();
   return mapApiAssessment(updated, state.assessment.company_profile);
@@ -2196,7 +2347,7 @@ function showScenarioChangeModal() {
   const applied = comparison.appliedUpdates || [];
   body.innerHTML = `
     <p class="scenario-change-summary"><b>${escapeHtml(L(`Applied ${applied.length} new information item${applied.length === 1 ? "" : "s"}`, `已应用 ${applied.length} 项新信息`))}</b>${biggest ? `<br />${escapeHtml(L(`Largest change: ${biggest.name} overall score ${biggest.beforeScore} → ${biggest.afterScore}`, `最大变化：${biggest.name} 综合评分 ${biggest.beforeScore} → ${biggest.afterScore}`))}` : ""}</p>
-    ${applied.length ? `<ul class="scenario-change-applied">${applied.map(item => `<li><span>${escapeHtml(item.category)}</span>${escapeHtml([item.label, item.value].filter(Boolean).join(": "))}</li>`).join("")}</ul>` : ""}
+    ${applied.length ? `<ul class="scenario-change-applied">${applied.map(item => `<li><span>${escapeHtml(item.category)}</span><b>${escapeHtml(item.label)}</b>${item.value ? `: ${escapeHtml(item.value)}` : ""}</li>`).join("")}</ul>` : ""}
     <p class="scenario-change-summary">${escapeHtml(L(`Score changes for ${current.name}`, `${current.name} 的分数变化`))}</p>
     <table class="scenario-change-table">
       <thead><tr><th>${L("Dimension", "维度")}</th><th>v${Math.max(1, (state.scenarioVersion || 1) - 1)}</th><th>v${state.scenarioVersion || 1}</th><th>${L("Change", "变化")}</th></tr></thead>
@@ -2206,7 +2357,7 @@ function showScenarioChangeModal() {
         return `<tr><td>${escapeHtml(item.label)}</td><td>${item.beforeScore}</td><td>${item.afterScore}</td><td class="${tone}">${delta}</td></tr>`;
       }).join("")}</tbody>
     </table>
-    ${dimensions.filter(item => item.reason).map(item => `<p class="scenario-change-reason"><b>${escapeHtml(item.label)}：</b>${escapeHtml(item.reason)}</p>`).join("")}
+    ${dimensions.filter(item => item.reason).map(item => `<p class="scenario-change-reason"><b>${escapeHtml(item.label)}：</b>${highlightScenarioReason(item.reason)}</p>`).join("")}
   `;
   modal.hidden = false;
 }
@@ -2232,7 +2383,8 @@ function recordScenarioVersion(assessment) {
 function advanceScenarioVersion(assessment) {
   const project = currentProject();
   if (!project) return;
-  const version = (Number(project.scenario_version) || 1) + 1;
+  const version = Number(assessment?.meta?.scenario_version)
+    || (Number(project.scenario_version) || 1) + 1;
   state.scenarioVersion = version;
   updateCurrentProject({
     scenario_version: version,
@@ -2253,7 +2405,9 @@ async function runScenarioUpdate() {
   markReportOutdated();
   const beforeScenarios = normalizeScenarios(assessment);
   const before = beforeScenarios.map(item => ({ name: item.name, score: item.overall_score }));
-  const appliedUpdates = chatState.informationUpdates.map(item => ({ ...item }));
+  const appliedUpdates = chatState.informationUpdates
+    .filter(item => item.status === "pending")
+    .map(item => ({ ...item }));
   const steps = ["New business constraints", "Updated risk factors", "Additional evidence", "User preferences"];
   const panel = $("#chat-update-state");
   panel.hidden = false;
@@ -2266,12 +2420,14 @@ async function runScenarioUpdate() {
   }, 600);
   const live = Boolean(assessment.meta?.assessment_id && window.LOCUS_API_BASE && window.LOCUS_API_KEY);
   let rerun = null;
+  let rerunFailed = false;
   if (live) {
     try {
       rerun = await rerunScenariosForChat();
     } catch (error) {
       try { rerun = await rerunAssessmentForChat(); }
       catch (fallbackError) {
+        rerunFailed = true;
         showToast(`Scenario update failed: ${fallbackError.message} — showing the previous analysis.`);
       }
     }
@@ -2279,8 +2435,13 @@ async function runScenarioUpdate() {
   await new Promise(resolve => setTimeout(resolve, live ? 600 : 2600));
   clearInterval(timer);
   eachStageIn("chat-update-steps", "done");
+  if (rerunFailed) {
+    panel.hidden = true;
+    return;
+  }
   if (rerun) {
     state.assessment = rerun;
+    syncContextUpdatesFromAssessment();
   } else {
     const bump = Math.min(5, Math.max(1, chatState.updated.length + chatState.documents.length) * 2);
     state.assessment = {
@@ -2292,10 +2453,8 @@ async function runScenarioUpdate() {
   advanceScenarioVersion(state.assessment);
   const afterScenarios = normalizeScenarios(state.assessment);
   const after = afterScenarios.map(item => ({ name: item.name, score: item.overall_score }));
-  const chatSummary = state.assessment?.chat_analysis?.summary || "";
   const reason = [
-    chatSummary,
-    ...appliedUpdates.map(item => [item.category, item.label, item.value].filter(Boolean).join(": ")),
+    ...appliedUpdates.map(item => [item.label, item.value].filter(Boolean).join(": ")),
     ...chatState.documents.map(name => `document: ${name}`),
   ].filter(Boolean).join("; ") || "no new constraints were added";
   state.scenarioComparison = {
@@ -2318,8 +2477,7 @@ async function runScenarioUpdate() {
     ].filter(Boolean).join("\n\n"),
     explain: true,
   });
-  chatState.informationUpdates = [];
-  syncLegacyUpdated();
+  syncContextUpdatesFromAssessment();
   renderScenarios(state.assessment);
   renderChatContext();
   showScenarioChangeModal();
@@ -2707,7 +2865,7 @@ function writeProjects(projects) {
 
 function projectTitle(profile) {
   const question = String(profile.decision_question || "").replace(/^[^:]{0,60}:\s*/, "").trim();
-  if (question) return question.length > 74 ? `${question.slice(0, 71)}…` : question;
+  if (question) return question.length > 140 ? `${question.slice(0, 137)}…` : question;
   const type = String(profile.decision_type || "Supply chain decision");
   return `${profile.company_name || "Untitled company"} — ${type}`;
 }
@@ -3241,10 +3399,7 @@ document.addEventListener("click", async event => {
   if (event.target.closest("#chat-add-close")) { const panel = $("#chat-add"); if (panel) panel.hidden = true; }
   const removeUpdate = event.target.closest("[data-remove-update]");
   if (removeUpdate) {
-    chatState.informationUpdates = chatState.informationUpdates.filter(item => item.id !== removeUpdate.dataset.removeUpdate);
-    syncLegacyUpdated();
-    renderChatContext();
-    syncChatIntoProject();
+    await deleteContextUpdate(removeUpdate.dataset.removeUpdate);
     return;
   }
   const chatCategory = event.target.closest("[data-chat-category]");
