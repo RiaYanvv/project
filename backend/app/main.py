@@ -331,12 +331,36 @@ def update_scenarios(
         updated = agent.resimulate(
             assessment,
             additional_constraints=request.additional_constraints,
+            update_ids=request.update_ids,
             api_key=request.api_key,
             model_name=request.llm_model,
             language=request.language,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    repository.save(updated)
+    return updated
+
+
+@app.delete(
+    "/api/v1/assessments/{assessment_id}/context-updates/{update_id}",
+    response_model=Assessment,
+)
+def delete_context_update(
+    assessment_id: str,
+    update_id: str,
+) -> Assessment:
+    assessment = repository.get(assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="assessment not found")
+    remaining = [
+        item
+        for item in assessment.context_updates
+        if item.update_id != update_id
+    ]
+    if len(remaining) == len(assessment.context_updates):
+        raise HTTPException(status_code=404, detail="context update not found")
+    updated = assessment.model_copy(update={"context_updates": remaining})
     repository.save(updated)
     return updated
 

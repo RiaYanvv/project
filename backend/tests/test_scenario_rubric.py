@@ -216,6 +216,25 @@ class ScenarioRubricTest(unittest.TestCase):
         self.assertEqual(gated, "low")
         self.assertTrue(any("RiskAgent" in reason for reason in reasons))
 
+    def test_structured_scenario_reason_is_cleaned_without_fallback(self) -> None:
+        first = scenario_payload()
+        first["dimension_assessments"]["cost"]["reason"] = {
+            "summary": "新增信息提高成本压力",
+            "raw": {"unexpected": "value"},
+        }
+        second = scenario_payload()
+        second["name"] = "Maintain current layout"
+        scenarios, used_fallback = self.agent._coerce_scenarios(
+            [first, second],
+            [],
+            [evidence()],
+            company(),
+        )
+        self.assertFalse(used_fallback)
+        reason = scenarios[0].dimension_assessments["cost_score"].reason
+        self.assertNotIn("{", reason)
+        self.assertNotIn("unexpected", reason)
+
 
 if __name__ == "__main__":
     unittest.main()

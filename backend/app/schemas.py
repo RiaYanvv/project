@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -319,6 +319,7 @@ class TraceStep(StrictModel):
 
 
 class ChatTurn(StrictModel):
+    turn_id: str = ""
     role: Literal["user", "assistant"]
     content: str
     created_at: str
@@ -328,6 +329,58 @@ class ChatRequest(StrictModel):
     message: str = Field(min_length=1, max_length=4000)
     api_key: str | None = Field(default=None, min_length=10)
     language: Language = "en"
+
+
+ContextInformationType = Literal[
+    "operational_fact",
+    "operational_estimate",
+    "cost_estimate",
+    "supply_chain_assessment",
+    "demand_forecast",
+    "strategic_preference",
+    "hard_constraint",
+    "soft_preference",
+    "correction",
+    "assumption",
+]
+ContextSourceType = Literal[
+    "user_input",
+    "management_estimate",
+    "external_source",
+    "model_inference",
+]
+ContextUpdateStatus = Literal[
+    "pending",
+    "applied",
+    "rejected",
+    "superseded",
+]
+ContextVerificationStatus = Literal[
+    "unverified",
+    "user_confirmed",
+    "verified",
+    "conflicting",
+    "unknown",
+]
+
+
+class ContextUpdate(StrictModel):
+    update_id: str = ""
+    entity: str = ""
+    field: str = ""
+    value: Any = None
+    unit: str = ""
+    information_type: ContextInformationType = "operational_fact"
+    source_type: ContextSourceType = "user_input"
+    verification_status: ContextVerificationStatus = "unverified"
+    effective_time: str = ""
+    source_message_id: str = ""
+    update_status: ContextUpdateStatus = "pending"
+    scenario_version: int | None = None
+    conflict: bool = False
+    previous_value: Any = None
+    created_at: str = ""
+    deleted_at: str = ""
 
 
 class ChatOpeningRequest(StrictModel):
@@ -378,6 +431,7 @@ class ChatImpact(StrictModel):
     new_constraints: list[str] = Field(default_factory=list)
     new_preferences: list[str] = Field(default_factory=list)
     profile_patch: dict[str, str] = Field(default_factory=dict)
+    context_updates: list[ContextUpdate] = Field(default_factory=list)
     gap_updates: list[GapUpdate] = Field(default_factory=list)
     affected_dimensions: list[
         Literal[
@@ -402,6 +456,7 @@ ChatAnalysis = ChatImpact
 
 class ScenarioUpdateRequest(StrictModel):
     additional_constraints: list[str] = Field(default_factory=list)
+    update_ids: list[str] = Field(default_factory=list)
     api_key: str | None = Field(default=None, min_length=10)
     llm_model: Literal["deepseek-flash", "deepseek-v4-pro"] = "deepseek-flash"
     language: Language = "en"
@@ -580,11 +635,13 @@ class Assessment(StrictModel):
     evidence: list[RetrievedEvidence]
     risks: list[RiskItem]
     scenarios: list[ScenarioResult]
+    scenario_version: int = 1
     recommendation: Recommendation
     scoring: dict[str, int] = Field(default_factory=dict)
     weighting_mode: Literal["user", "equal"] = "equal"
     chat_analysis: ChatImpact | None = None
     chat_history: list[ChatTurn] = Field(default_factory=list)
+    context_updates: list[ContextUpdate] = Field(default_factory=list)
     trace: list[TraceStep] = Field(default_factory=list)
     limitations: list[str]
     model_mode: Literal["mock", "deepseek"]

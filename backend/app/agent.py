@@ -24,6 +24,7 @@ from .schemas import (
     CompanyEntity,
     CompanyIntelligence,
     CompanyProfile,
+    ContextUpdate,
     DecisionContext,
     EvidenceLink,
     EvidenceReference,
@@ -939,8 +940,172 @@ class AgentService:
             )
         return f"{prefix} {score_line} {detail}"
 
+    @staticmethod
+    def _context_value_key(value: Any) -> str:
+        if isinstance(value, (dict, list)):
+            try:
+                import json
+
+                return json.dumps(
+                    value,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    default=str,
+                )
+            except (TypeError, ValueError):
+                return str(value)
+        return "" if value is None else str(value).strip()
+
+    @classmethod
+    def _context_update_fingerprint(cls, update: ContextUpdate) -> tuple[str, str, str, str]:
+        return (
+            re.sub(r"\s+", " ", update.entity).strip().casefold(),
+            re.sub(r"\s+", " ", update.field).strip().casefold(),
+            cls._context_value_key(update.value),
+            re.sub(r"\s+", " ", update.unit).strip().casefold(),
+        )
+
+    @classmethod
+    def _context_update_text(cls, update: ContextUpdate) -> str:
+        parts = [
+            update.entity,
+            update.field,
+            cls._context_value_key(update.value),
+            update.unit,
+        ]
+        claim = " ".join(item for item in parts if item).strip()
+        return (
+            f"Atomic {update.information_type}: {claim}"
+            if claim
+            else f"Atomic {update.information_type}: {update.update_id}"
+        )
+
+    @staticmethod
+    def _clean_display_text(value: Any, fallback: str = "") -> str:
+        text = str(value or "").strip()
+        if not text:
+            return fallback
+        text = re.sub(r"[\[{].*?[\]}]", " ", text, flags=re.DOTALL)
+        text = re.sub(r"[\[\]{}]", " ", text)
+        text = re.sub(r"\b[a-zA-Z_]+_[a-zA-Z_]+\b", " ", text)
+        text = re.sub(r"\s+", " ", text).strip(" ;,，。")
+        return text or fallback
+
+    @classmethod
+    def _coerce_context_updates(
+        cls,
+        payload: Any,
+        *,
+        source_message_id: str,
+        existing: list[ContextUpdate],
+        company: CompanyInput | None,
+    ) -> list[ContextUpdate]:
+        if not isinstance(payload, list):
+            return []
+        allowed_types = {
+            "operational_fact",
+            "operational_estimate",
+            "cost_estimate",
+            "supply_chain_assessment",
+            "demand_forecast",
+            "strategic_preference",
+            "hard_constraint",
+            "soft_preference",
+            "correction",
+            "assumption",
+        }
+        allowed_sources = {
+            "user_input",
+            "management_estimate",
+            "external_source",
+            "model_inference",
+        }
+        active = [
+            item
+            for item in existing
+            if item.update_status not in {"rejected", "superseded"}
+            and not item.deleted_at
+        ]
+        existing_by_key = {
+            cls._context_update_fingerprint(item): item
+            for item in active
+        }
+        updates: list[ContextUpdate] = []
+        for raw in payload:
+            if not isinstance(raw, dict):
+                continue
+            candidate = dict(raw)
+            if candidate.get("information_type") not in allowed_types:
+                candidate["information_type"] = "assumption"
+            if candidate.get("source_type") not in allowed_sources:
+                candidate["source_type"] = "model_inference"
+            if candidate.get("verification_status") not in {
+                "unverified",
+                "user_confirmed",
+                "verified",
+                "conflicting",
+                "unknown",
+            }:
+                candidate["verification_status"] = "unverified"
+            try:
+                item = ContextUpdate.model_validate(candidate)
+            except ValidationError:
+                continue
+            item.entity = str(item.entity or "").strip()
+            item.field = str(item.field or "").strip()
+            if not item.entity and not item.field:
+                continue
+            if item.information_type not in allowed_types:
+                item.information_type = "assumption"
+            if item.source_type not in allowed_sources:
+                item.source_type = "model_inference"
+            if item.source_type == "model_inference" and item.verification_status == "verified":
+                item.verification_status = "unverified"
+            item.update_id = item.update_id or f"CTX-{uuid.uuid4().hex[:12].upper()}"
+            item.source_message_id = item.source_message_id or source_message_id
+            item.created_at = item.created_at or utc_now()
+            item.update_status = "pending"
+            item.scenario_version = None
+            item.deleted_at = ""
+            fingerprint = cls._context_update_fingerprint(item)
+            if fingerprint in existing_by_key:
+                continue
+            same_field = [
+                candidate
+                for candidate in active
+                if candidate.entity.casefold() == item.entity.casefold()
+                and candidate.field.casefold() == item.field.casefold()
+            ]
+            if same_field:
+                item.conflict = True
+                item.previous_value = same_field[-1].value
+                item.verification_status = "conflicting"
+            if (
+                company is not None
+                and "production_share" in item.field.casefold()
+                and item.entity
+            ):
+                country_key = cls._country_key(item.entity)
+                for location in company.production_locations:
+                    if cls._country_key(location.country) != country_key:
+                        continue
+                    if cls._context_value_key(location.production_share) != cls._context_value_key(item.value):
+                        item.conflict = True
+                        item.previous_value = location.production_share
+                        item.verification_status = "conflicting"
+                    break
+            updates.append(item)
+            existing_by_key[fingerprint] = item
+            active.append(item)
+        return updates
+
     def chat(self, assessment: Assessment, request: ChatRequest) -> Assessment:
-        user_turn = ChatTurn(role="user", content=request.message, created_at=utc_now())
+        user_turn = ChatTurn(
+            turn_id=f"MSG-{uuid.uuid4().hex[:12].upper()}",
+            role="user",
+            content=request.message,
+            created_at=utc_now(),
+        )
         step_started = time.perf_counter()
         active_llm = self.llm.with_runtime(
             assessment.model_name,
@@ -1002,7 +1167,13 @@ class AgentService:
                 if not answer_call.ok:
                     trace_status = "fallback"
         chat_analysis = self._chat_analysis(
-            action, reply, request.message, supplemental_evidence
+            action,
+            reply,
+            request.message,
+            supplemental_evidence,
+            source_message_id=user_turn.turn_id,
+            existing_updates=assessment.context_updates,
+            company=assessment.company_input,
         )
         chat_trace = self._trace(
             agent="ChatAgent",
@@ -1018,6 +1189,10 @@ class AgentService:
             update={
                 "chat_history": history,
                 "chat_analysis": chat_analysis,
+                "context_updates": [
+                    *assessment.context_updates,
+                    *chat_analysis.context_updates,
+                ],
                 "trace": [
                     *assessment.trace,
                     chat_trace,
@@ -1038,6 +1213,7 @@ class AgentService:
         self,
         assessment: Assessment,
         additional_constraints: list[str] | None = None,
+        update_ids: list[str] | None = None,
         api_key: str | None = None,
         model_name: str | None = None,
         language: str = "en",
@@ -1066,6 +1242,23 @@ class AgentService:
             for item in (additional_constraints or [])
             if item and item.strip()
         ]
+        selected_update_ids = {
+            item for item in (update_ids or []) if item
+        }
+        selected_updates = [
+            item
+            for item in assessment.context_updates
+            if item.update_id in selected_update_ids
+            and item.update_status == "pending"
+            and not item.deleted_at
+        ]
+        selected_update_id_set = {
+            item.update_id for item in selected_updates
+        }
+        constraints.extend(
+            self._context_update_text(item)
+            for item in selected_updates
+        )
         if constraints:
             addition = " | ".join(
                 f"Consultation input: {item}" for item in constraints
@@ -1144,11 +1337,30 @@ class AgentService:
             assessment.risks,
             scenarios,
         )
+        scenario_version = max(1, assessment.scenario_version) + 1
         change_summary = self._scenario_change_summary(
             assessment.scenarios,
             scenarios,
             language,
         )
+        change_summary = (
+            f"{change_summary} 本轮为 Scenario v{scenario_version}。"
+            if (language or "en").lower() == "zh"
+            else f"{change_summary} This run is Scenario v{scenario_version}."
+        )
+        applied_context_updates = [
+            (
+                item.model_copy(
+                    update={
+                        "update_status": "applied",
+                        "scenario_version": scenario_version,
+                    }
+                )
+                if item.update_id in selected_update_id_set
+                else item
+            )
+            for item in assessment.context_updates
+        ]
         chat_updates: dict[str, Any] = {}
         if assessment.chat_history or assessment.chat_analysis is not None:
             chat_updates["chat_history"] = [
@@ -1186,6 +1398,8 @@ class AgentService:
         return assessment.model_copy(
             update={
                 "scenarios": scenarios,
+                "scenario_version": scenario_version,
+                "context_updates": applied_context_updates,
                 "recommendation": recommendation,
                 "limitations": limitations,
                 "company_input": company,
@@ -1203,12 +1417,17 @@ class AgentService:
             }
         )
 
-    @staticmethod
+    @classmethod
     def _chat_analysis(
+        cls,
         action: dict[str, Any],
         reply: str,
         message: str,
         supplemental_evidence: list[RetrievedEvidence],
+        *,
+        source_message_id: str,
+        existing_updates: list[ContextUpdate],
+        company: CompanyInput | None,
     ) -> ChatImpact:
         """Structured turn outcome for the consultation workspace (UI.md §19)."""
 
@@ -1226,6 +1445,12 @@ class AgentService:
             for key, value in (action.get("profile_patch") or {}).items()
             if str(key).strip() and str(value).strip()
         } if isinstance(action.get("profile_patch"), dict) else {}
+        context_updates = cls._coerce_context_updates(
+            action.get("context_updates") or [],
+            source_message_id=source_message_id,
+            existing=existing_updates,
+            company=company,
+        )
         gap_updates: list[GapUpdate] = []
         for item in action.get("gap_updates") or []:
             if not isinstance(item, dict):
@@ -1250,7 +1475,13 @@ class AgentService:
             }
         ]
         scenario_update_required = bool(action.get("scenario_update_required"))
-        if not new_constraints and not new_preferences:
+        if context_updates:
+            # Atomic context updates are authoritative. Do not duplicate the
+            # same message as profile patches or free-text constraints.
+            new_constraints = []
+            new_preferences = []
+            profile_patch = {}
+        elif not new_constraints and not new_preferences:
             # Conservative fallback: a substantive message that is not a question
             # is treated as new context worth folding into the next scenario run.
             substantive = len(message.strip()) > 40 and "?" not in message
@@ -1258,15 +1489,23 @@ class AgentService:
                 new_constraints = [message.strip()[:400]]
             scenario_update_required = scenario_update_required or substantive
         scenario_update_required = scenario_update_required or bool(
-            profile_patch or gap_updates or affected_dimensions
+            context_updates
+            or profile_patch
+            or gap_updates
+            or affected_dimensions
         )
         summary = str(action.get("summary") or "").strip()
         if not summary:
             summary = reply.strip().split("\n", 1)[0][:300]
+        summary = cls._clean_display_text(
+            summary,
+            "已记录本轮咨询更新。",
+        )
         return ChatImpact(
             new_constraints=new_constraints,
             new_preferences=new_preferences,
             profile_patch=profile_patch,
+            context_updates=context_updates,
             gap_updates=gap_updates,
             affected_dimensions=affected_dimensions,
             requested_gap=str(action.get("gap_item") or ""),
@@ -1894,7 +2133,10 @@ class AgentService:
                 band = "neutral"
             assessments[metric] = ScenarioDimensionAssessment(
                 band=band,
-                reason=str(detail.get("reason") or ""),
+                reason=self._clean_display_text(
+                    detail.get("reason"),
+                    "本轮更新对维度的影响已纳入评分。",
+                ),
                 evidence_ids=evidence_ids,
                 source=source,
             )

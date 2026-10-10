@@ -522,6 +522,48 @@ def _format_profile_patch(
     return items
 
 
+def _format_context_updates(
+    updates: list,
+    language: str,
+) -> list[str]:
+    type_labels = {
+        "operational_fact": ("经营事实", "Operational fact"),
+        "operational_estimate": ("经营估算", "Operational estimate"),
+        "cost_estimate": ("成本估算", "Cost estimate"),
+        "supply_chain_assessment": ("供应链判断", "Supply-chain assessment"),
+        "demand_forecast": ("需求预测", "Demand forecast"),
+        "strategic_preference": ("战略偏好", "Strategic preference"),
+        "hard_constraint": ("硬约束", "Hard constraint"),
+        "soft_preference": ("软偏好", "Soft preference"),
+        "correction": ("修正", "Correction"),
+        "assumption": ("假设", "Assumption"),
+    }
+    status_labels = {
+        "pending": ("待应用", "Pending"),
+        "applied": ("已应用", "Applied"),
+        "rejected": ("已拒绝", "Rejected"),
+        "superseded": ("已替代", "Superseded"),
+    }
+    items: list[str] = []
+    for update in updates:
+        type_text = type_labels.get(
+            update.information_type,
+            ("补充信息", "Update"),
+        )[0 if language == "zh" else 1]
+        field_text = _human_update_key(update.field, language) or type_text
+        value_text = _format_update_value(update.value, language)
+        status_text = status_labels.get(
+            update.update_status,
+            ("待应用", "Pending"),
+        )[0 if language == "zh" else 1]
+        entity = str(update.entity or "").strip()
+        parts = [entity, field_text, value_text, str(update.unit or "").strip()]
+        claim = " · ".join(item for item in parts if item)
+        separator = "：" if language == "zh" else ": "
+        items.append(f"{type_text}{separator}{claim} [{status_text}]")
+    return items
+
+
 def _markdown_to_flowables(
     text: str,
     styles: dict[str, ParagraphStyle],
@@ -1018,6 +1060,10 @@ def _consultation_section(
                 )
             )
         added = [
+            *_format_context_updates(
+                analysis.context_updates,
+                assessment.language,
+            ),
             *_format_profile_patch(analysis.profile_patch, assessment.language),
             *analysis.new_constraints,
             *analysis.new_preferences,

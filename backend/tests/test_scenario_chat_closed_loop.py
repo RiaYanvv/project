@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import sys
+from tempfile import TemporaryDirectory
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -13,10 +14,13 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.agent import AgentService
+from app import main as main_module
 from app.llm import DeepSeekLLM, MockLLM
 from app.pdf_report import build_assessment_pdf
 from app.retrieval import MockRetrievalProvider
+from app.repository import AssessmentRepository
 from app.schemas import (
+    Assessment,
     ChatImpact,
     ChatRequest,
     ChatTurn,
@@ -201,6 +205,174 @@ class ScenarioChatClosedLoopTest(unittest.TestCase):
             updated.chat_analysis.profile_patch["site.VN.capacity"],
             "5 GWh/year",
         )
+
+    def test_context_updates_are_atomic_and_do_not_duplicate_raw_message(self) -> None:
+        action = {
+            "action": "answer",
+            "context_updates": [
+                {
+                    "entity": "US",
+                    "field": "utilization_rate",
+                    "value": 0.45,
+                    "unit": "ratio",
+                    "information_type": "operational_fact",
+                    "source_type": "management_estimate",
+                    "verification_status": "unverified",
+                },
+                {
+                    "entity": "North America",
+                    "field": "demand_growth",
+                    "value": "high",
+                    "information_type": "demand_forecast",
+                    "source_type": "management_estimate",
+                    "verification_status": "unverified",
+                },
+                {
+                    "entity": "management",
+                    "field": "asian_dependency",
+                    "value": "reduce",
+                    "information_type": "strategic_preference",
+                    "source_type": "user_input",
+                    "verification_status": "user_confirmed",
+                },
+            ],
+            "new_constraints": ["补充以下模拟数据，用于进一步分析。"],
+            "scenario_update_required": True,
+        }
+        agent, _ = self.make_agent(action)
+        assessment = agent.run(make_company())
+        updated = agent.chat(
+            assessment,
+            ChatRequest(
+                message=(
+                    "美国工厂利用率45%，北美需求增长较快，"
+                    "管理层希望降低亚洲依赖。"
+                ),
+                language="zh",
+            ),
+        )
+
+        self.assertEqual(len(updated.context_updates), 3)
+        self.assertTrue(
+            all(item.update_status == "pending" for item in updated.context_updates)
+        )
+        self.assertEqual(updated.chat_analysis.new_constraints, [])
+        self.assertNotIn(
+            "补充以下模拟数据",
+            [item.field for item in updated.context_updates],
+        )
+
+    def test_context_updates_deduplicate_and_flag_conflicts(self) -> None:
+        update = {
+            "entity": "KR",
+            "field": "production_share",
+            "value": 30,
+            "unit": "percent",
+            "information_type": "correction",
+            "source_type": "user_input",
+            "verification_status": "user_confirmed",
+        }
+        agent, _ = self.make_agent(
+            {
+                "action": "answer",
+                "context_updates": [update],
+                "scenario_update_required": True,
+            }
+        )
+        assessment = agent.run(make_company())
+        first = agent.chat(
+            assessment,
+            ChatRequest(message="韩国生产占比调整为30%。", language="zh"),
+        )
+        second = agent.chat(
+            first,
+            ChatRequest(message="韩国生产占比调整为30%。", language="zh"),
+        )
+
+        self.assertEqual(len(first.context_updates), 1)
+        self.assertEqual(len(second.context_updates), 1)
+        self.assertTrue(first.context_updates[0].conflict)
+        self.assertEqual(first.context_updates[0].previous_value, 50)
+
+    def test_context_updates_persist_and_apply_to_scenario_version(self) -> None:
+        agent, _ = self.make_agent(
+            {
+                "action": "answer",
+                "context_updates": [
+                    {
+                        "entity": "US",
+                        "field": "utilization_rate",
+                        "value": 0.45,
+                        "unit": "ratio",
+                        "information_type": "operational_estimate",
+                        "source_type": "management_estimate",
+                        "verification_status": "unverified",
+                    }
+                ],
+                "scenario_update_required": True,
+            }
+        )
+        assessment = agent.run(make_company())
+        updated = agent.chat(
+            assessment,
+            ChatRequest(message="美国基地利用率45%。", language="zh"),
+        )
+        update_id = updated.context_updates[0].update_id
+        restored = Assessment.model_validate_json(updated.model_dump_json())
+        self.assertEqual(restored.context_updates[0].update_id, update_id)
+        with TemporaryDirectory() as directory:
+            repository = AssessmentRepository(Path(directory) / "assessment.db")
+            repository.save(restored)
+            restored = repository.get(restored.assessment_id)
+            self.assertIsNotNone(restored)
+            self.assertEqual(
+                restored.context_updates[0].update_id,
+                update_id,
+            )
+
+        rerun = agent.resimulate(
+            restored,
+            update_ids=[update_id],
+            language="zh",
+        )
+
+        self.assertEqual(rerun.scenario_version, 2)
+        self.assertEqual(rerun.context_updates[0].update_status, "applied")
+        self.assertEqual(rerun.context_updates[0].scenario_version, 2)
+
+    def test_context_update_delete_endpoint_removes_the_record(self) -> None:
+        agent, _ = self.make_agent(
+            {
+                "action": "answer",
+                "context_updates": [
+                    {
+                        "entity": "US",
+                        "field": "utilization_rate",
+                        "value": 0.45,
+                        "information_type": "operational_estimate",
+                        "source_type": "management_estimate",
+                        "verification_status": "unverified",
+                    }
+                ],
+                "scenario_update_required": True,
+            }
+        )
+        assessment = agent.run(make_company())
+        updated = agent.chat(
+            assessment,
+            ChatRequest(message="美国基地利用率45%。", language="zh"),
+        )
+        update_id = updated.context_updates[0].update_id
+        with patch.object(main_module.repository, "get", return_value=updated), patch.object(
+            main_module.repository,
+            "save",
+        ) as save:
+            result = main_module.delete_context_update(
+                updated.assessment_id,
+                update_id,
+            )
+        save.assert_called_once()
+        self.assertEqual(result.context_updates, [])
 
     def test_second_turn_sees_the_first_turn(self) -> None:
         agent, llm = self.make_agent(
