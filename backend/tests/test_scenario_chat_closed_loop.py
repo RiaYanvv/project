@@ -19,6 +19,7 @@ from app.llm import DeepSeekLLM, MockLLM
 from app.pdf_report import build_assessment_pdf
 from app.retrieval import MockRetrievalProvider
 from app.repository import AssessmentRepository
+from app.report_composer import compose_report
 from app.schemas import (
     Assessment,
     ChatImpact,
@@ -254,6 +255,9 @@ class ScenarioChatClosedLoopTest(unittest.TestCase):
 
         self.assertEqual(len(updated.context_updates), 3)
         self.assertTrue(
+            all(item.statement for item in updated.context_updates)
+        )
+        self.assertTrue(
             all(item.update_status == "pending" for item in updated.context_updates)
         )
         self.assertEqual(updated.chat_analysis.new_constraints, [])
@@ -337,6 +341,11 @@ class ScenarioChatClosedLoopTest(unittest.TestCase):
         )
 
         self.assertEqual(rerun.scenario_version, 2)
+        self.assertEqual(
+            [item.version for item in rerun.scenario_history],
+            [1, 2],
+        )
+        self.assertTrue(rerun.scenario_history[-1].is_latest)
         self.assertEqual(rerun.context_updates[0].update_status, "applied")
         self.assertEqual(rerun.context_updates[0].scenario_version, 2)
 
@@ -373,6 +382,27 @@ class ScenarioChatClosedLoopTest(unittest.TestCase):
             )
         save.assert_called_once()
         self.assertEqual(result.context_updates, [])
+
+    def test_scenario_version_routes_return_persisted_snapshots(self) -> None:
+        agent, _ = self.make_agent(
+            {"action": "answer", "scenario_update_required": False}
+        )
+        assessment = agent.run(make_company(), language="zh")
+        with patch.object(
+            main_module.repository,
+            "get",
+            return_value=assessment,
+        ):
+            versions = main_module.get_scenario_versions(
+                assessment.assessment_id
+            )
+            first = main_module.get_scenario_version(
+                assessment.assessment_id,
+                1,
+            )
+        self.assertEqual(len(versions), 1)
+        self.assertEqual(first.version, 1)
+        self.assertTrue(first.is_latest)
 
     def test_second_turn_sees_the_first_turn(self) -> None:
         agent, llm = self.make_agent(
@@ -549,8 +579,11 @@ class ScenarioChatClosedLoopTest(unittest.TestCase):
         self.assertIn("关键结论", text)
         self.assertIn("成本压力上升", text)
         self.assertNotIn("**关键结论**", text)
-        self.assertIn("推荐方案", text)
-        self.assertIn("主要优势", text)
+        self.assertIn("高管决策摘要", text)
+        self.assertIn("决策语境", text)
+        self.assertIn("战略选项", text)
+        self.assertIn("执行计划与决策检查点", text)
+        self.assertIn("附录", text)
 
     def test_pdf_contains_score_breakdown_and_chat_history(self) -> None:
         agent, _ = self.make_agent(
@@ -591,6 +624,19 @@ class ScenarioChatClosedLoopTest(unittest.TestCase):
         self.assertIn("五维评分明细", text)
         self.assertIn("越南基地产能是多少", text)
         self.assertIn("请补充越南基地年产能和出口市场", text)
+
+    def test_report_composer_builds_five_management_sections(self) -> None:
+        agent, _ = self.make_agent(
+            {"action": "answer", "scenario_update_required": False}
+        )
+        assessment = agent.run(make_company(), language="zh")
+        report = compose_report(assessment)
+        self.assertTrue(report.executive_brief.decision_question)
+        self.assertTrue(report.executive_brief.preliminary_recommendation)
+        self.assertTrue(report.decision_context.supply_chain_context)
+        self.assertTrue(report.strategic_options)
+        self.assertTrue(report.execution_plan)
+        self.assertTrue(report.appendix.evidence_ids)
 
 
 if __name__ == "__main__":

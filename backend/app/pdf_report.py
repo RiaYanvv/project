@@ -17,6 +17,7 @@ from reportlab.platypus import (
     KeepTogether,
     ListFlowable,
     ListItem,
+    PageBreak,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -24,7 +25,8 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-from .schemas import Assessment
+from .report_composer import compose_report
+from .schemas import Assessment, ReportContent
 
 
 FONT_NAME = "STSong-Light"
@@ -35,6 +37,11 @@ REPORT_LABELS: dict[str, dict[str, str]] = {
         "document_title": "供应链迁移决策报告",
         "title": "供应链迁移决策报告",
         "summary": "管理层摘要",
+        "executive_brief": "高管决策摘要",
+        "decision_context": "决策语境",
+        "strategic_options": "战略选项",
+        "execution_plan": "执行计划与决策检查点",
+        "appendix": "附录",
         "profile": "企业画像",
         "risks": "关键风险评估",
         "scenarios": "情景比较",
@@ -101,6 +108,11 @@ REPORT_LABELS: dict[str, dict[str, str]] = {
         "document_title": "Supply Chain Relocation Decision Report",
         "title": "Supply Chain Relocation Decision Report",
         "summary": "Executive summary",
+        "executive_brief": "Executive decision brief",
+        "decision_context": "Decision context",
+        "strategic_options": "Strategic options",
+        "execution_plan": "Execution plan and decision gates",
+        "appendix": "Appendix",
         "profile": "Company profile",
         "risks": "Key risk assessment",
         "scenarios": "Scenario comparison",
@@ -194,10 +206,17 @@ def build_assessment_pdf(assessment: Assessment) -> bytes:
         author="Geopolitical Supply Chain Decision Agent",
     )
     styles = _styles()
+    report = assessment.report_content or compose_report(assessment)
     story = [
-        Paragraph(labels["title"], styles["Title"]),
         Paragraph(
-            html.escape(assessment.company_profile.company_name),
+            html.escape(
+                f"{assessment.company_profile.company_name} "
+                f"{labels['title']}"
+            ),
+            styles["Title"],
+        ),
+        Paragraph(
+            html.escape("AI+地缘政治风险高校挑战赛 · 供应链迁移决策 Agent"),
             styles["Subtitle"],
         ),
         Spacer(1, 3 * mm),
@@ -205,31 +224,36 @@ def build_assessment_pdf(assessment: Assessment) -> bytes:
         Spacer(1, 5 * mm),
         _metadata_table(assessment, styles),
         Spacer(1, 7 * mm),
-        _section(labels["summary"], styles),
-        KeepTogether(
-            [
-                Paragraph(
-                    html.escape(assessment.company_profile.summary),
-                    styles["Body"],
-                ),
-                Spacer(1, 3 * mm),
-                _executive_summary_table(assessment, styles),
-                Spacer(1, 3 * mm),
-                Paragraph(
-                    f"<b>{html.escape(assessment.recommendation.headline)}</b>",
-                    styles["Body"],
-                ),
-            ]
-        ),
+        _section(labels["executive_brief"], styles),
+        *_executive_brief_section(report, styles, labels),
         Spacer(1, 5 * mm),
-        _section(labels["profile"], styles),
+        _section(labels["decision_context"], styles),
+        *_decision_context_section(report, styles),
+        Spacer(1, 6 * mm),
+        _section(labels["strategic_options"], styles),
+        *_strategic_options_section(report, styles),
+        Spacer(1, 6 * mm),
+        _section(labels["execution_plan"], styles),
+        _execution_plan_table(report, styles),
+        PageBreak(),
+        _section(labels["appendix"], styles),
+        Paragraph(
+            f"<b>{html.escape(labels['profile'])}</b>",
+            styles["Body"],
+        ),
         _profile_table(assessment, styles),
         *_intelligence_sections(assessment, styles, labels),
         Spacer(1, 6 * mm),
-        _section(labels["risks"], styles),
+        Paragraph(
+            f"<b>{html.escape(labels['risks'])}</b>",
+            styles["Body"],
+        ),
         _risk_table(assessment, styles),
         Spacer(1, 6 * mm),
-        _section(labels["scenarios"], styles),
+        Paragraph(
+            f"<b>{html.escape(labels['scenarios'])}</b>",
+            styles["Body"],
+        ),
         _scenario_table(assessment, styles),
         Spacer(1, 3 * mm),
         Paragraph(
@@ -237,16 +261,28 @@ def build_assessment_pdf(assessment: Assessment) -> bytes:
             styles["Body"],
         ),
         Spacer(1, 6 * mm),
-        _section(labels["detail"], styles),
+        Paragraph(
+            f"<b>{html.escape(labels['detail'])}</b>",
+            styles["Body"],
+        ),
         *_scenario_detail(assessment, styles, labels),
         Spacer(1, 6 * mm),
-        _section(labels["consultation"], styles),
+        Paragraph(
+            f"<b>{html.escape(labels['consultation'])}</b>",
+            styles["Body"],
+        ),
         *_consultation_section(assessment, styles, labels),
         Spacer(1, 6 * mm),
-        _section(labels["actions"], styles),
+        Paragraph(
+            f"<b>{html.escape(labels['actions'])}</b>",
+            styles["Body"],
+        ),
         _bullet_list(assessment.recommendation.next_actions, styles),
         Spacer(1, 5 * mm),
-        _section(labels["uncertainty"], styles),
+        Paragraph(
+            f"<b>{html.escape(labels['uncertainty'])}</b>",
+            styles["Body"],
+        ),
         Paragraph(
             f"{labels['human_review']}: "
             + (labels["yes"] if assessment.recommendation.requires_human_review else labels["no"]),
@@ -260,10 +296,16 @@ def build_assessment_pdf(assessment: Assessment) -> bytes:
             styles,
         ),
         Spacer(1, 8 * mm),
-        _section(labels["evidence"], styles),
+        Paragraph(
+            f"<b>{html.escape(labels['evidence'])}</b>",
+            styles["Body"],
+        ),
         _evidence_table(assessment, styles),
         Spacer(1, 6 * mm),
-        _section(labels["trace"], styles),
+        Paragraph(
+            f"<b>{html.escape(labels['trace'])}</b>",
+            styles["Body"],
+        ),
         _trace_table(assessment, styles),
         Spacer(1, 6 * mm),
         Paragraph(labels["disclaimer"], styles["Disclaimer"]),
@@ -339,6 +381,14 @@ def _styles() -> dict[str, ParagraphStyle]:
             fontSize=8,
             leading=11,
             textColor=colors.white,
+        ),
+        "KeyCell": ParagraphStyle(
+            "ChineseKeyCell",
+            parent=base["BodyText"],
+            fontName=FONT_NAME,
+            fontSize=8,
+            leading=11,
+            textColor=colors.HexColor("#20384A"),
         ),
         "Disclaimer": ParagraphStyle(
             "ChineseDisclaimer",
@@ -550,15 +600,17 @@ def _format_context_updates(
             update.information_type,
             ("补充信息", "Update"),
         )[0 if language == "zh" else 1]
-        field_text = _human_update_key(update.field, language) or type_text
-        value_text = _format_update_value(update.value, language)
         status_text = status_labels.get(
             update.update_status,
             ("待应用", "Pending"),
         )[0 if language == "zh" else 1]
-        entity = str(update.entity or "").strip()
-        parts = [entity, field_text, value_text, str(update.unit or "").strip()]
-        claim = " · ".join(item for item in parts if item)
+        claim = str(getattr(update, "statement", "") or "").strip()
+        if not claim:
+            field_text = _human_update_key(update.field, language) or type_text
+            value_text = _format_update_value(update.value, language)
+            entity = str(update.entity or "").strip()
+            parts = [entity, field_text, value_text, str(update.unit or "").strip()]
+            claim = " · ".join(item for item in parts if item)
         separator = "：" if language == "zh" else ": "
         items.append(f"{type_text}{separator}{claim} [{status_text}]")
     return items
@@ -700,6 +752,130 @@ def _executive_summary_table(
     return table
 
 
+def _executive_brief_section(
+    report: ReportContent,
+    styles: dict[str, ParagraphStyle],
+    labels: dict[str, str],
+) -> list:
+    brief = report.executive_brief
+    zh = report.language == "zh"
+    rows = [
+        ("决策问题" if zh else "Decision Question", brief.decision_question),
+        ("初步建议" if zh else "Preliminary Recommendation", brief.preliminary_recommendation),
+        ("核心原因" if zh else "Key Reasons", "\n".join(f"- {item}" for item in brief.key_reasons)),
+        ("主要代价" if zh else "Main Trade-off", brief.main_trade_off),
+        ("本次需决策" if zh else "Decision Required", "\n".join(f"- {item}" for item in brief.decision_required)),
+    ]
+    data = [
+        [
+            Paragraph(html.escape(title), styles["KeyCell"]),
+            (
+                _markdown_to_flowables(value, styles)
+                if "\n" in value
+                else Paragraph(html.escape(value or "待确认"), styles["Cell"])
+            ),
+        ]
+        for title, value in rows
+    ]
+    table = Table(data, colWidths=[42 * mm, 132 * mm], repeatRows=0)
+    table.setStyle(_table_style())
+    return [table]
+
+
+def _decision_context_section(
+    report: ReportContent,
+    styles: dict[str, ParagraphStyle],
+) -> list:
+    context = report.decision_context
+    zh = report.language == "zh"
+    blocks: list = []
+    for title, items in (
+        ("供应链结构特征" if zh else "Supply-chain context", context.supply_chain_context),
+        ("相关风险" if zh else "Relevant risks", context.relevant_risks),
+        ("决策的缓解作用" if zh else "Mitigation effect", context.mitigation_effect),
+    ):
+        blocks.append(Paragraph(f"<b>{html.escape(title)}</b>", styles["Cell"]))
+        blocks.append(_bullet_list(items, styles))
+        blocks.append(Spacer(1, 2 * mm))
+    return blocks
+
+
+def _strategic_options_section(
+    report: ReportContent,
+    styles: dict[str, ParagraphStyle],
+) -> list:
+    blocks: list = []
+    zh = report.language == "zh"
+    for option in report.strategic_options:
+        status = {
+            "recommended": "推荐方案" if zh else "Recommended",
+            "alternative": "备选方案" if zh else "Alternative",
+            "not_preferred": "暂不优先" if zh else "Not preferred",
+        }.get(option.recommendation_status, option.recommendation_status)
+        blocks.append(
+            Paragraph(
+                f"<b>{html.escape(option.name)}</b> · {html.escape(status)}",
+                styles["Body"],
+            )
+        )
+        blocks.append(
+            Paragraph(
+                html.escape(option.fit_assessment or option.summary),
+                styles["Cell"],
+            )
+        )
+        for title, items in (
+            ("预期收益" if zh else "Benefits", option.expected_benefits),
+            ("主要代价" if zh else "Costs", option.main_costs),
+            ("关键风险" if zh else "Risks", option.key_risks),
+            ("执行条件" if zh else "Conditions", option.execution_conditions),
+        ):
+            if items:
+                blocks.append(
+                    Paragraph(
+                        f"<b>{html.escape(title)}</b>",
+                        styles["Cell"],
+                    )
+                )
+                blocks.append(_bullet_list(items, styles))
+        blocks.append(Spacer(1, 3 * mm))
+    return blocks
+
+
+def _execution_plan_table(
+    report: ReportContent,
+    styles: dict[str, ParagraphStyle],
+) -> Table:
+    rows = [
+        [
+            Paragraph("Action", styles["CellHeader"]),
+            Paragraph("Rationale", styles["CellHeader"]),
+            Paragraph("Owner", styles["CellHeader"]),
+            Paragraph("Timing", styles["CellHeader"]),
+            Paragraph("Decision gate", styles["CellHeader"]),
+            Paragraph("Trigger", styles["CellHeader"]),
+        ]
+    ]
+    for item in report.execution_plan:
+        rows.append(
+            [
+                Paragraph(html.escape(item.action), styles["Cell"]),
+                Paragraph(html.escape(item.rationale), styles["Cell"]),
+                Paragraph(html.escape(item.owner), styles["Cell"]),
+                Paragraph(html.escape(item.timing), styles["Cell"]),
+                Paragraph(html.escape(item.decision_gate), styles["Cell"]),
+                Paragraph(html.escape(item.trigger), styles["Cell"]),
+            ]
+        )
+    table = Table(
+        rows,
+        colWidths=[31 * mm, 43 * mm, 18 * mm, 22 * mm, 31 * mm, 29 * mm],
+        repeatRows=1,
+    )
+    table.setStyle(_table_style())
+    return table
+
+
 def _profile_table(
     assessment: Assessment, styles: dict[str, ParagraphStyle]
 ) -> Table:
@@ -733,7 +909,7 @@ def _profile_table(
     ]
     data = [
         [
-            Paragraph(html.escape(str(key)), styles["CellHeader"]),
+            Paragraph(html.escape(str(key)), styles["KeyCell"]),
             Paragraph(html.escape(str(value)), styles["Cell"]),
         ]
         for key, value in rows

@@ -600,8 +600,21 @@ class DeepSeekLLM:
                 "context_updates、gap_updates（gap_item/status/answer）、"
                 "affected_dimensions 和 scenario_update_required。"
                 "context_updates 必须是数组，每条仅表达一个原子主张，字段包括 "
-                "entity, field, value, unit, information_type, source_type, "
+                "statement, entity, field, value, unit, information_type, source_type, "
                 "verification_status, effective_time。"
+                "statement 必须是一句完整、独立、可展示给管理层的陈述句，"
+                "不得只写数字、百分比或“增长较快”等无语境片段。"
+                "Few-shot 示例：用户输入“30”应输出 "
+                '{"statement":"韩国基地的电芯年产能为30 GWh","entity":"韩国",'
+                '"field":"annual_capacity_gwh","value":30,"unit":"GWh",'
+                '"information_type":"operational_estimate",'
+                '"source_type":"management_estimate",'
+                '"verification_status":"unverified"}；用户输入“85%”应输出 '
+                '{"statement":"韩国基地的产能利用率为85%","entity":"韩国",'
+                '"field":"utilization_rate","value":0.85,"unit":"ratio",'
+                '"information_type":"operational_estimate",'
+                '"source_type":"management_estimate",'
+                '"verification_status":"unverified"}。'
                 "information_type 只能使用 operational_fact, operational_estimate, "
                 "cost_estimate, supply_chain_assessment, demand_forecast, "
                 "strategic_preference, hard_constraint, soft_preference, "

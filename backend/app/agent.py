@@ -41,6 +41,7 @@ from .schemas import (
     ScenarioBand,
     ScenarioDimensionAssessment,
     ScenarioResult,
+    ScenarioVersionSnapshot,
     SUPPLY_CHAIN_ROLE_FALLBACK,
     SUPPLY_CHAIN_ROLE_VALUES,
     SupplyChainRole,
@@ -772,6 +773,19 @@ class AgentService:
             evidence=evidence,
             risks=risks,
             scenarios=scenarios,
+            scenario_history=[
+                ScenarioVersionSnapshot(
+                    version=1,
+                    created_at=now,
+                    label=(
+                        "初始分析"
+                        if language == "zh"
+                        else "Initial analysis"
+                    ),
+                    scenarios=scenarios,
+                    recommendation=recommendation,
+                )
+            ],
             recommendation=recommendation,
             trace=trace,
             limitations=limitations,
@@ -940,6 +954,79 @@ class AgentService:
             )
         return f"{prefix} {score_line} {detail}"
 
+    @classmethod
+    def _annotate_scenario_changes(
+        cls,
+        before: list[ScenarioResult],
+        after: list[ScenarioResult],
+        language: str,
+    ) -> list[ScenarioResult]:
+        zh = (language or "en").lower() == "zh"
+        band_labels = {
+            "very_favourable": "非常有利" if zh else "very favourable",
+            "favourable": "有利" if zh else "favourable",
+            "neutral": "中性" if zh else "neutral",
+            "unfavourable": "不利" if zh else "unfavourable",
+            "very_unfavourable": "非常不利" if zh else "very unfavourable",
+        }
+        before_by_name = {item.name: item for item in before}
+        annotated: list[ScenarioResult] = []
+        for scenario in after:
+            previous = before_by_name.get(scenario.name)
+            changes: list[str] = []
+            assessments = {
+                key: value.model_copy(deep=True)
+                for key, value in scenario.dimension_assessments.items()
+            }
+            if previous is not None:
+                for metric, assessment in assessments.items():
+                    old_value = getattr(previous, metric, None)
+                    new_value = getattr(scenario, metric, None)
+                    old_band = previous.dimension_bands.get(metric)
+                    new_band = scenario.dimension_bands.get(metric)
+                    if old_band != new_band:
+                        old_label = band_labels.get(
+                            getattr(old_band, "value", old_band),
+                            str(old_band or ""),
+                        )
+                        new_label = band_labels.get(
+                            getattr(new_band, "value", new_band),
+                            str(new_band or ""),
+                        )
+                        phrase = (
+                            f"由 {old_label} 调整为 {new_label}"
+                            if zh
+                            else f"changed from {old_label} to {new_label}"
+                        )
+                        assessment.change_type = "band_changed"
+                        assessment.highlight_terms = [phrase]
+                        changes.append(phrase)
+                    elif old_value != new_value:
+                        phrase = f"{old_value} → {new_value}"
+                        assessment.change_type = "score_changed"
+                        assessment.highlight_terms = [phrase]
+                        changes.append(phrase)
+                    else:
+                        assessment.change_type = "unchanged"
+                        assessment.highlight_terms = []
+            annotated.append(
+                scenario.model_copy(
+                    update={
+                        "dimension_assessments": assessments,
+                        "change_summary": (
+                            "；".join(changes)
+                            if changes
+                            else (
+                                "各维度保持不变"
+                                if zh
+                                else "No dimension changed"
+                            )
+                        ),
+                    }
+                )
+            )
+        return annotated
+
     @staticmethod
     def _context_value_key(value: Any) -> str:
         if isinstance(value, (dict, list)):
@@ -967,6 +1054,8 @@ class AgentService:
 
     @classmethod
     def _context_update_text(cls, update: ContextUpdate) -> str:
+        if update.statement:
+            return update.statement
         parts = [
             update.entity,
             update.field,
@@ -979,6 +1068,39 @@ class AgentService:
             if claim
             else f"Atomic {update.information_type}: {update.update_id}"
         )
+
+    @classmethod
+    def _context_statement(cls, update: ContextUpdate) -> str:
+        statement = cls._clean_display_text(update.statement)
+        if statement and not re.fullmatch(
+            r"[-+]?\d+(?:\.\d+)?\s*%?",
+            statement,
+        ):
+            return statement
+        field_labels = {
+            "annual_capacity_gwh": "年产能",
+            "capacity_gwh": "产能",
+            "utilization_rate": "产能利用率",
+            "production_share": "生产占比",
+            "demand_growth": "需求增长",
+            "cost_index_vs_asia": "相对亚洲成本指数",
+            "asian_dependency": "亚洲供应链依赖",
+        }
+        field_label = field_labels.get(
+            update.field,
+            update.field.replace("_", " "),
+        )
+        value = update.value
+        if (
+            isinstance(value, float)
+            and 0 <= value <= 1
+            and update.unit in {"ratio", ""}
+        ):
+            value = f"{value * 100:.0f}%"
+        value_text = cls._clean_display_text(value, "待确认")
+        unit = f" {update.unit}" if update.unit and update.unit != "ratio" else ""
+        entity = update.entity or "该企业"
+        return f"{entity}{field_label}为{value_text}{unit}。"
 
     @staticmethod
     def _clean_display_text(value: Any, fallback: str = "") -> str:
@@ -1067,6 +1189,7 @@ class AgentService:
             item.update_status = "pending"
             item.scenario_version = None
             item.deleted_at = ""
+            item.statement = cls._context_statement(item)
             fingerprint = cls._context_update_fingerprint(item)
             if fingerprint in existing_by_key:
                 continue
@@ -1214,6 +1337,7 @@ class AgentService:
         assessment: Assessment,
         additional_constraints: list[str] | None = None,
         update_ids: list[str] | None = None,
+        base_version: int | None = None,
         api_key: str | None = None,
         model_name: str | None = None,
         language: str = "en",
@@ -1255,6 +1379,19 @@ class AgentService:
         selected_update_id_set = {
             item.update_id for item in selected_updates
         }
+        base_snapshot = next(
+            (
+                item
+                for item in assessment.scenario_history
+                if item.version == base_version
+            ),
+            None,
+        )
+        base_scenarios = (
+            base_snapshot.scenarios
+            if base_snapshot is not None
+            else assessment.scenarios
+        )
         constraints.extend(
             self._context_update_text(item)
             for item in selected_updates
@@ -1283,7 +1420,7 @@ class AgentService:
             revision_context={
                 "previous_scenarios": [
                     item.model_dump(mode="json")
-                    for item in assessment.scenarios
+                    for item in base_scenarios
                 ],
                 "new_information": constraints,
                 "instruction": (
@@ -1309,6 +1446,11 @@ class AgentService:
             intelligence=assessment.company_intelligence,
         )
         scenarios = self._rank_scenarios(scenarios)
+        scenarios = self._annotate_scenario_changes(
+            base_scenarios,
+            scenarios,
+            language,
+        )
         recommendation_payload = active_llm.generate_recommendation(
             company,
             assessment.evidence,
@@ -1339,7 +1481,7 @@ class AgentService:
         )
         scenario_version = max(1, assessment.scenario_version) + 1
         change_summary = self._scenario_change_summary(
-            assessment.scenarios,
+            base_scenarios,
             scenarios,
             language,
         )
@@ -1361,6 +1503,42 @@ class AgentService:
             )
             for item in assessment.context_updates
         ]
+        scenario_history = [
+            item.model_copy(update={"is_latest": False})
+            for item in assessment.scenario_history
+        ]
+        if not scenario_history:
+            scenario_history = [
+                ScenarioVersionSnapshot(
+                    version=max(1, assessment.scenario_version),
+                    created_at=assessment.updated_at,
+                    label="初始分析" if language == "zh" else "Initial analysis",
+                    scenarios=assessment.scenarios,
+                    recommendation=assessment.recommendation,
+                    is_latest=False,
+                )
+            ]
+        version_label = (
+            " + ".join(
+                item.statement or item.field
+                for item in selected_updates[:3]
+            )
+            or ("重新推演" if language == "zh" else "Re-simulation")
+        )
+        scenario_history.append(
+            ScenarioVersionSnapshot(
+                version=scenario_version,
+                created_at=utc_now(),
+                label=version_label,
+                scenarios=scenarios,
+                recommendation=recommendation,
+                context_update_ids=[
+                    item.update_id for item in selected_updates
+                ],
+                change_summary=change_summary,
+                is_latest=True,
+            )
+        )
         chat_updates: dict[str, Any] = {}
         if assessment.chat_history or assessment.chat_analysis is not None:
             chat_updates["chat_history"] = [
@@ -1399,6 +1577,7 @@ class AgentService:
             update={
                 "scenarios": scenarios,
                 "scenario_version": scenario_version,
+                "scenario_history": scenario_history,
                 "context_updates": applied_context_updates,
                 "recommendation": recommendation,
                 "limitations": limitations,

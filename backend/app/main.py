@@ -33,6 +33,7 @@ from .schemas import (
     ChatOpeningResponse,
     CompanyInput,
     RetrievalQuery,
+    ScenarioVersionSnapshot,
     ScenarioUpdateRequest,
 )
 from .web_search import WebSearchTool
@@ -332,6 +333,7 @@ def update_scenarios(
             assessment,
             additional_constraints=request.additional_constraints,
             update_ids=request.update_ids,
+            base_version=request.base_version,
             api_key=request.api_key,
             model_name=request.llm_model,
             language=request.language,
@@ -440,6 +442,43 @@ def get_assessment(assessment_id: str) -> Assessment:
     if assessment is None:
         raise HTTPException(status_code=404, detail="assessment not found")
     return assessment
+
+
+@app.get(
+    "/api/v1/assessments/{assessment_id}/scenario-versions",
+    response_model=list[ScenarioVersionSnapshot],
+)
+def get_scenario_versions(
+    assessment_id: str,
+) -> list[ScenarioVersionSnapshot]:
+    assessment = repository.get(assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="assessment not found")
+    return assessment.scenario_history
+
+
+@app.get(
+    "/api/v1/assessments/{assessment_id}/scenario-versions/{version}",
+    response_model=ScenarioVersionSnapshot,
+)
+def get_scenario_version(
+    assessment_id: str,
+    version: int,
+) -> ScenarioVersionSnapshot:
+    assessment = repository.get(assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="assessment not found")
+    snapshot = next(
+        (
+            item
+            for item in assessment.scenario_history
+            if item.version == version
+        ),
+        None,
+    )
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail="scenario version not found")
+    return snapshot
 
 
 @app.post(

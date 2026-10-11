@@ -235,6 +235,38 @@ class ScenarioRubricTest(unittest.TestCase):
         self.assertNotIn("{", reason)
         self.assertNotIn("unexpected", reason)
 
+    def test_structured_diff_only_highlights_band_change(self) -> None:
+        first = scenario_payload()
+        second = scenario_payload()
+        second["name"] = "Maintain current layout"
+        before, _ = self.agent._coerce_scenarios(
+            [first, second],
+            [],
+            [evidence()],
+            company(),
+        )
+        changed = scenario_payload()
+        changed["dimension_assessments"]["resilience"]["band"] = "neutral"
+        changed["dimension_assessments"]["resilience"]["reason"] = (
+            "相较上一版由 favourable 调整为 neutral，因为韧性证据不足。"
+        )
+        second_changed = scenario_payload()
+        second_changed["name"] = "Maintain current layout"
+        after, _ = self.agent._coerce_scenarios(
+            [changed, second_changed],
+            [],
+            [evidence()],
+            company(),
+        )
+        annotated = AgentService._annotate_scenario_changes(
+            before,
+            after,
+            "zh",
+        )
+        resilience = annotated[0].dimension_assessments["resilience_score"]
+        self.assertEqual(resilience.change_type, "band_changed")
+        self.assertIn("由 非常有利 调整为 中性", resilience.highlight_terms)
+
 
 if __name__ == "__main__":
     unittest.main()

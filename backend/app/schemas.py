@@ -268,6 +268,12 @@ class ScenarioDimensionAssessment(StrictModel):
     reason: str = ""
     evidence_ids: list[str] = Field(default_factory=list)
     source: Literal["evidence", "inference"] = "inference"
+    change_type: Literal[
+        "unchanged",
+        "band_changed",
+        "score_changed",
+    ] = "unchanged"
+    highlight_terms: list[str] = Field(default_factory=list)
 
 
 class ScenarioResult(StrictModel):
@@ -293,6 +299,7 @@ class ScenarioResult(StrictModel):
     score_breakdown: list[ScenarioScoreBreakdown] = Field(default_factory=list)
     evidence_links: list[EvidenceLink] = Field(default_factory=list)
     insufficient_evidence: bool = False
+    change_summary: str = ""
 
 
 class Recommendation(StrictModel):
@@ -306,6 +313,73 @@ class Recommendation(StrictModel):
     uncertainty: list[str]
     requires_human_review: bool = True
     evidence_ids: list[str] = Field(default_factory=list)
+
+
+class ScenarioVersionSnapshot(StrictModel):
+    version: int = Field(ge=1)
+    created_at: str = ""
+    label: str = ""
+    scenarios: list[ScenarioResult] = Field(default_factory=list)
+    recommendation: Recommendation | None = None
+    context_update_ids: list[str] = Field(default_factory=list)
+    change_summary: str = ""
+    is_latest: bool = True
+
+
+class ReportExecutiveBrief(StrictModel):
+    decision_question: str = ""
+    preliminary_recommendation: str = ""
+    key_reasons: list[str] = Field(default_factory=list)
+    main_trade_off: str = ""
+    decision_required: list[str] = Field(default_factory=list)
+
+
+class ReportDecisionContext(StrictModel):
+    supply_chain_context: list[str] = Field(default_factory=list)
+    relevant_risks: list[str] = Field(default_factory=list)
+    mitigation_effect: list[str] = Field(default_factory=list)
+
+
+class ReportStrategicOption(StrictModel):
+    scenario_id: str = ""
+    name: str = ""
+    recommendation_status: Literal["recommended", "alternative", "not_preferred"] = "alternative"
+    summary: str = ""
+    expected_benefits: list[str] = Field(default_factory=list)
+    main_costs: list[str] = Field(default_factory=list)
+    key_risks: list[str] = Field(default_factory=list)
+    execution_conditions: list[str] = Field(default_factory=list)
+    fit_assessment: str = ""
+
+
+class ReportExecutionAction(StrictModel):
+    action: str = ""
+    rationale: str = ""
+    owner: str = "待指定"
+    timing: str = ""
+    decision_gate: str = ""
+    trigger: str = ""
+
+
+class ReportAppendix(StrictModel):
+    evidence_ids: list[str] = Field(default_factory=list)
+    risk_ids: list[str] = Field(default_factory=list)
+    information_gaps: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
+    methodology: list[str] = Field(default_factory=list)
+
+
+class ReportContent(StrictModel):
+    language: Literal["en", "zh"] = "zh"
+    executive_brief: ReportExecutiveBrief = Field(
+        default_factory=ReportExecutiveBrief
+    )
+    decision_context: ReportDecisionContext = Field(
+        default_factory=ReportDecisionContext
+    )
+    strategic_options: list[ReportStrategicOption] = Field(default_factory=list)
+    execution_plan: list[ReportExecutionAction] = Field(default_factory=list)
+    appendix: ReportAppendix = Field(default_factory=ReportAppendix)
 
 
 class TraceStep(StrictModel):
@@ -366,6 +440,7 @@ ContextVerificationStatus = Literal[
 
 class ContextUpdate(StrictModel):
     update_id: str = ""
+    statement: str = ""
     entity: str = ""
     field: str = ""
     value: Any = None
@@ -457,6 +532,7 @@ ChatAnalysis = ChatImpact
 class ScenarioUpdateRequest(StrictModel):
     additional_constraints: list[str] = Field(default_factory=list)
     update_ids: list[str] = Field(default_factory=list)
+    base_version: int | None = Field(default=None, ge=1)
     api_key: str | None = Field(default=None, min_length=10)
     llm_model: Literal["deepseek-flash", "deepseek-v4-pro"] = "deepseek-flash"
     language: Language = "en"
@@ -636,10 +712,12 @@ class Assessment(StrictModel):
     risks: list[RiskItem]
     scenarios: list[ScenarioResult]
     scenario_version: int = 1
+    scenario_history: list[ScenarioVersionSnapshot] = Field(default_factory=list)
     recommendation: Recommendation
     scoring: dict[str, int] = Field(default_factory=dict)
     weighting_mode: Literal["user", "equal"] = "equal"
     chat_analysis: ChatImpact | None = None
+    report_content: ReportContent | None = None
     chat_history: list[ChatTurn] = Field(default_factory=list)
     context_updates: list[ContextUpdate] = Field(default_factory=list)
     trace: list[TraceStep] = Field(default_factory=list)
