@@ -6,6 +6,7 @@ const state = {
   parentProjectId: null,
   reportOutdated: false,
   scenarioVersion: 1,
+  versionPreview: null,
   // True once the user actually reorders the priority list. Until then the
   // scenario score must treat every factor as equally important.
   prioritiesDeclared: false,
@@ -560,11 +561,13 @@ function mapContextUpdate(update, index = 0) {
   const fieldLabel = contextFieldLabel(update.field);
   const fallbackLabel = L(typeLabels[1], typeLabels[0]);
   const entity = String(update.entity || "").trim();
+  const statement = String(update.statement || "").trim();
   return {
     id: update.update_id || `context-${index}`,
+    statement,
     category: L(typeLabels[1], typeLabels[0]),
-    label: [entity, fieldLabel || fallbackLabel].filter(Boolean).join(" · "),
-    value: contextDisplayValue(update.value),
+    label: statement || [entity, fieldLabel || fallbackLabel].filter(Boolean).join(" · "),
+    value: statement ? "" : contextDisplayValue(update.value),
     unit: update.unit || "",
     status: update.update_status || "pending",
     statusLabel: L(statusLabels[1], statusLabels[0]),
@@ -649,6 +652,7 @@ function mapApiAssessment(api, profile) {
       evidence_count: library.length,
     },
     context_updates: (api.context_updates || []).map(mapContextUpdate),
+    scenario_history: api.scenario_history || [],
   };
 }
 
@@ -776,6 +780,7 @@ function handleStageEvent(event) {
 function finishRun(assessment, profile, thenSimulate = false) {
   state.assessment = assessment;
   state.scenarioComparison = null;
+  state.versionPreview = null;
   state.scenarioVersion = Number(assessment.meta?.scenario_version) || 1;
   runInFlight = false;
   const submitButton = $("#decision-form button[type='submit']");
@@ -939,6 +944,112 @@ function normalizeScenarios(assessment) {
   const evidenceFor = evidenceLookupFromRisks(assessment.risks);
   const meta = { data_mode: assessment.meta?.data_mode || "" };
   return (assessment.scenarios || []).map(item => (item && item.scores ? item : mapScenario(item, evidenceFor, meta)));
+}
+
+function latestScenarioVersion() {
+  const versions = state.assessment?.scenario_history || [];
+  return versions.reduce(
+    (latest, item) => Math.max(latest, Number(item.version) || 0),
+    Number(state.assessment?.meta?.scenario_version) || 1,
+  );
+}
+
+function currentViewedScenarioVersion() {
+  return Number(state.versionPreview?.version)
+    || Number(state.assessment?.meta?.scenario_version)
+    || 1;
+}
+
+function normalizedScenarioHistory() {
+  const backendHistory = state.assessment?.scenario_history || [];
+  if (backendHistory.length) {
+    return backendHistory.map(item => ({
+      ...item,
+      version: Number(item.version) || 1,
+    }));
+  }
+  return (currentProject()?.scenario_versions || []).map(item => ({
+    version: Number(item.version) || 1,
+    label: item.label || L("Saved scenario", "已保存情景"),
+    scenarios: item.scenarios || [],
+    recommendation: item.recommendation || null,
+    change_summary: item.change_summary || "",
+    created_at: item.saved_at || "",
+    is_latest: Number(item.version) === Number(currentProject()?.scenario_version || 1),
+  }));
+}
+
+function renderVersionBanners() {
+  const viewed = currentViewedScenarioVersion();
+  const latest = latestScenarioVersion();
+  const reviewingOld = viewed !== latest;
+  ["#scenario-version-banner", "#chat-version-banner"].forEach(selector => {
+    const banner = $(selector);
+    if (!banner) return;
+    banner.hidden = !reviewingOld;
+    if (!reviewingOld) {
+      banner.innerHTML = "";
+      return;
+    }
+    banner.innerHTML = `<span>${escapeHtml(L(
+      `You are viewing Scenario v${viewed}; the latest version is v${latest}.`,
+      `当前查看的是情景 v${viewed}，最新版本为 v${latest}。`,
+    ))}</span><button class="text-button" type="button" data-version-latest>${L("Return to latest", "返回最新版")}</button><button class="text-button" type="button" data-version-resimulate>${L("Re-simulate from here", "从当前版本重新推演")}</button>`;
+  });
+}
+
+function renderVersionHistory(items) {
+  const list = $("#version-drawer-list");
+  if (!list) return;
+  const latest = latestScenarioVersion();
+  list.innerHTML = `<div class="version-list">${items.map(item => {
+    const version = Number(item.version) || 1;
+    const scenarios = item.scenarios || [];
+    const top = scenarios[0];
+    return `<button class="version-item${version === currentViewedScenarioVersion() ? " active" : ""}" type="button" data-select-version="${version}">
+      <em>${version === latest ? L("Latest", "最新版") : `v${version}`}</em>
+      <b>v${version} · ${escapeHtml(item.label || L("Scenario version", "情景版本"))}</b>
+      <span>${escapeHtml(top ? `${top.name || ""} · ${top.weighted_score || top.overall_score || ""}/100` : L("No scenario summary", "暂无情景摘要"))}</span>
+      <span>${escapeHtml(item.change_summary || "")}</span>
+    </button>`;
+  }).join("")}</div>`;
+}
+
+async function openVersionHistory() {
+  let items = normalizedScenarioHistory();
+  const assessmentId = state.assessment?.meta?.assessment_id;
+  if (assessmentId && window.LOCUS_API_BASE) {
+    try {
+      const response = await fetchWithTimeout(
+        `${window.LOCUS_API_BASE}/api/v1/assessments/${assessmentId}/scenario-versions`,
+        { cache: "no-store" },
+        20000,
+      );
+      if (response.ok) items = await response.json();
+    } catch { /* fall back to local snapshots */ }
+  }
+  if (!items.length) {
+    showToast(L("No saved scenario versions are available yet.", "当前还没有可查看的历史版本。"));
+    return;
+  }
+  renderVersionHistory(items);
+  const drawer = $("#version-drawer");
+  if (drawer) drawer.hidden = false;
+}
+
+function closeVersionHistory() {
+  const drawer = $("#version-drawer");
+  if (drawer) drawer.hidden = true;
+}
+
+function selectScenarioVersion(version) {
+  const latest = latestScenarioVersion();
+  const snapshot = normalizedScenarioHistory().find(item => Number(item.version) === Number(version));
+  if (!snapshot) return;
+  state.versionPreview = Number(version) === latest ? null : snapshot;
+  closeVersionHistory();
+  renderScenarios(state.assessment);
+  renderVersionBanners();
 }
 
 function levelOf(risks) {
@@ -1561,11 +1672,17 @@ function bulletBlock(title, items, emptyText) {
   return emptyText ? `<div class="scenario-block"><b>${title}</b><p class="muted">${emptyText}</p></div>` : "";
 }
 
-function highlightScenarioReason(text) {
-  return escapeHtml(text || "").replace(
-    /(新增信息|新增数据|本轮新增|管理估算|推断|估算|保持不变|较上一版)/g,
-    "<b>$1</b>",
-  );
+function highlightScenarioReason(text, terms = []) {
+  let rendered = escapeHtml(text || "");
+  [...new Set(terms || [])]
+    .filter(Boolean)
+    .sort((left, right) => String(right).length - String(left).length)
+    .forEach(term => {
+      const escaped = escapeHtml(String(term));
+      if (!escaped) return;
+      rendered = rendered.split(escaped).join(`<b>${escaped}</b>`);
+    });
+  return rendered;
 }
 
 function scenarioDetail(scenario, index, weighting) {
@@ -1596,7 +1713,10 @@ function scenarioDetail(scenario, index, weighting) {
       <td>${escapeHtml(label)}</td>
       <td>${escapeHtml(bandLabels[band] || band)}</td>
       <td>${escapeHtml(String(breakdown.score ?? scenario.scores[key] ?? ""))}</td>
-      <td>${highlightScenarioReason(assessment.reason || breakdown.reason || "")}</td>
+      <td>${highlightScenarioReason(
+        assessment.reason || breakdown.reason || "",
+        assessment.highlight_terms || breakdown.highlight_terms || [],
+      )}</td>
       <td>${evidenceIds.length ? evidenceIds.map(evidenceLink).join(" · ") : escapeHtml(L("inference", "推断"))}</td>
     </tr>`;
   }).join("");
@@ -1688,6 +1808,17 @@ function renderStrategicReport(assessment, scenarioList) {
 }
 
 function renderScenarios(assessment) {
+  if (state.versionPreview) {
+    assessment = {
+      ...assessment,
+      scenarios: state.versionPreview.scenarios || [],
+      recommendation: state.versionPreview.recommendation || assessment.recommendation,
+      meta: {
+        ...(assessment.meta || {}),
+        scenario_version: Number(state.versionPreview.version) || 1,
+      },
+    };
+  }
   const profile = assessment.company_profile || {};
   const scenarios = normalizeScenarios(assessment);
   const meta = assessment.meta || {};
@@ -1698,7 +1829,7 @@ function renderScenarios(assessment) {
   const weighting = weightingMode === "user" && priorities.length
     ? `The overall score is weighted by your stated priorities: ${priorities.join(" > ")}.`
     : "No priority ranking was provided, so the five dimensions are weighted equally.";
-  const scenarioVersion = state.scenarioVersion || currentProject()?.scenario_version || 1;
+  const scenarioVersion = currentViewedScenarioVersion();
   const previousByName = new Map(
     (state.scenarioComparison?.beforeScenarios || []).map(item => [item.name, item]),
   );
@@ -1724,7 +1855,10 @@ function renderScenarios(assessment) {
   const note = $("#scenario-update-note");
   if (note) {
     const comparison = state.scenarioComparison;
-    if (comparison && (comparison.after || []).length) {
+    if (state.versionPreview) {
+      note.hidden = true;
+      note.innerHTML = "";
+    } else if (comparison && (comparison.after || []).length) {
       note.hidden = false;
       note.innerHTML = `<p class="section-number">UPDATED SCENARIO RESULT</p><ul class="scenario-comparison">${scenarioComparisonRows(comparison.before, comparison.after).map(row => {
         const tone = row.delta > 0 ? "up" : row.delta < 0 ? "down" : "";
@@ -1742,6 +1876,7 @@ function renderScenarios(assessment) {
       note.innerHTML = "";
     }
   }
+  renderVersionBanners();
   renderStrategicReport(assessment, scenarios);
   advanceProjectStage("SCENARIO_SIMULATION");
 }
@@ -2025,6 +2160,7 @@ function renderChatMeta() {
       `${chatState.messages.length} message${chatState.messages.length === 1 ? "" : "s"} in this session`,
     ].filter(Boolean).join(" · ");
   }
+  renderVersionBanners();
 }
 
 function renderChatCategories() {
@@ -2274,6 +2410,7 @@ async function rerunScenariosForChat() {
     body: JSON.stringify({
       additional_constraints: constraints,
       update_ids: updateIds,
+      base_version: currentViewedScenarioVersion(),
       api_key: window.LOCUS_API_KEY,
       llm_model: window.LOCUS_MODEL || "deepseek-flash",
       language: currentLanguage() === "zh" ? "zh" : "en",
@@ -2342,6 +2479,7 @@ function showScenarioChangeModal() {
       afterScore,
       delta,
       reason: assessment.reason || breakdown.reason || "",
+      highlight_terms: assessment.highlight_terms || breakdown.highlight_terms || [],
     };
   });
   const applied = comparison.appliedUpdates || [];
@@ -2357,7 +2495,7 @@ function showScenarioChangeModal() {
         return `<tr><td>${escapeHtml(item.label)}</td><td>${item.beforeScore}</td><td>${item.afterScore}</td><td class="${tone}">${delta}</td></tr>`;
       }).join("")}</tbody>
     </table>
-    ${dimensions.filter(item => item.reason).map(item => `<p class="scenario-change-reason"><b>${escapeHtml(item.label)}：</b>${highlightScenarioReason(item.reason)}</p>`).join("")}
+    ${dimensions.filter(item => item.reason).map(item => `<p class="scenario-change-reason"><b>${escapeHtml(item.label)}：</b>${highlightScenarioReason(item.reason, item.highlight_terms)}</p>`).join("")}
   `;
   modal.hidden = false;
 }
@@ -2403,7 +2541,14 @@ async function runScenarioUpdate() {
   const assessment = state.assessment;
   if (!assessment) return;
   markReportOutdated();
-  const beforeScenarios = normalizeScenarios(assessment);
+  const beforeAssessment = state.versionPreview
+    ? {
+        ...assessment,
+        scenarios: state.versionPreview.scenarios || [],
+        recommendation: state.versionPreview.recommendation || assessment.recommendation,
+      }
+    : assessment;
+  const beforeScenarios = normalizeScenarios(beforeAssessment);
   const before = beforeScenarios.map(item => ({ name: item.name, score: item.overall_score }));
   const appliedUpdates = chatState.informationUpdates
     .filter(item => item.status === "pending")
@@ -2441,6 +2586,7 @@ async function runScenarioUpdate() {
   }
   if (rerun) {
     state.assessment = rerun;
+    state.versionPreview = null;
     syncContextUpdatesFromAssessment();
   } else {
     const bump = Math.min(5, Math.max(1, chatState.updated.length + chatState.documents.length) * 2);
@@ -2915,6 +3061,7 @@ function saveProject(assessment, profile) {
   state.projectId = project.decision_project_id;
   state.parentProjectId = null;
   state.scenarioVersion = 1;
+  state.versionPreview = null;
 }
 
 function currentProject() {
@@ -3145,6 +3292,7 @@ function restoreChatFromProject(project) {
   chatState.documents = [...(project.uploaded_documents || [])];
   chatState.seeded = chatState.messages.length > 0;
   state.scenarioVersion = Number(project.scenario_version) || 1;
+  state.versionPreview = null;
 }
 
 function openProjectById(id) {
@@ -3381,6 +3529,33 @@ document.addEventListener("click", async event => {
   if (event.target.closest("#report-confirm")) confirmReport();
   if (event.target.closest("#name-modal-confirm")) { closeNameDialog("ok"); return; }
   if (event.target.closest("#name-modal-cancel")) { closeNameDialog("cancelled"); return; }
+  if (
+    event.target.closest("#scenario-history-button")
+    || event.target.closest("#chat-history-button")
+  ) {
+    await openVersionHistory();
+    return;
+  }
+  if (event.target.closest("#version-drawer-close")) {
+    closeVersionHistory();
+    return;
+  }
+  const versionChoice = event.target.closest("[data-select-version]");
+  if (versionChoice) {
+    selectScenarioVersion(Number(versionChoice.dataset.selectVersion));
+    return;
+  }
+  if (event.target.closest("[data-version-latest]")) {
+    state.versionPreview = null;
+    renderScenarios(state.assessment);
+    renderVersionBanners();
+    showScreen("scenarios");
+    return;
+  }
+  if (event.target.closest("[data-version-resimulate]")) {
+    await runScenarioUpdate();
+    return;
+  }
   if (event.target.closest("#scenario-change-close")) { closeScenarioChangeModal(); return; }
   if (event.target.closest("#scenario-change-full")) {
     closeScenarioChangeModal();

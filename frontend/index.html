@@ -188,8 +188,12 @@
             <p class="eyebrow">Scenario simulation <span class="live-tag" id="scenario-mode">Prepared</span></p>
             <h2 id="scenarios-title">Strategic Scenario Analysis</h2>
             <p class="assessment-meta" id="scenario-meta"></p>
+            <div class="version-view-banner" id="scenario-version-banner" hidden></div>
           </div>
-          <div class="assessment-actions"><button class="button button-secondary" type="button" data-screen-target="assessment">Back to assessment <span>↑</span></button></div>
+          <div class="assessment-actions">
+            <button class="button button-secondary" type="button" id="scenario-history-button">History</button>
+            <button class="button button-secondary" type="button" data-screen-target="assessment">Back to assessment <span>↑</span></button>
+          </div>
         </div>
         <div class="assessment-layout scenario-layout">
           <aside class="assessment-nav">
@@ -234,8 +238,12 @@
             <p class="eyebrow">AI consultation <span class="live-tag" id="chat-mode">Prepared</span></p>
             <h2 id="chat-title">Consultation workspace</h2>
             <p class="assessment-meta" id="chat-meta"></p>
+            <div class="version-view-banner" id="chat-version-banner" hidden></div>
           </div>
-          <div class="assessment-actions"><button class="button button-secondary" type="button" data-screen-target="scenarios">Back to scenarios <span>↑</span></button></div>
+          <div class="assessment-actions">
+            <button class="button button-secondary" type="button" id="chat-history-button">History</button>
+            <button class="button button-secondary" type="button" data-screen-target="scenarios">Back to scenarios <span>↑</span></button>
+          </div>
         </div>
         <div class="chat-layout">
           <aside class="chat-context" id="chat-context" aria-label="Decision context"></aside>
@@ -334,6 +342,19 @@
             <button class="button button-secondary" type="button" id="scenario-change-close">Keep discussing</button>
             <button class="button button-primary" type="button" id="scenario-change-full">View full scenarios</button>
           </div>
+        </div>
+      </div>
+
+      <div class="modal version-drawer" id="version-drawer" hidden>
+        <div class="version-drawer-card" role="dialog" aria-modal="true" aria-labelledby="version-drawer-title">
+          <div class="version-drawer-head">
+            <div>
+              <p class="eyebrow">Scenario history</p>
+              <h3 id="version-drawer-title">历史版本</h3>
+            </div>
+            <button class="text-button" type="button" id="version-drawer-close">Close</button>
+          </div>
+          <div id="version-drawer-list"></div>
         </div>
       </div>
 
