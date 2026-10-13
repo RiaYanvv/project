@@ -804,16 +804,13 @@ class HybridRetrievalProvider:
                     flags=re.IGNORECASE,
                 )
 
-                # Solar evidence is normally out-of-domain for a
-                # battery/EV query. However, historical solar
-                # anti-circumvention cases are valid analogues when
-                # the question explicitly asks about circumvention.
-                is_anti_circumvention_evidence = (
-                    chunk.topic == "反规避"
-                    or "circumvention" in text
-                    or "anti-circumvention" in text
-                    or "反规避" in text
-                )
+                # Solar evidence is normally out-of-domain for a battery/EV
+                # query.  Historical solar anti-circumvention cases are valid
+                # analogues, but only when the document is explicitly classified
+                # as such (topic 反规避) *and* the question is about circumvention
+                # or supply dependency.  Prose that merely mentions
+                # "circumvention" must not let a generic solar document pass.
+                is_anti_circumvention_evidence = chunk.topic == "反规避"
 
                 if (
                     solar_pattern.search(text)
