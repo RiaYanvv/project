@@ -17,16 +17,16 @@ EV = [
  ("NEWS_002","易车","长安汽车泰国罗勇工厂投产！中国汽车出海迈入产业时代","2025-05-17","https://news.yiche.com/hao/wenzhang/100585175/"),
  ("COMPANY_REPORT_001","证券之星（长安汽车投资者互动平台回复）","长安汽车：公司在泰国罗勇工厂已建成投产，具备整车本地化生产能力","2026-09-20","https://finance.stockstar.com/IG2026092000009224.shtml"),
  ("NEWS_003","澎湃新闻","国轩高科牵手越南造车新势力，越南首座磷酸铁锂电池工厂开工","2022-11-19","https://m.thepaper.cn/newsDetail_forward_20810032"),
- ("NEWS_004","盖世汽车社区 / CBC金属网","国轩高科：德国、越南、印尼、泰国四大海外基地已陆续投产","2026-07-13",""),
+ ("NEWS_004","盖世汽车社区 / CBC金属网","国轩高科：德国、越南、印尼、泰国四大海外基地已陆续投产","2026-07-13","https://www.cbcie.com/lithium/news/content/2259979.html"),
  ("NEWS_005","新浪财经","亿纬锂能马来西亚工厂二期投产","2026-02-06","https://finance.sina.com.cn/roll/2026-02-06/doc-inhkwssf2073873.shtml"),
  ("NEWS_006","东方财富网","投资不超20亿元 欣旺达越南新建电池工厂","2024-07-16","https://finance.eastmoney.com/a/202407163131488556.html"),
- ("NEWS_007","腾讯新闻","欣旺达：越南消费类电芯生产基地预计2026年年底投产","2026-08-27",""),
+ ("NEWS_007","腾讯新闻","欣旺达：越南消费类电芯生产基地预计2026年年底投产","2026-08-27","https://news.qq.com/rain/a/20260827A07Y7300"),
  ("NEWS_008","澎湃新闻","蜂巢能源泰国电池工厂投产，供货泰国长城欧拉、合众新能源等","2024-02-28","https://www.thepaper.cn/newsDetail_forward_26493905"),
  ("NEWS_009","新浪财经","年产12万吨！华友钴业印尼镍钴湿法项目达产","2024-04-12","https://finance.sina.com.cn/stock/relnews/cn/2024-04-12/doc-inarqawt9056004.shtml"),
  ("NEWS_010","和讯网","中伟股份印尼三基地投产 提升自供原料比增强竞争力","2024-04-08","https://futures.hexun.com/2024-04-08/212465761.html"),
  ("NEWS_011","网易","中伟股份：印尼中青新能源二期全面投产","2026-01-07","https://www.163.com/dy/article/KIMPK6220534A4SC.html"),
  ("NEWS_012","每日经济新闻","宁德时代匈牙利德布勒森工厂启动新电芯厂房试生产","2026-09-22","https://www.nbd.com.cn/articles/2026-09-22/4589059.html"),
- ("NEWS_013","搜狐网","宁德时代匈牙利工厂启动：投资金额73.4亿欧元","2022-09-06",""),
+ ("NEWS_013","新浪财经","宁德时代匈牙利工厂启动：投资金额73.4亿欧元","2022-09-06","https://finance.sina.com.cn/jjxw/2022-09-06/doc-imqmmtha6132311.shtml"),
  ("NEWS_014","东方财富网","宁德时代与印尼合作项目正式动工，未来总投资近60亿美元","2025-07-02","https://finance.eastmoney.com/a/202507023446498365.html"),
  ("NEWS_015","凤凰科技","比亚迪汽车印尼工厂年底前竣工：总投资10亿美元，年产能15万辆","2025-01-22","https://tech.ifeng.com/c/8gLk1Msnjan"),
  ("NEWS_016","东方财富财富号","晶科能源：全球工厂以中国为核心，叠加东南亚（马来西亚、越南）与北美（美国）成熟产能","2026-02-25","https://caifuhao.eastmoney.com/news/20260225153639217944650"),
@@ -107,7 +107,7 @@ dict(case_id="RELOC_003", company_name="国轩高科 Gotion High-Tech", industry
  outcome_verdict="成功（材料端仍依赖中国）",
  related_evidence_ids="NEWS_003; NEWS_004",
  verification_status="中高（开工有明确报道；2026 年投产状态来自公司互动平台转述）",
- notes="NEWS_004 原链接待补。"),
+ notes=""),
 
 dict(case_id="RELOC_004", company_name="亿纬锂能 EVE Energy", industry="EV Battery / Energy Storage",
  source="新浪财经", date="2026-02-06", url="https://finance.sina.com.cn/roll/2026-02-06/doc-inhkwssf2073873.shtml",
@@ -148,7 +148,7 @@ dict(case_id="RELOC_005", company_name="欣旺达 Sunwoda", industry="EV Battery
  outcome_supply_chain_impact="材料仍由中国供应，越南以电芯制造环节为主。",
  outcome_verdict="待观察（尚未投产）",
  related_evidence_ids="NEWS_006; NEWS_007",
- verification_status="中高（公告明确；投产时间来自公司投资者关系记录转述，NEWS_007 链接待补）",
+ verification_status="中高（公告明确；投产时间来自公司投资者关系记录转述）",
  notes="少见的'结果尚未发生'案例，可用于测试模型对不确定结论的处理。"),
 
 dict(case_id="RELOC_006", company_name="蜂巢能源 SVOLT", industry="EV Battery",
@@ -232,7 +232,7 @@ dict(case_id="PLUS1_001", company_name="宁德时代 CATL", industry="EV Battery
  outcome_supply_chain_impact="正极、负极、电解液等仍需中国及亚洲供应，形成'中国材料—欧洲电芯'结构。",
  outcome_verdict="待观察（试生产中，投资周期长）",
  related_evidence_ids="NEWS_012; NEWS_013",
- verification_status="中高（2026 年节点高质量来源；2022 年投资额来自媒体转述，NEWS_013 链接待补）",
+ verification_status="中高（2026 年节点高质量来源；2022 年投资额来自媒体转述）",
  notes="'欧洲本地化'路径的代表案例，与东南亚路径形成对照。"),
 
 dict(case_id="PLUS1_002", company_name="宁德时代 CATL", industry="EV Battery",
@@ -372,7 +372,7 @@ dict(case_id="RETURN_003", company_name="制造业外迁企业（行业层面）
  trigger_detail="东南亚等地综合成本高于预期 + 电力等基础设施不稳定，抵消关税收益。",
  decision_type="提高中国生产比例",
  actual_decision="部分跨国企业将订单与产能重新回流中国，同时保留东南亚既有布局，形成'中国为主 + 东南亚保留'的混合结构。",
- related_risk="Supply Chain Risk; Operational Risk; Cost Risk; Political Risk",
+ related_risk="Political Risk; Supply Chain Risk; Operational Risk",
  outcome_cost_impact="回流后综合成本下降，关税优势部分让位于运转效率。",
  outcome_production_performance="中国工厂产能利用率回升，交付稳定性改善。",
  outcome_market_access="对美出口仍需应对关税，部分通过第三国转运与产品结构调整解决。",
@@ -432,6 +432,25 @@ COLS = [
 ]
 
 
+RISK_ORDER = [
+    "Trade Risk",
+    "Political Risk",
+    "Supply Chain Risk",
+    "Regulatory Risk",
+    "Market Access Risk",
+    "Operational Risk",
+]
+
+
+def canonical_risks(value) -> str:
+    """Normalise a related_risk cell to the Task 1 six-category vocabulary
+    and a stable display order."""
+    parts = [p.strip() for p in str(value or "").split(";") if p.strip()]
+    unknown = [p for p in parts if p not in RISK_ORDER]
+    ordered = [r for r in RISK_ORDER if r in parts] + unknown
+    return "; ".join(ordered)
+
+
 def main() -> None:
     wb = Workbook()
     hl = PatternFill("solid", fgColor="1F3864")
@@ -446,7 +465,12 @@ def main() -> None:
         c.font = Font(bold=True, color="FFFFFF"); c.fill = hl
         c.alignment = Alignment(wrap_text=True, vertical="center", horizontal="center")
     for case in CASES:
-        ws.append([case.get(k) for k, _ in COLS])
+        ws.append(
+            [
+                canonical_risks(case.get(k)) if k == "related_risk" else case.get(k)
+                for k, _ in COLS
+            ]
+        )
     widths = [12,26,24,30,13,46,32,44,26,34,44,18,40,20,60,32,40,38,36,40,26,26,34,44]
     for i, w in enumerate(widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
@@ -511,7 +535,7 @@ def main() -> None:
     qa.append(["能否用于 Scenario Simulation", "是", "含 4 个'待观察/建设中'与 2 个'失败/退出'案例，可测试不确定与反向情景"])
     qa.append(["未覆盖", "无", "'维持现有海外布局'由 RETURN_004 覆盖"])
     qa.append([])
-    qa.append(["已知局限", "", "1) 多数结果字段来自媒体转述，财务口径的成本影响未做量化；2) 4 个案例的最终结果尚未发生；3) NEWS_013/NEWS_004/NEWS_007 三条来源链接待补（标题与日期已核验）；4) 行业级案例 RETURN_003 缺少单一企业完整数据。"])
+    qa.append(["已知局限", "", "1) 多数结果字段来自媒体转述，财务口径的成本影响未做量化；2) 4 个案例的最终结果尚未发生；3) 行业级案例 RETURN_003 缺少单一企业完整数据。"])
     for i, w in enumerate([26, 40, 110], 1):
         qa.column_dimensions[get_column_letter(i)].width = w
     for row in qa.iter_rows(min_row=2):
