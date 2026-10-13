@@ -98,40 +98,97 @@ def cosine_similarity(left: list[float], right: list[float]) -> float:
     return max(0.0, min(1.0, sum(a * b for a, b in zip(left, right))))
 
 
-def chunk_text(text: str, target_size: int = 950, overlap: int = 140) -> list[str]:
-    normalized = normalize_text(text)
-    if not normalized:
-        return []
+def _paragraph_blocks(text: str) -> list[str]:
+    """Split text on blank lines / headings, keeping natural structure."""
+    lines: list[str] = []
+    for raw in text.replace("\u0000", " ").splitlines():
+        line = re.sub(r"[ \t\u00a0]+", " ", raw).strip()
+        lines.append(line)
 
-    sentences = re.split(r"(?<=[。！？.!?])\s+", normalized)
-    chunks: list[str] = []
-    current = ""
+    blocks: list[str] = []
+    buffer: list[str] = []
+    for line in lines:
+        if line:
+            buffer.append(line)
+        elif buffer:
+            blocks.append(" ".join(buffer))
+            buffer = []
+    if buffer:
+        blocks.append(" ".join(buffer))
+    return blocks
 
-    for sentence in sentences:
+
+def _split_oversized(block: str, target_size: int, overlap: int) -> list[str]:
+    """Break a block that is longer than the target size."""
+    pieces: list[str] = []
+    for sentence in re.split(r"(?<=[。！？；.!?;])\s*", block):
         sentence = sentence.strip()
         if not sentence:
             continue
-        if len(current) + len(sentence) + 1 <= target_size:
-            current = f"{current} {sentence}".strip()
-            continue
-
-        if current:
-            chunks.append(current)
         if len(sentence) <= target_size:
-            current = sentence
+            pieces.append(sentence)
             continue
-
         start = 0
         while start < len(sentence):
             end = min(start + target_size, len(sentence))
-            chunks.append(sentence[start:end])
+            pieces.append(sentence[start:end])
             if end == len(sentence):
-                current = ""
                 break
             start = max(end - overlap, start + 1)
+    return pieces
+
+
+def chunk_text(text: str, target_size: int = 950, overlap: int = 140) -> list[str]:
+    """Structure-aware chunking.
+
+    Paragraph/heading boundaries are respected first, then sentences are
+    packed up to ``target_size``. Near-duplicate chunks (identical first
+    400 characters) are dropped so boilerplate records do not flood the
+    index.
+    """
+    blocks = _paragraph_blocks(text)
+    if not blocks:
+        return []
+
+    chunks: list[str] = []
+    seen: set[str] = set()
+
+    def emit(value: str) -> None:
+        value = normalize_text(value)
+        if not value:
+            return
+        key = value[:400].lower()
+        if key in seen:
+            return
+        seen.add(key)
+        chunks.append(value)
+
+    current = ""
+    for block in blocks:
+        if len(block) > target_size:
+            if current:
+                emit(current)
+                current = ""
+            for piece in _split_oversized(block, target_size, overlap):
+                if not current:
+                    current = piece
+                elif len(current) + len(piece) + 1 <= target_size:
+                    current = f"{current} {piece}"
+                else:
+                    emit(current)
+                    current = piece
+            continue
+
+        if not current:
+            current = block
+        elif len(current) + len(block) + 1 <= target_size:
+            current = f"{current} {block}"
+        else:
+            emit(current)
+            current = block
 
     if current:
-        chunks.append(current)
+        emit(current)
     return chunks
 
 
@@ -223,7 +280,9 @@ class KnowledgeRepository:
 
     def ingest_document(self, document: KnowledgeDocument) -> int:
         content = normalize_text(document.content)
-        chunks = chunk_text(content)
+        # Chunk from the raw content so paragraph/heading structure survives;
+        # the stored document text stays normalized for hashing/stats.
+        chunks = chunk_text(document.content)
         content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
         fetched_at = utc_now()
 

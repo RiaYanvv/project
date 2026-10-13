@@ -9,6 +9,7 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 from pypdf import PdfReader
+from bs4 import BeautifulSoup
 
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -90,48 +91,207 @@ def read_json(path: Path) -> str:
 
 
 def read_json_gz(path: Path) -> str:
-    """Read a gzip JSON dataset and convert records into searchable text."""
+    """Read a gzip JSON dataset.
+
+    Bulk record dumps (e.g. sanctioned-party screening lists) are converted
+    into a compact, de-duplicated descriptor plus a bounded name index.
+    Emitting one chunk per raw record floods the retrieval index with tens of
+    thousands of near-identical boilerplate passages, so we deliberately keep
+    only enough structured text for the source card and name lookup.
+    """
     with gzip.open(path, "rt", encoding="utf-8") as f:
         data = json.load(f)
 
-    # Structured dataset with a "results" list
     if isinstance(data, dict) and isinstance(data.get("results"), list):
-        lines = []
+        records = [r for r in data["results"] if isinstance(r, dict)]
 
-        for record in data["results"]:
-            if not isinstance(record, dict):
-                continue
+        names: list[str] = []
+        seen_names: set[str] = set()
+        programs: dict[str, int] = {}
+        sources: dict[str, int] = {}
 
-            parts = []
+        for record in records:
+            name = record.get("name")
+            if name:
+                name = str(name).strip()
+                if name and name not in seen_names:
+                    seen_names.add(name)
+                    names.append(name)
 
-            for key in [
-                "name",
-                "type",
-                "entity_number",
-                "alt_names",
-                "programs",
-                "remarks",
-                "source",
-                "source_information_url",
-                "source_list_url",
-                "ids",
-            ]:
-                value = record.get(key)
+            for program in record.get("programs") or []:
+                programs[str(program)] = programs.get(str(program), 0) + 1
 
-                if value not in (None, "", [], {}):
-                    if isinstance(value, (list, dict)):
-                        value = json.dumps(value, ensure_ascii=False)
+            source = record.get("source")
+            if source:
+                sources[str(source)] = sources.get(str(source), 0) + 1
 
-                    parts.append(f"{key}: {value}")
+        top_programs = sorted(programs, key=programs.get, reverse=True)[:15]
+        top_sources = sorted(sources, key=sources.get, reverse=True)[:10]
 
-            if parts:
-                lines.append("\n".join(parts))
+        header = [
+            f"Bulk database source with {len(records)} records.",
+            f"Distinct listed entity names: {len(names)}.",
+        ]
+        if top_programs:
+            header.append("Programs covered: " + ", ".join(top_programs) + ".")
+        if top_sources:
+            header.append("Component lists: " + ", ".join(top_sources) + ".")
 
-        return "\n\n--- RECORD ---\n\n".join(lines)
+        # A bounded, de-duplicated name index keeps entity lookup usable
+        # without re-introducing thousands of repetitive passages.
+        index_cap = min(len(names), 600)
+        name_blocks = [
+            ", ".join(names[i : i + 50])
+            for i in range(0, index_cap, 50)
+        ]
+
+        parts = ["\n".join(header)]
+        if name_blocks:
+            parts.append("Indexed entity names (sample):")
+            parts.extend(name_blocks)
+        return "\n\n".join(parts)
 
     # Fallback for other JSON structures
     return json.dumps(data, ensure_ascii=False)
 
+
+def read_html(path: Path) -> str:
+    """Extract article-oriented visible text from HTML."""
+    import json
+    import re
+
+    raw_html = path.read_bytes()
+    soup = BeautifulSoup(raw_html, "html.parser")
+
+    # Tencent News embeds the canonical article body in
+    # window.DATA["originContent"]["text"]. Prefer that structured
+    # article body over rendered page chrome when available.
+    for script in soup.find_all("script"):
+        script_text = script.string or script.get_text()
+        if "window.DATA" not in script_text:
+            continue
+
+        match = re.search(
+            r"window\.DATA\s*=\s*(\{.*?\})\s*;?\s*$",
+            script_text,
+            flags=re.S,
+        )
+
+        if not match:
+            continue
+
+        try:
+            data = json.loads(match.group(1))
+        except json.JSONDecodeError:
+            continue
+
+        origin = data.get("originContent")
+        if not isinstance(origin, dict):
+            continue
+
+        article_html = origin.get("text")
+        if not isinstance(article_html, str) or len(article_html) < 300:
+            continue
+
+        article_soup = BeautifulSoup(article_html, "html.parser")
+
+        for tag in article_soup([
+            "script", "style", "noscript",
+            "svg", "canvas",
+        ]):
+            tag.decompose()
+
+        extracted = article_soup.get_text(
+            separator="\n",
+            strip=True,
+        )
+
+        cleaned_lines = []
+        seen = set()
+
+        for line in extracted.splitlines():
+            line = " ".join(line.split()).strip()
+
+            if not line:
+                continue
+
+            if line in seen:
+                continue
+
+            seen.add(line)
+            cleaned_lines.append(line)
+
+        return "\n".join(cleaned_lines)
+
+    # Generic HTML fallback.
+    for tag in soup([
+        "script", "style", "noscript", "svg", "canvas",
+        "nav", "header", "footer", "form", "button",
+        "aside",
+    ]):
+        tag.decompose()
+
+    noise_keywords = (
+        "comment", "recommend", "related", "share",
+        "sidebar", "footer", "header", "navigation",
+        "advert", "toolbar",
+    )
+
+    for tag in list(soup.find_all(True)):
+        if tag.parent is None:
+            continue
+
+        classes = " ".join(tag.get("class", []))
+        tag_id = tag.get("id", "")
+        marker = f"{classes} {tag_id}".lower()
+
+        if any(keyword in marker for keyword in noise_keywords):
+            tag.decompose()
+
+    selectors = [
+        "#article-content",
+        ".article-content",
+        ".content-article",
+        ".article-body",
+        ".article_content",
+        "[class*='article-content']",
+        "article",
+        "main",
+    ]
+
+    content_root = None
+
+    for selector in selectors:
+        candidate = soup.select_one(selector)
+
+        if candidate and len(candidate.get_text(strip=True)) >= 300:
+            content_root = candidate
+            break
+
+    if content_root is None:
+        content_root = soup.body or soup
+
+    extracted = content_root.get_text(
+        separator="\n",
+        strip=True,
+    )
+
+    cleaned_lines = []
+    seen = set()
+
+    for line in extracted.splitlines():
+        line = " ".join(line.split()).strip()
+
+        if not line:
+            continue
+
+        if line in seen:
+            continue
+
+        seen.add(line)
+        cleaned_lines.append(line)
+
+    return "\n".join(cleaned_lines)
 
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
@@ -153,7 +313,10 @@ def extract_content(path: Path) -> str:
     if suffix == ".xlsx":
         return read_xlsx(path)
 
-    if suffix in {".txt", ".md", ".html", ".htm"}:
+    if suffix in {".html", ".htm"}:
+        return read_html(path)
+
+    if suffix in {".txt", ".md"}:
         return read_text(path)
 
     raise ValueError(f"Unsupported file type: {path}")
@@ -161,7 +324,17 @@ def extract_content(path: Path) -> str:
 
 def load_metadata(excel_path: Path) -> list[dict[str, str]]:
     workbook = load_workbook(excel_path, read_only=True, data_only=True)
-    sheet = workbook["evidence"] if "evidence" in workbook.sheetnames else workbook.active
+
+    # Prefer the canonical metadata sheet. Relying on the workbook's active
+    # sheet is fragile: opening the file in Excel and clicking another tab
+    # silently switches ingestion to a review sheet with different columns.
+    sheet = None
+    for name in ("evidence", "sources"):
+        if name in workbook.sheetnames:
+            sheet = workbook[name]
+            break
+    if sheet is None:
+        sheet = workbook.active
 
     rows = sheet.iter_rows(values_only=True)
 
@@ -207,27 +380,39 @@ def build_document(record: dict[str, str], file_path: Path, content: str) -> Kno
         part for part in [country_code, jurisdiction] if part
     )
 
-    metadata_context = "\n".join(
-        line
-        for line in [
-            f"Evidence ID: {record.get('evidence_id', '')}",
-            f"Title: {record.get('source_title', '')}",
-            f"Publisher: {record.get('publisher', '')}",
-            f"Country/Jurisdiction: {country_region}",
-            f"Publication date: {record.get('publication_date', '')}",
-            f"Effective date: {record.get('effective_date', '')}",
-            f"Status: {record.get('status', '')}",
-            f"Topic: {record.get('topic', '')}",
-            f"Applicability scope: {record.get('applicability_scope', '')}",
-            f"Related industries: {record.get('related_industries', '')}",
-            f"Claim: {record.get('claim', '')}",
-            f"Key finding: {record.get('key_finding', '')}",
-            f"Content summary: {record.get('content_summary', '')}",
-            f"Applicability notes: {record.get('applicability_notes', '')}",
-            f"Uncertainty: {record.get('uncertainty', '')}",
-        ]
-        if line.split(": ", 1)[-1].strip()
-    )
+    header_fields = [
+        ("Evidence ID", record.get("evidence_id", "")),
+        ("Title", record.get("source_title", "")),
+        ("Publisher", record.get("publisher", "")),
+        ("Country/Jurisdiction", country_region),
+        ("Publication date", record.get("publication_date", "")),
+        ("Effective date", record.get("effective_date", "")),
+        ("Status", record.get("status", "")),
+        ("Topic", record.get("topic", "")),
+        ("Applicability scope", record.get("applicability_scope", "")),
+        ("Related industries", record.get("related_industries", "")),
+        ("Claim", record.get("claim", "")),
+        ("Key finding", record.get("key_finding", "")),
+        ("Content summary", record.get("content_summary", "")),
+        ("Applicability notes", record.get("applicability_notes", "")),
+        ("Uncertainty", record.get("uncertainty", "")),
+    ]
+
+    # Drop empty fields and avoid storing the same text twice (the workbook
+    # repeats key_finding in content_summary for most rows).
+    metadata_lines: list[str] = []
+    seen_values: set[str] = set()
+    for label, value in header_fields:
+        value = (value or "").strip()
+        if not value:
+            continue
+        dedupe_key = value.lower()
+        if label not in {"Evidence ID", "Title"} and dedupe_key in seen_values:
+            continue
+        seen_values.add(dedupe_key)
+        metadata_lines.append(f"{label}: {value}")
+
+    metadata_context = "\n".join(metadata_lines)
 
     combined_content = f"{metadata_context}\n\n{content}".strip()
 

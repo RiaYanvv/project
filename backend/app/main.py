@@ -25,6 +25,7 @@ from .llm import DeepSeekLLM, MockLLM
 from .pdf_report import build_assessment_pdf
 from .repository import AssessmentRepository
 from .retrieval import HybridRetrievalProvider
+from .retrieval_optimizer import build_optimizer_from_env
 from .schemas import (
     Assessment,
     AssessmentRequest,
@@ -42,9 +43,13 @@ from .web_search import WebSearchTool
 settings = Settings.from_env()
 repository = AssessmentRepository(settings.database_path)
 knowledge_repository = KnowledgeRepository(settings.database_path)
+# Task 4 optimisation layer (metadata filtering / query enhancement /
+# authority ranking).  Off by default; enable with RETRIEVAL_OPTIMIZER=1
+# once the product-side review signs off on the Task 4 evaluation.
 retrieval = HybridRetrievalProvider(
     repository=knowledge_repository,
     web_search=WebSearchTool(enabled=settings.web_search_enabled),
+    optimizer=build_optimizer_from_env(),
 )
 
 if settings.llm_provider == "deepseek":
