@@ -23,7 +23,7 @@
 决策内容：在泰国罗勇府建设整车工厂，2025-05-16 竣工投产，全球累计第 2859 万辆（深蓝 S05）在泰下线；中国产能保留。
 
 ## 四、相关风险（Related Risk）
-风险类别：Market Access Risk; Trade Risk; Operational Risk
+风险类别：Trade Risk; Market Access Risk; Operational Risk
 
 ## 五、后续结果（Outcome）
 成本影响：获得泰国 BOI 优惠与 EV3.5 补贴资格，降低进入东盟的单位成本。

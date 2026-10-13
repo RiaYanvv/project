@@ -23,7 +23,7 @@
 决策内容：部分跨国企业将订单与产能重新回流中国，同时保留东南亚既有布局，形成'中国为主 + 东南亚保留'的混合结构。
 
 ## 四、相关风险（Related Risk）
-风险类别：Supply Chain Risk; Operational Risk; Cost Risk; Political Risk
+风险类别：Political Risk; Supply Chain Risk; Operational Risk
 
 ## 五、后续结果（Outcome）
 成本影响：回流后综合成本下降，关税优势部分让位于运转效率。

@@ -23,7 +23,7 @@
 决策内容：在印尼建设北莫罗瓦利、莫罗瓦利、纬达贝三大原料基地，2024-04 三基地已投产；2026-01 莫罗瓦利中青新能源二期全面投产（首炉冰镍产出），在建及建成资源粗炼端产能约 12.5 万金属吨。中国前驱体产能保留。
 
 ## 四、相关风险（Related Risk）
-风险类别：Supply Chain Risk; Political Risk; Operational Risk
+风险类别：Political Risk; Supply Chain Risk; Operational Risk
 
 ## 五、后续结果（Outcome）
 成本影响：自供原料比例提升，降低外购镍价波动影响。

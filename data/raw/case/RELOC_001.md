@@ -23,7 +23,7 @@
 决策内容：2022-09 与 WHA 签约，在泰国罗勇府建全资乘用车工厂；2024-07-04 竣工投产，年产能约 15 万辆，投资约 350 亿泰铢（约 69.5 亿元人民币）。中国产能保留并继续扩产。
 
 ## 四、相关风险（Related Risk）
-风险类别：Trade Risk; Market Access Risk; Political Risk
+风险类别：Trade Risk; Political Risk; Market Access Risk
 
 ## 五、后续结果（Outcome）
 成本影响：本地化生产规避东盟整车进口税，叠加泰国 BOI 税收优惠降低综合税负；但泰国本地零部件配套不足，短期单位成本高于中国。

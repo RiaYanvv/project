@@ -23,7 +23,7 @@
 决策内容：2025 年 7 月及 12 月，富士康两度从印度工厂撤回中国大陆工程师与技术团队，部分产能与订单回流中国大陆；印度的组装布局并未取消，但节奏明显放缓。
 
 ## 四、相关风险（Related Risk）
-风险类别：Operational Risk; Political Risk; Supply Chain Risk
+风险类别：Political Risk; Supply Chain Risk; Operational Risk
 
 ## 五、后续结果（Outcome）
 成本影响：撤回技术人员降低了印度工厂的爬坡效率，短期成本上升；中国基地继续承担高难度工序。

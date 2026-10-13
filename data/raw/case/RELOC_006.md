@@ -23,7 +23,7 @@
 决策内容：在泰国春武里府是拉差市建设电池工厂（模组 PACK + 电芯），2024-02-28 正式投产并批量交付，配套长城欧拉、合众/哪吒等中国车企在泰车型；当年计划交付超 2 万套 PACK；中国产能保留。
 
 ## 四、相关风险（Related Risk）
-风险类别：Market Access Risk; Trade Risk; Operational Risk
+风险类别：Trade Risk; Market Access Risk; Operational Risk
 
 ## 五、后续结果（Outcome）
 成本影响：本地 PACK 组装降低关税与物流成本，投资规模小于整线电芯厂。

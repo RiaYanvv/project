@@ -23,7 +23,7 @@
 决策内容：与 Vingroup 旗下 VinES 合资（国轩 51% / VinES 49%）在越南河静经济开发区建越南首座 LFP 电池工厂，一期规划年产能 5GWh；2026-07 公司披露德国、越南、印尼、泰国四大海外基地已陆续投产，越南基地为亚洲首条 LFP 电芯工厂。
 
 ## 四、相关风险（Related Risk）
-风险类别：Market Access Risk; Trade Risk; Supply Chain Risk
+风险类别：Trade Risk; Supply Chain Risk; Market Access Risk
 
 ## 五、后续结果（Outcome）
 成本影响：就近配套降低物流与关税成本；越南人工与土地成本低于中国。

@@ -23,7 +23,7 @@
 决策内容：2024-05 取消勃兰登堡州电芯超级工厂计划，2024-10 宣布停建德国工厂、终止欧洲子公司运营（自 2025 年 1 月起关闭欧洲业务），资源集中于中国与泰国等已投产基地。
 
 ## 四、相关风险（Related Risk）
-风险类别：Operational Risk; Political Risk; Trade Risk
+风险类别：Trade Risk; Political Risk; Operational Risk
 
 ## 五、后续结果（Outcome）
 成本影响：停止约 300 亿元级别的海外投资计划，避免持续亏损。

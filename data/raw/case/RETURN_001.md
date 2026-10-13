@@ -23,7 +23,7 @@
 决策内容：2026-05-22 董事会审议通过《关于终止在马来西亚投资建设锂电池隔离膜项目的议案》，终止原计划约 20 亿元的马来西亚隔膜项目，资源回投国内，优化资源配置、降低风险。
 
 ## 四、相关风险（Related Risk）
-风险类别：Operational Risk; Trade Risk; Supply Chain Risk
+风险类别：Trade Risk; Supply Chain Risk; Operational Risk
 
 ## 五、后续结果（Outcome）
 成本影响：避免在行业下行期投入 20 亿元海外资本开支，节省资金；但失去东南亚本地化产能抓手。
