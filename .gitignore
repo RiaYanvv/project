@@ -1,0 +1,10 @@
+# macOS
+.DS_Store
+
+# Office / Excel lock files
+.~*
+
+# Local backups and snapshots
+*.bak_*
+data/evaluation.bak_before_case_*/
+*.db
