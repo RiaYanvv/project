@@ -298,6 +298,144 @@ class ScenarioChatClosedLoopTest(unittest.TestCase):
         self.assertTrue(first.context_updates[0].conflict)
         self.assertEqual(first.context_updates[0].previous_value, 50)
 
+    def test_statement_only_context_update_enters_information_layer(self) -> None:
+        action = {
+            "action": "answer",
+            "context_updates": [
+                {
+                    "statement": "越南工厂短期生产准备度偏低，暂无法承接大规模转产",
+                    "entity": "越南",
+                    "information_type": "supply_chain_assessment",
+                    "source_type": "management_estimate",
+                    "verification_status": "unverified",
+                }
+            ],
+            "scenario_update_required": True,
+        }
+        agent, _ = self.make_agent(action)
+        assessment = agent.run(make_company(), language="zh")
+        updated = agent.chat(
+            assessment,
+            ChatRequest(
+                message="越南工厂目前良率偏低，短期内无法承接大规模转产。",
+                language="zh",
+            ),
+        )
+
+        self.assertEqual(len(updated.context_updates), 1)
+        self.assertEqual(
+            updated.context_updates[0].statement,
+            "越南工厂短期生产准备度偏低，暂无法承接大规模转产",
+        )
+        self.assertEqual(
+            updated.context_updates[0].field,
+            "additional_context",
+        )
+
+    def test_chat_emits_real_progress_stages(self) -> None:
+        agent, _ = self.make_agent(
+            {"action": "answer", "scenario_update_required": False}
+        )
+        assessment = agent.run(make_company(), language="zh")
+        events: list[dict] = []
+        agent.chat(
+            assessment,
+            ChatRequest(message="请分析当前风险。", language="zh"),
+            event_callback=events.append,
+        )
+
+        self.assertTrue(
+            any(
+                event.get("agent") == "ChatAgent"
+                and event.get("status") == "started"
+                for event in events
+            )
+        )
+        self.assertTrue(
+            any(
+                event.get("agent") == "ChatAgent"
+                and event.get("status") == "completed"
+                for event in events
+            )
+        )
+
+    def test_chat_prompt_requires_qualitative_statements(self) -> None:
+        agent, _ = self.make_agent(
+            {"action": "answer", "scenario_update_required": False}
+        )
+        assessment = agent.run(make_company(), language="zh")
+        llm = DeepSeekLLM(
+            api_key="x" * 12,
+            base_url="https://example.invalid/v1",
+            model="deepseek-flash",
+        )
+        with patch.object(
+            DeepSeekLLM,
+            "_call_json",
+            return_value={"action": "answer"},
+        ) as call:
+            llm.choose_chat_action(
+                assessment,
+                "越南工厂目前良率偏低，短期内无法承接大规模转产。",
+                "zh",
+            )
+        system = call.call_args.kwargs["system"]
+        self.assertIn("不能只看数字", system)
+        self.assertIn("production_readiness", system)
+
+    def test_report_synthesis_preserves_backend_scores(self) -> None:
+        class ReportLLM(RecordingChatLLM):
+            def compose_management_report(
+                self,
+                assessment,
+                report_baseline,
+                language="en",
+            ):
+                return {
+                    "executive_brief": {
+                        "decision_question": "本轮要决定什么？",
+                        "preliminary_recommendation": "先核验再决定。",
+                        "key_reasons": ["原因一"],
+                        "main_trade_off": "代价一",
+                        "decision_required": ["批准进入核验阶段。"],
+                    },
+                    "appendix": {
+                        "scenario_scores": [
+                            {
+                                "scenario_id": assessment.scenarios[0].scenario_id,
+                                "weighted_score": 99,
+                            }
+                        ]
+                    },
+                }
+
+        llm = ReportLLM(
+            {"action": "answer", "scenario_update_required": False}
+        )
+        agent = AgentService(
+            retrieval=MockRetrievalProvider(
+                BACKEND_ROOT / "test_data" / "mock_evidence.json"
+            ),
+            llm=llm,
+        )
+        assessment = agent.run(make_company(), language="zh")
+        report = agent.generate_report(assessment)
+
+        self.assertEqual(
+            report.executive_brief.decision_question,
+            "本轮要决定什么？",
+        )
+        target_id = assessment.scenarios[0].scenario_id
+        target_score = next(
+            item
+            for item in report.appendix.scenario_scores
+            if item.scenario_id == target_id
+        )
+        self.assertEqual(
+            target_score.weighted_score,
+            round(float(assessment.scenarios[0].weighted_score)),
+        )
+
     def test_context_updates_persist_and_apply_to_scenario_version(self) -> None:
         agent, _ = self.make_agent(
             {
@@ -549,26 +687,11 @@ class ScenarioChatClosedLoopTest(unittest.TestCase):
         self.assertNotIn("请点击“重新模拟”", prompt)
         self.assertNotIn("分数维持不变", prompt)
 
-    def test_pdf_renders_chat_markdown_and_summary_headers(self) -> None:
+    def test_pdf_renders_management_report_headers(self) -> None:
         agent, _ = self.make_agent(
             {"action": "answer", "scenario_update_required": False}
         )
         assessment = agent.run(make_company(), language="zh")
-        assessment = assessment.model_copy(
-            update={
-                "chat_history": [
-                    ChatTurn(
-                        role="assistant",
-                        content=(
-                            "**关键结论**\n\n"
-                            "- 成本压力上升\n"
-                            "- 供应链韧性下降"
-                        ),
-                        created_at="2026-10-09T00:00:00+00:00",
-                    )
-                ]
-            }
-        )
 
         pdf = build_assessment_pdf(assessment)
         text = "\n".join(
@@ -576,16 +699,18 @@ class ScenarioChatClosedLoopTest(unittest.TestCase):
             for page in PdfReader(io.BytesIO(pdf)).pages
         )
 
-        self.assertIn("关键结论", text)
-        self.assertIn("成本压力上升", text)
-        self.assertNotIn("**关键结论**", text)
-        self.assertIn("高管决策摘要", text)
-        self.assertIn("决策语境", text)
+        self.assertIn("管理层决策摘要", text)
+        self.assertIn("1.1 决策问题", text)
+        self.assertIn("2.1 当前供应链位置", text)
+        self.assertIn("2.2 主要风险暴露", text)
+        self.assertIn("2.3 对决策的含义", text)
         self.assertIn("战略选项", text)
         self.assertIn("执行计划与决策检查点", text)
         self.assertIn("附录", text)
+        self.assertNotIn("挑战赛", text)
+        self.assertNotIn("高管", text)
 
-    def test_pdf_contains_score_breakdown_and_chat_history(self) -> None:
+    def test_pdf_contains_curated_appendix_and_score_summary(self) -> None:
         agent, _ = self.make_agent(
             {"action": "answer", "scenario_update_required": False}
         )
@@ -621,9 +746,12 @@ class ScenarioChatClosedLoopTest(unittest.TestCase):
             page.extract_text() or ""
             for page in PdfReader(io.BytesIO(pdf)).pages
         )
-        self.assertIn("五维评分明细", text)
-        self.assertIn("越南基地产能是多少", text)
-        self.assertIn("请补充越南基地年产能和出口市场", text)
+        self.assertIn("A. 关键证据登记表", text)
+        self.assertIn("B. 情景评分摘要", text)
+        self.assertIn("C. 关键假设、风险与信息缺口", text)
+        self.assertIn("D. 方法与限制", text)
+        self.assertNotIn("越南基地产能是多少", text)
+        self.assertNotIn("请补充越南基地年产能和出口市场", text)
 
     def test_report_composer_builds_five_management_sections(self) -> None:
         agent, _ = self.make_agent(
@@ -633,10 +761,13 @@ class ScenarioChatClosedLoopTest(unittest.TestCase):
         report = compose_report(assessment)
         self.assertTrue(report.executive_brief.decision_question)
         self.assertTrue(report.executive_brief.preliminary_recommendation)
-        self.assertTrue(report.decision_context.supply_chain_context)
+        self.assertTrue(report.decision_context.current_position)
+        self.assertTrue(report.decision_context.principal_risks)
         self.assertTrue(report.strategic_options)
         self.assertTrue(report.execution_plan)
         self.assertTrue(report.appendix.evidence_ids)
+        self.assertTrue(report.appendix.evidence)
+        self.assertTrue(report.appendix.scenario_scores)
 
 
 if __name__ == "__main__":

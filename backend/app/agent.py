@@ -4,6 +4,7 @@ import re
 import time
 import uuid
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Any
 
@@ -34,6 +35,7 @@ from .schemas import (
     LLMCallRecord,
     ManufacturingSite,
     Recommendation,
+    ReportContent,
     RetrievalQuery,
     RetrievedEvidence,
     RiskItem,
@@ -49,6 +51,7 @@ from .schemas import (
     TraceStep,
     utc_now,
 )
+from .report_composer import compose_report, merge_report_payload
 
 
 class AgentService:
@@ -796,6 +799,36 @@ class AgentService:
             degraded=degraded,
         )
 
+    def generate_report(self, assessment: Assessment) -> ReportContent:
+        """Synthesize the management report without rerunning any research stage.
+
+        The deterministic composer is always built first and acts as both the
+        factual baseline and the fallback. The LLM may only rewrite that
+        baseline into management prose; scores, evidence IDs and recommendations
+        remain backend-owned.
+        """
+        baseline = compose_report(assessment)
+        selected_model = assessment.model_name or getattr(
+            self.llm, "model", "mock"
+        )
+        active_llm = self.llm.with_runtime(
+            selected_model,
+            None,
+            None,
+        )
+        if getattr(self.llm, "mode", "mock") == "deepseek" and not getattr(
+            active_llm, "api_key", None
+        ):
+            return baseline
+        payload = active_llm.compose_management_report(
+            assessment,
+            baseline.model_dump(mode="json"),
+            assessment.language,
+        )
+        candidate = dict(payload)
+        candidate.pop("__llm_meta__", None)
+        return merge_report_payload(baseline, candidate)
+
     def chat_opening(
         self,
         assessment: Assessment,
@@ -1154,9 +1187,26 @@ class AgentService:
         }
         updates: list[ContextUpdate] = []
         for raw in payload:
-            if not isinstance(raw, dict):
+            if isinstance(raw, str):
+                candidate: dict[str, Any] = {"statement": raw}
+            elif isinstance(raw, dict):
+                candidate = dict(raw)
+            else:
                 continue
-            candidate = dict(raw)
+            if (
+                not str(candidate.get("entity") or "").strip()
+                and company is not None
+            ):
+                candidate["entity"] = company.company_name
+            if (
+                not str(candidate.get("field") or "").strip()
+                and str(candidate.get("statement") or "").strip()
+            ):
+                candidate["field"] = "additional_context"
+            if candidate.get("value") in (None, "") and str(
+                candidate.get("statement") or ""
+            ).strip():
+                candidate["value"] = str(candidate["statement"]).strip()
             if candidate.get("information_type") not in allowed_types:
                 candidate["information_type"] = "assumption"
             if candidate.get("source_type") not in allowed_sources:
@@ -1199,7 +1249,7 @@ class AgentService:
                 if candidate.entity.casefold() == item.entity.casefold()
                 and candidate.field.casefold() == item.field.casefold()
             ]
-            if same_field:
+            if same_field and item.field != "additional_context":
                 item.conflict = True
                 item.previous_value = same_field[-1].value
                 item.verification_status = "conflicting"
@@ -1222,7 +1272,12 @@ class AgentService:
             active.append(item)
         return updates
 
-    def chat(self, assessment: Assessment, request: ChatRequest) -> Assessment:
+    def chat(
+        self,
+        assessment: Assessment,
+        request: ChatRequest,
+        event_callback: EventCallback | None = None,
+    ) -> Assessment:
         user_turn = ChatTurn(
             turn_id=f"MSG-{uuid.uuid4().hex[:12].upper()}",
             role="user",
@@ -1230,24 +1285,97 @@ class AgentService:
             created_at=utc_now(),
         )
         step_started = time.perf_counter()
-        active_llm = self.llm.with_runtime(
+        action_llm = self.llm.with_runtime(
             assessment.model_name,
             request.api_key,
             None,
         )
-        if self.llm.mode == "deepseek" and not getattr(active_llm, "api_key", None):
+        answer_llm = self.llm.with_runtime(
+            assessment.model_name,
+            request.api_key,
+            None,
+        )
+        if self.llm.mode == "deepseek" and not getattr(action_llm, "api_key", None):
             raise ValueError("Backend DeepSeek API Key is not configured")
         language = request.language
-        action = active_llm.choose_chat_action(
+        intelligence_brief = self.intelligence_brief(
+            assessment.company_intelligence
+        )
+
+        # Action classification and answer generation are independent for the
+        # common path. Running them together removes a full model round-trip
+        # from every consultation turn; a search result still triggers one
+        # follow-up answer call with the new evidence.
+        self._emit_event(
+            event_callback,
+            {
+                "type": "stage",
+                "agent": "ChatAgent",
+                "status": "started",
+                "message": "正在理解新增信息并组织回答。",
+            },
+        )
+        pool = ThreadPoolExecutor(max_workers=2)
+        action_future = pool.submit(
+            action_llm.choose_chat_action,
             assessment,
             request.message,
             language,
-            company_intelligence=self.intelligence_brief(
-                assessment.company_intelligence
-            ),
+            intelligence_brief,
         )
+        answer_future = pool.submit(
+            answer_llm.answer_chat,
+            assessment,
+            request.message,
+            [],
+            language,
+            intelligence_brief,
+        )
+        action_error: Exception | None = None
+        try:
+            action = action_future.result()
+        except Exception as exc:  # noqa: BLE001
+            action_error = exc
+            action = {
+                "action": "answer",
+                "__llm_error__": f"{type(exc).__name__}: {exc}",
+            }
+        raw_action_name = str(action.get("action") or "answer")
+        if action_error is None and raw_action_name in {
+            "ask_gap",
+            "search_evidence",
+        }:
+            # Do not pay for a speculative answer when the turn will ask a
+            # question or perform a search first.
+            answer_future.cancel()
+            pool.shutdown(wait=False, cancel_futures=True)
+            parallel_reply = ""
+        else:
+            try:
+                parallel_reply = answer_future.result()
+            except Exception as exc:  # noqa: BLE001
+                parallel_reply = (
+                    "当前模型未能生成回答，请稍后重试。"
+                    if language == "zh"
+                    else "The model could not generate an answer. Please retry."
+                )
+                setattr(
+                    answer_llm,
+                    "last_call_meta",
+                    {
+                        "stage": "ChatAgent",
+                        "provider": getattr(answer_llm, "mode", "unknown"),
+                        "model": getattr(answer_llm, "model", "unknown"),
+                        "latency_ms": 0,
+                        "attempts": 0,
+                        "ok": False,
+                        "error": f"{type(exc).__name__}: {exc}",
+                    },
+                )
+            finally:
+                pool.shutdown(wait=True)
         action, action_call = self._consume_llm_result(
-            action, "ChatActionAgent", active_llm
+            action, "ChatActionAgent", action_llm
         )
         chat_calls = [*assessment.llm_calls, action_call]
         supplemental_evidence: list[RetrievedEvidence] = []
@@ -1265,30 +1393,61 @@ class AgentService:
             )
         elif action_name == "search_evidence":
             query = str(action.get("query") or request.message)[:500]
+            self._emit_event(
+                event_callback,
+                {
+                    "type": "stage",
+                    "agent": "EvidenceSearch",
+                    "status": "started",
+                    "message": "正在检索补充证据。",
+                },
+            )
             supplemental_evidence = self._search_text(query)
             detail = f"ChatAgent 自主调用检索工具，补充 {len(supplemental_evidence)} 条证据。"
             if not supplemental_evidence:
                 trace_status = "fallback"
                 detail = "ChatAgent 请求检索，但没有获得补充证据。"
-        else:
-            detail = "ChatAgent 判断现有上下文足够，直接调用模型回答。"
-
-        if action_name != "ask_gap":
-            reply = active_llm.answer_chat(
+            self._emit_event(
+                event_callback,
+                {
+                    "type": "stage",
+                    "agent": "EvidenceSearch",
+                    "status": "completed",
+                    "message": f"已补充 {len(supplemental_evidence)} 条证据。",
+                },
+            )
+            final_answer_llm = self.llm.with_runtime(
+                assessment.model_name,
+                request.api_key,
+                None,
+            )
+            reply = final_answer_llm.answer_chat(
                 assessment,
                 request.message,
                 supplemental_evidence,
                 language,
-                company_intelligence=self.intelligence_brief(
-                    assessment.company_intelligence
-                ),
+                company_intelligence=intelligence_brief,
             )
-            answer_meta = getattr(active_llm, "last_call_meta", None)
-            if isinstance(answer_meta, dict):
-                answer_call = LLMCallRecord.model_validate(answer_meta)
-                chat_calls.append(answer_call)
-                if not answer_call.ok:
-                    trace_status = "fallback"
+            answer_llm = final_answer_llm
+        else:
+            detail = "ChatAgent 判断现有上下文足够，直接调用模型回答。"
+            reply = parallel_reply
+
+        answer_meta = getattr(answer_llm, "last_call_meta", None)
+        if isinstance(answer_meta, dict):
+            answer_call = LLMCallRecord.model_validate(answer_meta)
+            chat_calls.append(answer_call)
+            if not answer_call.ok:
+                trace_status = "fallback"
+        self._emit_event(
+            event_callback,
+            {
+                "type": "stage",
+                "agent": "ChatAgent",
+                "status": "completed",
+                "message": "已完成信息抽取、判断和回答。",
+            },
+        )
         chat_analysis = self._chat_analysis(
             action,
             reply,
@@ -1581,6 +1740,7 @@ class AgentService:
                 "context_updates": applied_context_updates,
                 "recommendation": recommendation,
                 "limitations": limitations,
+                "report_content": None,
                 "company_input": company,
                 "company_profile": self._build_profile(
                     company, assessment.request_id, language
@@ -1641,6 +1801,33 @@ class AgentService:
                 gap_updates.append(GapUpdate.model_validate(item))
             except ValidationError:
                 continue
+        if not context_updates:
+            qualitative: list[dict[str, Any]] = []
+            for value in new_constraints:
+                qualitative.append(
+                    {
+                        "statement": value,
+                        "information_type": "hard_constraint",
+                        "source_type": "user_input",
+                        "verification_status": "user_confirmed",
+                    }
+                )
+            for value in new_preferences:
+                qualitative.append(
+                    {
+                        "statement": value,
+                        "information_type": "strategic_preference",
+                        "source_type": "user_input",
+                        "verification_status": "user_confirmed",
+                    }
+                )
+            if qualitative:
+                context_updates = cls._coerce_context_updates(
+                    qualitative,
+                    source_message_id=source_message_id,
+                    existing=existing_updates,
+                    company=company,
+                )
         affected_dimensions = [
             str(item)
             for item in (action.get("affected_dimensions") or [])
@@ -1666,6 +1853,19 @@ class AgentService:
             substantive = len(message.strip()) > 40 and "?" not in message
             if substantive:
                 new_constraints = [message.strip()[:400]]
+                context_updates = cls._coerce_context_updates(
+                    [
+                        {
+                            "statement": message.strip()[:400],
+                            "information_type": "assumption",
+                            "source_type": "user_input",
+                            "verification_status": "unverified",
+                        }
+                    ],
+                    source_message_id=source_message_id,
+                    existing=existing_updates,
+                    company=company,
+                )
             scenario_update_required = scenario_update_required or substantive
         scenario_update_required = scenario_update_required or bool(
             context_updates

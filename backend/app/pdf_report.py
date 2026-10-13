@@ -37,11 +37,11 @@ REPORT_LABELS: dict[str, dict[str, str]] = {
         "document_title": "供应链迁移决策报告",
         "title": "供应链迁移决策报告",
         "summary": "管理层摘要",
-        "executive_brief": "高管决策摘要",
-        "decision_context": "决策语境",
-        "strategic_options": "战略选项",
-        "execution_plan": "执行计划与决策检查点",
-        "appendix": "附录",
+        "executive_brief": "1. 管理层决策摘要",
+        "decision_context": "2. 决策语境",
+        "strategic_options": "3. 战略选项",
+        "execution_plan": "4. 执行计划与决策检查点",
+        "appendix": "5. 附录",
         "profile": "企业画像",
         "risks": "关键风险评估",
         "scenarios": "情景比较",
@@ -108,11 +108,11 @@ REPORT_LABELS: dict[str, dict[str, str]] = {
         "document_title": "Supply Chain Relocation Decision Report",
         "title": "Supply Chain Relocation Decision Report",
         "summary": "Executive summary",
-        "executive_brief": "Executive decision brief",
-        "decision_context": "Decision context",
-        "strategic_options": "Strategic options",
-        "execution_plan": "Execution plan and decision gates",
-        "appendix": "Appendix",
+        "executive_brief": "1. Executive decision brief",
+        "decision_context": "2. Decision context",
+        "strategic_options": "3. Strategic options",
+        "execution_plan": "4. Execution plan and decision gates",
+        "appendix": "5. Appendix",
         "profile": "Company profile",
         "risks": "Key risk assessment",
         "scenarios": "Scenario comparison",
@@ -216,7 +216,7 @@ def build_assessment_pdf(assessment: Assessment) -> bytes:
             styles["Title"],
         ),
         Paragraph(
-            html.escape("AI+地缘政治风险高校挑战赛 · 供应链迁移决策 Agent"),
+            html.escape("地缘政治与供应链决策支持系统"),
             styles["Subtitle"],
         ),
         Spacer(1, 3 * mm),
@@ -237,77 +237,7 @@ def build_assessment_pdf(assessment: Assessment) -> bytes:
         _execution_plan_table(report, styles),
         PageBreak(),
         _section(labels["appendix"], styles),
-        Paragraph(
-            f"<b>{html.escape(labels['profile'])}</b>",
-            styles["Body"],
-        ),
-        _profile_table(assessment, styles),
-        *_intelligence_sections(assessment, styles, labels),
-        Spacer(1, 6 * mm),
-        Paragraph(
-            f"<b>{html.escape(labels['risks'])}</b>",
-            styles["Body"],
-        ),
-        _risk_table(assessment, styles),
-        Spacer(1, 6 * mm),
-        Paragraph(
-            f"<b>{html.escape(labels['scenarios'])}</b>",
-            styles["Body"],
-        ),
-        _scenario_table(assessment, styles),
-        Spacer(1, 3 * mm),
-        Paragraph(
-            html.escape(assessment.recommendation.rationale),
-            styles["Body"],
-        ),
-        Spacer(1, 6 * mm),
-        Paragraph(
-            f"<b>{html.escape(labels['detail'])}</b>",
-            styles["Body"],
-        ),
-        *_scenario_detail(assessment, styles, labels),
-        Spacer(1, 6 * mm),
-        Paragraph(
-            f"<b>{html.escape(labels['consultation'])}</b>",
-            styles["Body"],
-        ),
-        *_consultation_section(assessment, styles, labels),
-        Spacer(1, 6 * mm),
-        Paragraph(
-            f"<b>{html.escape(labels['actions'])}</b>",
-            styles["Body"],
-        ),
-        _bullet_list(assessment.recommendation.next_actions, styles),
-        Spacer(1, 5 * mm),
-        Paragraph(
-            f"<b>{html.escape(labels['uncertainty'])}</b>",
-            styles["Body"],
-        ),
-        Paragraph(
-            f"{labels['human_review']}: "
-            + (labels["yes"] if assessment.recommendation.requires_human_review else labels["no"]),
-            styles["Body"],
-        ),
-        _bullet_list(
-            [
-                *assessment.recommendation.uncertainty,
-                *assessment.limitations,
-            ],
-            styles,
-        ),
-        Spacer(1, 8 * mm),
-        Paragraph(
-            f"<b>{html.escape(labels['evidence'])}</b>",
-            styles["Body"],
-        ),
-        _evidence_table(assessment, styles),
-        Spacer(1, 6 * mm),
-        Paragraph(
-            f"<b>{html.escape(labels['trace'])}</b>",
-            styles["Body"],
-        ),
-        _trace_table(assessment, styles),
-        Spacer(1, 6 * mm),
+        *_appendix_section(report, assessment, styles, labels),
         Paragraph(labels["disclaimer"], styles["Disclaimer"]),
     ]
     document.build(
@@ -759,27 +689,72 @@ def _executive_brief_section(
 ) -> list:
     brief = report.executive_brief
     zh = report.language == "zh"
-    rows = [
-        ("决策问题" if zh else "Decision Question", brief.decision_question),
-        ("初步建议" if zh else "Preliminary Recommendation", brief.preliminary_recommendation),
-        ("核心原因" if zh else "Key Reasons", "\n".join(f"- {item}" for item in brief.key_reasons)),
-        ("主要代价" if zh else "Main Trade-off", brief.main_trade_off),
-        ("本次需决策" if zh else "Decision Required", "\n".join(f"- {item}" for item in brief.decision_required)),
+    blocks: list = [
+        Paragraph(
+            f"<b>{html.escape('1.1 决策问题' if zh else '1.1 Decision question')}</b>",
+            styles["Body"],
+        ),
+        Paragraph(
+            html.escape(brief.decision_question or ("待确认" if zh else "To be confirmed")),
+            styles["Body"],
+        ),
+        Spacer(1, 2 * mm),
+        Paragraph(
+            f"<b>{html.escape('1.2 初步建议' if zh else '1.2 Preliminary recommendation')}</b>",
+            styles["Body"],
+        ),
+        Paragraph(
+            html.escape(
+                brief.preliminary_recommendation
+                or ("待确认" if zh else "To be confirmed")
+            ),
+            styles["Body"],
+        ),
+        Spacer(1, 2 * mm),
+        Paragraph(
+            f"<b>{html.escape('1.3 核心原因' if zh else '1.3 Key reasons')}</b>",
+            styles["Body"],
+        ),
     ]
-    data = [
+    blocks.append(
+        _bullet_list(
+            brief.key_reasons or (["待补充"] if zh else ["To be added"]),
+            styles,
+        )
+    )
+    blocks.extend(
         [
-            Paragraph(html.escape(title), styles["KeyCell"]),
-            (
-                _markdown_to_flowables(value, styles)
-                if "\n" in value
-                else Paragraph(html.escape(value or "待确认"), styles["Cell"])
+            Spacer(1, 2 * mm),
+            Paragraph(
+                f"<b>{html.escape('1.4 主要代价' if zh else '1.4 Main trade-off')}</b>",
+                styles["Body"],
+            ),
+            Paragraph(
+                html.escape(
+                    brief.main_trade_off
+                    or ("尚需核验" if zh else "Requires validation")
+                ),
+                styles["Body"],
+            ),
+            Spacer(1, 2 * mm),
+            Paragraph(
+                f"<b>{html.escape('1.5 本次需决策' if zh else '1.5 Decision required')}</b>",
+                styles["Body"],
             ),
         ]
-        for title, value in rows
-    ]
-    table = Table(data, colWidths=[42 * mm, 132 * mm], repeatRows=0)
-    table.setStyle(_table_style())
-    return [table]
+    )
+    blocks.append(
+        _bullet_list(
+            brief.decision_required
+            or (
+                ["确认是否进入下一阶段核验。"]
+                if zh
+                else ["Confirm whether to proceed to the next validation stage."]
+            ),
+            styles,
+        )
+    )
+    return blocks
 
 
 def _decision_context_section(
@@ -789,14 +764,94 @@ def _decision_context_section(
     context = report.decision_context
     zh = report.language == "zh"
     blocks: list = []
-    for title, items in (
-        ("供应链结构特征" if zh else "Supply-chain context", context.supply_chain_context),
-        ("相关风险" if zh else "Relevant risks", context.relevant_risks),
-        ("决策的缓解作用" if zh else "Mitigation effect", context.mitigation_effect),
-    ):
-        blocks.append(Paragraph(f"<b>{html.escape(title)}</b>", styles["Cell"]))
-        blocks.append(_bullet_list(items, styles))
-        blocks.append(Spacer(1, 2 * mm))
+    blocks.append(
+        Paragraph(
+            f"<b>{html.escape('2.1 当前供应链位置' if zh else '2.1 Current supply-chain position')}</b>",
+            styles["Body"],
+        )
+    )
+    position = context.current_position or context.supply_chain_context
+    blocks.append(_bullet_list(position, styles))
+    if context.footprint_note:
+        blocks.append(
+            Paragraph(html.escape(context.footprint_note), styles["Small"])
+        )
+    blocks.append(Spacer(1, 2 * mm))
+    blocks.append(
+        Paragraph(
+            f"<b>{html.escape('2.2 主要风险暴露' if zh else '2.2 Principal risk exposures')}</b>",
+            styles["Body"],
+        )
+    )
+    risk_rows: list[list[Paragraph]] = [
+        [
+            Paragraph(
+                "风险暴露" if zh else "Risk exposure",
+                styles["CellHeader"],
+            ),
+            Paragraph(
+                "为何重要" if zh else "Why it matters",
+                styles["CellHeader"],
+            ),
+            Paragraph(
+                "决策含义" if zh else "Decision implication",
+                styles["CellHeader"],
+            ),
+        ]
+    ]
+    if context.principal_risks:
+        for risk in context.principal_risks:
+            risk_rows.append(
+                [
+                    Paragraph(
+                        html.escape(
+                            f"{risk.exposure}（{risk.severity}，{risk.risk_score}/125）"
+                            if zh
+                            else f"{risk.exposure} ({risk.severity}, {risk.risk_score}/125)"
+                        ),
+                        styles["Cell"],
+                    ),
+                    Paragraph(html.escape(risk.why_it_matters), styles["Cell"]),
+                    Paragraph(
+                        html.escape(risk.decision_implication),
+                        styles["Cell"],
+                    ),
+                ]
+            )
+    else:
+        for item in context.relevant_risks[:5]:
+            risk_rows.append(
+                [
+                    Paragraph(html.escape(item), styles["Cell"]),
+                    Paragraph("", styles["Cell"]),
+                    Paragraph("", styles["Cell"]),
+                ]
+            )
+    if len(risk_rows) > 1:
+        table = Table(
+            risk_rows,
+            colWidths=[45 * mm, 64 * mm, 65 * mm],
+            repeatRows=1,
+        )
+        table.setStyle(_table_style())
+        blocks.append(table)
+    blocks.append(Spacer(1, 2 * mm))
+    blocks.append(
+        Paragraph(
+            f"<b>{html.escape('2.3 对决策的含义' if zh else '2.3 Implications for the decision')}</b>",
+            styles["Body"],
+        )
+    )
+    blocks.append(
+        Paragraph(
+            html.escape(
+                context.implications
+                or "；".join(context.mitigation_effect)
+                or ("待补充" if zh else "To be added")
+            ),
+            styles["Body"],
+        )
+    )
     return blocks
 
 
@@ -846,30 +901,57 @@ def _execution_plan_table(
     report: ReportContent,
     styles: dict[str, ParagraphStyle],
 ) -> Table:
+    zh = report.language == "zh"
     rows = [
         [
-            Paragraph("Action", styles["CellHeader"]),
-            Paragraph("Rationale", styles["CellHeader"]),
-            Paragraph("Owner", styles["CellHeader"]),
-            Paragraph("Timing", styles["CellHeader"]),
-            Paragraph("Decision gate", styles["CellHeader"]),
-            Paragraph("Trigger", styles["CellHeader"]),
+            Paragraph("优先级" if zh else "Priority", styles["CellHeader"]),
+            Paragraph(
+                "行动与交付物" if zh else "Action & deliverable",
+                styles["CellHeader"],
+            ),
+            Paragraph("理由" if zh else "Rationale", styles["CellHeader"]),
+            Paragraph(
+                "负责人 / 时点" if zh else "Owner / timing",
+                styles["CellHeader"],
+            ),
+            Paragraph(
+                "决策检查点" if zh else "Decision gate",
+                styles["CellHeader"],
+            ),
+            Paragraph(
+                "重新评估触发条件" if zh else "Reassessment trigger",
+                styles["CellHeader"],
+            ),
         ]
     ]
     for item in report.execution_plan:
+        action = html.escape(item.action)
+        if item.deliverable:
+            prefix = "交付物" if zh else "Deliverable"
+            action = (
+                f"{action}<br/><font color='#617080'>"
+                f"{prefix}：{html.escape(item.deliverable)}</font>"
+            )
         rows.append(
             [
-                Paragraph(html.escape(item.action), styles["Cell"]),
+                Paragraph(html.escape(item.priority or "P1"), styles["Cell"]),
+                Paragraph(action, styles["Cell"]),
                 Paragraph(html.escape(item.rationale), styles["Cell"]),
-                Paragraph(html.escape(item.owner), styles["Cell"]),
-                Paragraph(html.escape(item.timing), styles["Cell"]),
+                Paragraph(
+                    html.escape(
+                        f"{item.owner or '待指定'} / {item.timing or '待定'}"
+                        if zh
+                        else f"{item.owner or 'To be assigned'} / {item.timing or 'TBD'}"
+                    ),
+                    styles["Cell"],
+                ),
                 Paragraph(html.escape(item.decision_gate), styles["Cell"]),
                 Paragraph(html.escape(item.trigger), styles["Cell"]),
             ]
         )
     table = Table(
         rows,
-        colWidths=[31 * mm, 43 * mm, 18 * mm, 22 * mm, 31 * mm, 29 * mm],
+        colWidths=[15 * mm, 48 * mm, 38 * mm, 28 * mm, 33 * mm, 32 * mm],
         repeatRows=1,
     )
     table.setStyle(_table_style())
@@ -1278,6 +1360,208 @@ def _consultation_section(
     return blocks
 
 
+def _appendix_section(
+    report: ReportContent,
+    assessment: Assessment,
+    styles: dict[str, ParagraphStyle],
+    labels: dict[str, str],
+) -> list:
+    """Curated evidence and methodology appendix.
+
+    The full company-profile, risk-register and scenario-detail outputs remain
+    available in the application. The PDF appendix keeps only the material that
+    lets a management reader verify the report's main conclusions.
+    """
+    appendix = report.appendix
+    zh = report.language == "zh"
+    blocks: list = []
+
+    blocks.append(
+        Paragraph(
+            f"<b>{html.escape('A. 关键证据登记表' if zh else 'A. Key evidence register')}</b>",
+            styles["Body"],
+        )
+    )
+    if appendix.evidence:
+        rows: list[list] = [
+            [
+                Paragraph("证据编号", styles["CellHeader"]) if zh else Paragraph("Evidence ID", styles["CellHeader"]),
+                Paragraph("支持的判断", styles["CellHeader"]) if zh else Paragraph("Claim supported", styles["CellHeader"]),
+                Paragraph("来源与日期", styles["CellHeader"]) if zh else Paragraph("Source and date", styles["CellHeader"]),
+                Paragraph("链接", styles["CellHeader"]) if zh else Paragraph("Link", styles["CellHeader"]),
+                Paragraph("限制", styles["CellHeader"]) if zh else Paragraph("Limitation", styles["CellHeader"]),
+            ]
+        ]
+        for item in appendix.evidence:
+            link = item.url
+            link_cell = (
+                Paragraph(
+                    f"<a href='{html.escape(link)}'>{html.escape(link[:80])}</a>",
+                    styles["Cell"],
+                )
+                if link
+                else Paragraph(labels["unknown"], styles["Cell"])
+            )
+            rows.append(
+                [
+                    Paragraph(html.escape(item.evidence_id), styles["Cell"]),
+                    Paragraph(html.escape(item.claim), styles["Cell"]),
+                    Paragraph(
+                        html.escape(
+                            " · ".join(
+                                value
+                                for value in (
+                                    item.source,
+                                    item.publication_date,
+                                )
+                                if value
+                            )
+                        ),
+                        styles["Cell"],
+                    ),
+                    link_cell,
+                    Paragraph(
+                        html.escape(item.limitation or "-"),
+                        styles["Cell"],
+                    ),
+                ]
+            )
+        table = Table(
+            rows,
+            colWidths=[24 * mm, 40 * mm, 31 * mm, 35 * mm, 44 * mm],
+            repeatRows=1,
+        )
+        table.setStyle(_table_style())
+        blocks.append(table)
+    else:
+        blocks.append(_bullet_list([labels["unknown"]], styles))
+    blocks.append(Spacer(1, 4 * mm))
+
+    blocks.append(
+        Paragraph(
+            f"<b>{html.escape('B. 情景评分摘要' if zh else 'B. Scenario scoring summary')}</b>",
+            styles["Body"],
+        )
+    )
+    if appendix.scenario_scores:
+        rows = [
+            [
+                Paragraph("排名 / 方案", styles["CellHeader"]) if zh else Paragraph("Rank / option", styles["CellHeader"]),
+                Paragraph("综合分", styles["CellHeader"]) if zh else Paragraph("Weighted score", styles["CellHeader"]),
+                Paragraph("维度明细", styles["CellHeader"]) if zh else Paragraph("Dimension detail", styles["CellHeader"]),
+            ]
+        ]
+        for item in appendix.scenario_scores:
+            dimensions = "；".join(
+                (
+                    f"{dimension.dimension}: {dimension.band} "
+                    f"{dimension.score}/100"
+                    + (
+                        f"（权重 {dimension.weight}）"
+                        if zh and dimension.weight
+                        else f" (weight {dimension.weight})"
+                        if dimension.weight
+                        else ""
+                    )
+                )
+                for dimension in item.dimensions
+            ) or labels["unknown"]
+            rows.append(
+                [
+                    Paragraph(
+                        html.escape(f"#{item.rank} {item.name}"),
+                        styles["Cell"],
+                    ),
+                    Paragraph(str(item.weighted_score), styles["Cell"]),
+                    Paragraph(html.escape(dimensions), styles["Cell"]),
+                ]
+            )
+        table = Table(
+            rows,
+            colWidths=[48 * mm, 20 * mm, 106 * mm],
+            repeatRows=1,
+        )
+        table.setStyle(_table_style())
+        blocks.append(table)
+    else:
+        blocks.append(_bullet_list([labels["unknown"]], styles))
+    blocks.append(Spacer(1, 4 * mm))
+
+    blocks.append(
+        Paragraph(
+            f"<b>{html.escape('C. 关键假设、风险与信息缺口' if zh else 'C. Critical assumptions, risks and information gaps')}</b>",
+            styles["Body"],
+        )
+    )
+    assumptions = (
+        appendix.critical_assumptions
+        or appendix.assumptions
+        or (["待补充"] if zh else ["To be added"])
+    )
+    blocks.append(_bullet_list(assumptions, styles))
+    consultation_items: list[str] = []
+    if assessment.chat_analysis is not None:
+        consultation_items.extend(
+            _format_context_updates(
+                [
+                    *assessment.context_updates[-8:],
+                    *assessment.chat_analysis.context_updates[-8:],
+                ],
+                report.language,
+            )
+        )
+        consultation_items.extend(
+            _format_profile_patch(
+                assessment.chat_analysis.profile_patch,
+                report.language,
+            )
+        )
+        consultation_items.extend(
+            assessment.chat_analysis.new_constraints[:4]
+        )
+        consultation_items.extend(
+            assessment.chat_analysis.new_preferences[:4]
+        )
+    elif assessment.context_updates:
+        consultation_items.extend(
+            _format_context_updates(
+                assessment.context_updates[-8:],
+                report.language,
+            )
+        )
+    consultation_items = list(dict.fromkeys(consultation_items))[:10]
+    if consultation_items:
+        blocks.append(
+            Paragraph(
+                f"<b>{html.escape('咨询更新摘要' if zh else 'Consultation update summary')}</b>",
+                styles["Small"],
+            )
+        )
+        blocks.append(_bullet_list(consultation_items, styles))
+    if appendix.information_gaps:
+        blocks.append(
+            Paragraph(
+                (
+                    "材料性信息缺口："
+                    if zh
+                    else "Material information gaps: "
+                )
+                + "；".join(appendix.information_gaps[:12]),
+                styles["Small"],
+            )
+        )
+    blocks.append(Spacer(1, 4 * mm))
+
+    blocks.append(
+        Paragraph(
+            f"<b>{html.escape('D. 方法与限制' if zh else 'D. Methodology and limitations')}</b>",
+            styles["Body"],
+        )
+    )
+    blocks.append(_bullet_list(appendix.methodology, styles))
+    return blocks
+
+
 def _section(title: str, styles: dict[str, ParagraphStyle]) -> KeepTogether:
     return KeepTogether(
         [
@@ -1491,7 +1775,7 @@ def _page_footer(canvas, document) -> None:
     canvas.drawString(
         18 * mm,
         9 * mm,
-        "AI+地缘政治风险高校挑战赛 · 供应链迁移决策 Agent",
+        "地缘政治与供应链决策支持系统",
     )
     canvas.drawRightString(
         A4[0] - 18 * mm,

@@ -508,12 +508,80 @@ def chat(assessment_id: str, request: ChatRequest) -> Assessment:
     return updated
 
 
+@app.post("/api/v1/assessments/{assessment_id}/chat/stream")
+async def chat_stream(
+    assessment_id: str,
+    request: ChatRequest,
+) -> StreamingResponse:
+    """Stream consultation progress as NDJSON.
+
+    The frontend can use the stage events to keep its progress indicator tied to
+    real backend work instead of a fixed timer. The final event carries the same
+    Assessment payload as the synchronous chat endpoint.
+    """
+    assessment = repository.get(assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="assessment not found")
+
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue[dict] = asyncio.Queue()
+
+    def event_callback(event: dict) -> None:
+        loop.call_soon_threadsafe(queue.put_nowait, event)
+
+    async def run_job() -> None:
+        try:
+            updated = await asyncio.to_thread(
+                agent.chat,
+                assessment,
+                request,
+                event_callback,
+            )
+            repository.save(updated)
+            await queue.put(
+                {
+                    "type": "assessment",
+                    "assessment": updated.model_dump(mode="json"),
+                }
+            )
+        except Exception as exc:  # noqa: BLE001
+            await queue.put(
+                {
+                    "type": "error",
+                    "message": f"{type(exc).__name__}: {exc}",
+                }
+            )
+        finally:
+            await queue.put({"type": "done"})
+
+    async def event_stream():
+        task = asyncio.create_task(run_job())
+        try:
+            while True:
+                event = await queue.get()
+                yield json.dumps(event, ensure_ascii=False) + "\n"
+                if event["type"] == "done":
+                    break
+        finally:
+            if not task.done():
+                task.cancel()
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="application/x-ndjson",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+    )
+
+
 @app.get("/api/v1/assessments/{assessment_id}/report")
 def report(assessment_id: str) -> StreamingResponse:
     assessment = repository.get(assessment_id)
     if assessment is None:
         raise HTTPException(status_code=404, detail="assessment not found")
-    pdf_bytes = build_assessment_pdf(assessment)
+    report_content = agent.generate_report(assessment)
+    pdf_bytes = build_assessment_pdf(
+        assessment.model_copy(update={"report_content": report_content})
+    )
     filename = f"{assessment.assessment_id}-decision-report.pdf"
     return StreamingResponse(
         iter([pdf_bytes]),

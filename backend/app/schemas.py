@@ -334,7 +334,22 @@ class ReportExecutiveBrief(StrictModel):
     decision_required: list[str] = Field(default_factory=list)
 
 
+class ReportDecisionRisk(StrictModel):
+    exposure: str = ""
+    why_it_matters: str = ""
+    decision_implication: str = ""
+    severity: str = ""
+    risk_score: int = Field(default=0, ge=0, le=125)
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
 class ReportDecisionContext(StrictModel):
+    current_position: list[str] = Field(default_factory=list)
+    footprint_note: str = ""
+    principal_risks: list[ReportDecisionRisk] = Field(default_factory=list)
+    implications: str = ""
+    # Backward-compatible fields used by the earlier deterministic composer and
+    # stored assessments.
     supply_chain_context: list[str] = Field(default_factory=list)
     relevant_risks: list[str] = Field(default_factory=list)
     mitigation_effect: list[str] = Field(default_factory=list)
@@ -353,7 +368,9 @@ class ReportStrategicOption(StrictModel):
 
 
 class ReportExecutionAction(StrictModel):
+    priority: str = ""
     action: str = ""
+    deliverable: str = ""
     rationale: str = ""
     owner: str = "待指定"
     timing: str = ""
@@ -361,7 +378,36 @@ class ReportExecutionAction(StrictModel):
     trigger: str = ""
 
 
+class ReportEvidenceRecord(StrictModel):
+    evidence_id: str = ""
+    claim: str = ""
+    source: str = ""
+    publication_date: str = ""
+    url: str = ""
+    limitation: str = ""
+
+
+class ReportDimensionScore(StrictModel):
+    dimension: str = ""
+    band: str = ""
+    score: int = Field(default=0, ge=0, le=100)
+    weight: int = Field(default=0, ge=0)
+    reason: str = ""
+
+
+class ReportScenarioScore(StrictModel):
+    scenario_id: str = ""
+    name: str = ""
+    weighted_score: int = Field(default=0, ge=0, le=100)
+    rank: int = Field(default=0, ge=0)
+    dimensions: list[ReportDimensionScore] = Field(default_factory=list)
+
+
 class ReportAppendix(StrictModel):
+    evidence: list[ReportEvidenceRecord] = Field(default_factory=list)
+    scenario_scores: list[ReportScenarioScore] = Field(default_factory=list)
+    critical_assumptions: list[str] = Field(default_factory=list)
+    # Backward-compatible fields used by the earlier deterministic composer.
     evidence_ids: list[str] = Field(default_factory=list)
     risk_ids: list[str] = Field(default_factory=list)
     information_gaps: list[str] = Field(default_factory=list)

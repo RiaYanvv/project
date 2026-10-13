@@ -113,6 +113,14 @@ class LLMProvider(Protocol):
     ) -> str:
         ...
 
+    def compose_management_report(
+        self,
+        assessment: Assessment,
+        report_baseline: dict[str, Any],
+        language: str = "en",
+    ) -> dict[str, Any]:
+        ...
+
 
 class MockLLM:
     mode = "mock"
@@ -242,6 +250,14 @@ class MockLLM:
             else "Noted. This answer is based on the evidence already retrieved; add a concrete "
             "constraint to refine the logic-based assessment."
         )
+
+    def compose_management_report(
+        self,
+        assessment: Assessment,
+        report_baseline: dict[str, Any],
+        language: str = "en",
+    ) -> dict[str, Any]:
+        return {}
 
 
 class DeepSeekLLM:
@@ -604,6 +620,10 @@ class DeepSeekLLM:
                 "verification_status, effective_time。"
                 "statement 必须是一句完整、独立、可展示给管理层的陈述句，"
                 "不得只写数字、百分比或“增长较快”等无语境片段。"
+                "抽取范围不能只看数字：用户消息中的判断、补充说明、约束、偏好、"
+                "运营准备度、客户要求、供应商关系、成本口径、风险判断和纠正信息"
+                "都要进入 context_updates。即使没有数字，只要是对决策有影响的"
+                "定性信息，也必须生成一条完整陈述句，不得遗漏或只留在回答正文里。"
                 "Few-shot 示例：用户输入“30”应输出 "
                 '{"statement":"韩国基地的电芯年产能为30 GWh","entity":"韩国",'
                 '"field":"annual_capacity_gwh","value":30,"unit":"GWh",'
@@ -614,12 +634,20 @@ class DeepSeekLLM:
                 '"field":"utilization_rate","value":0.85,"unit":"ratio",'
                 '"information_type":"operational_estimate",'
                 '"source_type":"management_estimate",'
+                '"verification_status":"unverified"}；用户输入“越南工厂目前良率偏低，'
+                '短期内无法承接大规模转产”应输出 '
+                '{"statement":"越南工厂短期生产准备度偏低，暂无法承接大规模转产",'
+                '"entity":"越南","field":"production_readiness",'
+                '"value":"偏低","unit":"","information_type":"supply_chain_assessment",'
+                '"source_type":"management_estimate",'
                 '"verification_status":"unverified"}。'
                 "information_type 只能使用 operational_fact, operational_estimate, "
                 "cost_estimate, supply_chain_assessment, demand_forecast, "
                 "strategic_preference, hard_constraint, soft_preference, "
                 "correction, assumption；source_type 只能使用 user_input, "
                 "management_estimate, external_source, model_inference。"
+                "value 可以是数字，也可以是简短文字判断；field 无法对应到标准字段时"
+                "使用 additional_context，但 statement 仍必须保留完整语义。"
                 "不要把整段用户消息再作为一条 update，也不要在 profile_patch 中"
                 "重复保存同一信息；原始消息只通过 source_message_id 关联。"
                 "字段、数值、单位或实体无法稳定识别时，使用 assumption + "
@@ -735,6 +763,95 @@ class DeepSeekLLM:
         if not isinstance(answer, str) or not answer.strip():
             return "当前模型未能生成有效回答，请稍后重试。"
         return self._bounded_chat_answer(answer.strip())
+
+    def compose_management_report(
+        self,
+        assessment: Assessment,
+        report_baseline: dict[str, Any],
+        language: str = "en",
+    ) -> dict[str, Any]:
+        """Turn computed findings into a management-facing decision report.
+
+        This is a synthesis layer only. It must not rerun research or scenario
+        scoring and must not introduce new facts.
+        """
+        return self._call_json(
+            stage="ReportComposer",
+            system=(
+                language_prefix(language)
+                + "你是供应链战略报告的总编。你的任务是把给定的结构化分析"
+                "改写为面向业务管理层、可直接阅读的决策报告。只允许使用输入 JSON "
+                "中已有的事实、证据编号、风险等级、情景分数和计算口径；不得新增"
+                "公司事实、政策要求、日期、来源、分数、成本数字或投资结论。"
+                "不得描述内部 Agent、调试过程或工作流。输出只返回一个 JSON 对象，"
+                "顶层键必须严格为 executive_brief, decision_context, "
+                "strategic_options, execution_plan, appendix，不要输出 Markdown "
+                "代码块或解释文字。"
+                "executive_brief 必须是管理层的开篇判断，不是目录："
+                "decision_question 用一句话说清要决定什么；"
+                "preliminary_recommendation 说明当前首选方向和适用条件，不能写成"
+                "已批准投资；key_reasons 最多三条，每条写业务后果而不是复述指标；"
+                "main_trade_off 必须点名首选方案最重要的代价或限制；"
+                "decision_required 只写本次会议需要批准的层级，区分“继续核验”、"
+                "“进入下一阶段”和“批准具体投资”，不得把具体执行动作塞进来。"
+                "decision_context 不是风险清单复述：current_position 用二到三点"
+                "解释当前供应链结构及其对决策的影响；footprint_note 只写能被输入"
+                "追溯的产能/布局说明；principal_risks 选择三到五条最能改变方案排序"
+                "的风险，每条包含 exposure, why_it_matters, decision_implication, "
+                "severity, risk_score, evidence_ids；implications 用一到两段收束"
+                "核心战略张力，不得在这里选方案或重新排名。"
+                "strategic_options 必须保留输入中的 scenario_id、name、排名和分数，"
+                "只完善 summary 与 fit_assessment，说明该方案为何契合或不契合"
+                "当前优先级，并与推荐方案形成对照。"
+                "execution_plan 不是信息缺口清单：合并为四到六项工作流，每项包含 "
+                "priority（P0/P1/P2）、action、deliverable、rationale、owner、"
+                "timing、decision_gate、trigger。action 必须说明要做什么，"
+                "deliverable 必须说明产出什么；owner 无输入时写“待指定”；"
+                "timing 使用相对里程碑，不得编造日期；decision_gate 说明进入"
+                "下一阶段所需证据；trigger 说明何种变化会要求重新评估。"
+                "appendix 只做可验证性补充：evidence 只列支撑核心判断的证据，"
+                "每项包含 evidence_id, claim, source, publication_date, url, "
+                "limitation；scenario_scores 保留输入中的方案、总分、五维档位、"
+                "分数、权重和简短理由；critical_assumptions 只写可能改变推荐的"
+                "未决假设；information_gaps 只写材料性缺口；methodology 简述"
+                "评分方法、数据口径和限制。不得把完整公司画像、完整风险清单、"
+                "原始 Agent 输出或调试信息放进附录。"
+                "写作要求：先结论后背景；避免“分析表明”“系统识别”等空话；"
+                "中文报告使用简体中文和专业、克制、可执行的管理语言；"
+                "管理层摘要正文约250-350字，Decision Context 正文约600-900字；"
+                "所有数字、单位和证据编号必须与输入一致。"
+            ),
+            payload={
+                "task": "基于既有结构化结论合成五段式管理层决策报告",
+                "company": assessment.company_profile.model_dump(mode="json"),
+                "company_intelligence": (
+                    assessment.company_intelligence.model_dump(mode="json")
+                    if assessment.company_intelligence is not None
+                    else {}
+                ),
+                "risks": [
+                    item.model_dump(mode="json")
+                    for item in assessment.risks
+                ],
+                "scenarios": [
+                    item.model_dump(mode="json")
+                    for item in assessment.scenarios
+                ],
+                "recommendation": assessment.recommendation.model_dump(
+                    mode="json"
+                ),
+                "evidence": self._evidence_payload(assessment.evidence),
+                "limitations": list(assessment.limitations),
+                "deterministic_report_baseline": report_baseline,
+                "reporting_rules": {
+                    "no_new_facts": True,
+                    "no_score_recalculation": True,
+                    "preserve_evidence_ids": True,
+                    "preserve_unknown_and_conflicts": True,
+                },
+            },
+            fallback={},
+        )
 
     @staticmethod
     def _bounded_chat_answer(answer: str, limit: int = 1500) -> str:
