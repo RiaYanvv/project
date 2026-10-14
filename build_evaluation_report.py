@@ -46,8 +46,8 @@ def summary_map(path: Path, label_col="Task 3 — Entity Accuracy"):
 def read_manual_scores() -> tuple[dict, dict]:
     """Read the human scoring workbook and split canonical vs v0.9 extension.
 
-    Task 2's spec asks for 30 questions; Q031-Q040 were added in v0.9 so the 13
-    new evidence records are measurable.  The two sets are reported separately
+    Task 2's spec asks for 30 questions; Q031-Q043 were added in v0.9/v0.9.1 so the
+    13 new v0.9 evidence records plus the EU jurisdiction are measurable.  The two sets are reported separately
     because the extension questions have a single gold item each, which caps the
     achievable Top-5 average relevance below that of the multi-gold questions.
     """
@@ -76,12 +76,12 @@ def read_manual_scores() -> tuple[dict, dict]:
         sel = [r for r in qrows[1:] if r[q0] and lo <= str(r[q0]) <= hi]
         return sum(int(r[h0] or 0) for r in sel) / max(1, len(sel))
 
-    canon, ext = agg("Q001", "Q030"), agg("Q031", "Q040")
-    canon["hit"], ext["hit"] = hit("Q001", "Q030"), hit("Q031", "Q040")
-    canon["n"], ext["n"] = 30, 10
-    both = agg("Q001", "Q040")
-    both["hit"] = hit("Q001", "Q040")
-    both["n"] = 40
+    canon, ext = agg("Q001", "Q030"), agg("Q031", "Q043")
+    canon["hit"], ext["hit"] = hit("Q001", "Q030"), hit("Q031", "Q043")
+    canon["n"], ext["n"] = 30, 13
+    both = agg("Q001", "Q043")
+    both["hit"] = hit("Q001", "Q043")
+    both["n"] = 43
     return canon, {"canon": canon, "ext": ext, "all": both}
 
 
@@ -141,7 +141,7 @@ def main() -> None:
     add("| # | 任务 | 交付物 | 关键指标 | 达标 |")
     add("|---|---|---|---|---|")
     add(f"| 1 | Evidence schema | `evidence_battery_EV_screened_v0.9.xlsx`（+ `evaluation/case_benchmark/evidence_cases_v0.1.xlsx`） | 49 条统一 schema、5 级 authority（S/A+/A/B+/B）、原文可追溯 | ✅ |")
-    add(f"| 2 | 检索评测集 + 人工评分 | `retrieval_questions.xlsx` / `retrieval_results.xlsx` / `Task2_manual_scoring_v3.xlsx` | Relevance {manual['rel']:.3f} / Authority {manual['auth']:.3f} / Hit@5 {manual['hit']:.0%}（基准 30 题） | ✅ |")
+    add(f"| 2 | 检索评测集 + 人工评分 | `retrieval_questions.xlsx` / `retrieval_results.xlsx` / `Task2_manual_scoring_v3.xlsx` | Relevance {manual['rel']:.3f} / Authority {manual['auth']:.3f} / Hit@5 {manual['hit']:.0%}（任务书基准 Q001–Q030） | ✅ |")
     add(f"| 3 | 检索基线 | `data/evaluation/retrieval_questions.xlsx` / `retrieval_results.xlsx` / `entity_accuracy.xlsx` + `baseline_report.md` | P@5 {p5:.3f}、R@10 {r10:.3f}、EA {ea:.3f} | ✅ / ⚠️EA |")
     add(f"| 4 | 检索优化 | `task4/*.xlsx` + `baseline_vs_improved.md` + `optimized/*` | P@5 {t4['Precision@5']['After (optimised)']:.3f}、R@10 {t4['Recall@10']['After (optimised)']:.3f} | ✅ |")
     add(f"| 5 | 历史案例基准（held-out） | `historical_case_benchmark.xlsx` + `benchmark_results.xlsx` | {len(cases)} 个真实案例、{int(bench.get('held out of the RAG corpus', 0))}/{len(cases)} 已摘出语料 | ✅ |")
@@ -166,28 +166,29 @@ def main() -> None:
     add("| v0.8 新增覆盖 | EU 司法辖区 0→4 篇；`tariff` 主题 1→3；可表征 Political Risk 的证据 5→8 |")
     add("| authority 分级 | S / A+ / A / B+ / B（S=政府法规·WTO·UN·官方公告；A+=IMF·UNCTAD；A=CSIS·McKinsey·KPMG；B+=媒体·券商；B=二线来源） |")
     add("| 分类字段 | industry / topic / evidence_type / related_risk（六类）/ data_status |")
+    add("| industry 修订 | v0.9.1 起 `industry` 统一由 `backend/app/evidence_metadata.build_meta()` 派生（与 Task 4 的 metadata filter 同源），不再手工填写：EV_Battery 32 / Electronics_Manufacturing 6 / Energy_Storage 4 / Automotive 4 / Battery_Materials 2 / General_Manufacturing 1 |")
     add("| 派生规则 | `backend/app/evidence_metadata.py`，逐字段可审计 |")
     add("")
     add("---")
     add("")
     add("## 2. Task 2 — Retrieval Evaluation Dataset")
     add("")
-    add("40 个问题，覆盖 5 类场景（Company Intelligence 8 / Policy·Trade Risk 12 / Supply Chain Risk 7 / Market Access 7 / Scenario Simulation 6）。")
+    add("43 个问题，覆盖 5 类场景（Company Intelligence 8 / Policy·Trade Risk 14 / Supply Chain Risk 7 / Market Access 8 / Scenario Simulation 6）。")
     add("")
-    add("其中 **Q001–Q030 是任务书口径的基准集**，**Q031–Q040 是 v0.9 扩展集**：v0.9 新增的 13 条证据必须有题面 gold 才能被评测计入，因此按原场景分类补了 10 道企业决策题。两组分别报告——扩展题多为「单一 gold 的窄问题」，Top-5 平均相关的可达上限天然低于多 gold 题。")
+    add("其中 **Q001–Q030 是任务书口径的基准集**，**Q031–Q043 是 v0.9 扩展集**：v0.9 新增的 13 条证据必须有题面 gold 才能被评测计入，因此按原场景分类补了 10 道企业决策题（Q031–Q040）；v0.9.1 又补了 3 道 EU 题面（Q041–Q043），把此前入库但无 gold 指向的 EU_001–EU_004 纳入评测。两组分别报告——扩展题多为「单一 gold 的窄问题」，Top-5 平均相关的可达上限天然低于多 gold 题。")
     add("")
-    add("人工评分（`Task2_manual_scoring_v3.xlsx`，200 条逐条判定）：")
+    add("人工评分（`Task2_manual_scoring_v3.xlsx`，215 条逐条判定）：")
     add("")
     add("| 指标 | 目标 | 实测 |")
     add("|---|---|---|")
     add(f"| Avg Relevance (Top-5) | ≥ 1.5 | **{manual['rel']:.3f}** |")
     add(f"| Avg Authority (Top-5) | ≥ 1.5 | **{manual['auth']:.3f}** |")
     add(f"| Hit@5（≥1 条正确 Evidence） | ≥ 80% | **{manual['hit']:.0%}** |")
+    add(f"| Avg Coverage (0-2，Q001–Q030) | 参考 | {manual_cov:.3f} |")
     add("")
-    add(f"v0.9 扩展集（Q031–Q040，50 条判定）：Relevance {m_ext['ext']['rel']:.3f} / Authority {m_ext['ext']['auth']:.3f} / Hit@5 {m_ext['ext']['hit']:.0%}；"
-        f"合并 40 题：Relevance {m_ext['all']['rel']:.3f} / Authority {m_ext['all']['auth']:.3f} / Hit@5 {m_ext['all']['hit']:.0%}。"
-        "合并值低于 1.5 是题目结构（单 gold 窄问题）造成的，不是检索退化——扩展题的正确证据全部排在 Top-2（见 §3 逐题明细）。")
-    add(f"| Avg Coverage (0-2) | 参考 | {manual_cov:.3f} |")
+    add(f"v0.9 扩展集（Q031–Q043，65 条判定）：Relevance {m_ext['ext']['rel']:.3f} / Authority {m_ext['ext']['auth']:.3f} / Hit@5 {m_ext['ext']['hit']:.0%}；"
+        f"合并 43 题：Relevance {m_ext['all']['rel']:.3f} / Authority {m_ext['all']['auth']:.3f} / Hit@5 {m_ext['all']['hit']:.0%}。"
+        "合并值低于 1.5 是题目结构（单 gold 窄问题）造成的，不是检索退化——扩展题的主 gold 全部落在 Top-1（Q032/Q039 的次 gold 分列第 10/7；见 §3 逐题明细）。")
     add("")
     add("---")
     add("")
@@ -308,11 +309,12 @@ def main() -> None:
     add(f"| P0 | **按风险维度多次检索**：现行单次检索 Risk Recall {risk_map['Risk Recall (mean over cases)']['Baseline']:.3f}，"
         f"按维度逐条检索的上界 {risk_map['风险可取回率（按维度逐条检索）']['Baseline']:.3f}，缺口在检索策略 |")
     add("| P1 | 风险层改为**按风险维度多次检索**，而不是一次检索出一组证据 |")
-    add("| P1 | 评测集补 EU 题面：EU_001–EU_004（电池法规/CRMA/反补贴/外资审查）已入库，但仍无任何一题的 gold 指向欧盟证据，"
-        "欧盟语料无法被评测正面计入。v0.9 已为新增 13 条证据配齐 gold 题（Q031–Q040），EU 题面仍是缺口 |")
+    add("| P1 | 人工 Coverage 评分目前只覆盖 Q001–Q030（30 题），Q031–Q043 的覆盖度尚无人工判定 |")
     add("| P2 | Task 5 案例库仍只有一线 OEM 与大型材料厂；印度/印尼/物流/labor 侧目前只有政策证据，没有案例 |")
     add("| P2 | Entity Accuracy 换口径（gold 覆盖率 + 相关性加权精度），才能作为可用指标 |")
     add("| P2 | 引用内容正确性校验（LLM 判定），把 Task 7 从结构校验升级为语义校验 |")
+    add("")
+    add("> 本轮已关闭：EU 题面缺口（v0.9.1 新增 Q041–Q043，gold 分别指向 EU_001 / EU_003 / EU_002+EU_004）；`industry` 字段过粗（49 行改为与 Task 4 过滤同源派生）；`investment_policy` 词表未覆盖「外资安全审查 / 收购」导致 Q043 的 EU_004 被宏观漂移规则压掉（已补词表，Q043 gold 回到 Top-2）。")
     add("")
     add("## 10. 复现")
     add("")

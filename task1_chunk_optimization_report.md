@@ -87,8 +87,11 @@ task2 检索质量**无回退**（Hit@3 / Hit@5 仍 100%）。DB 体积 **284 MB
    | `A` | 研究机构 / 咨询公司（McKinsey、CSIS、KPMG） | 2 |
    | `B+` | 主流媒体 / 二手转载（Reuters、腾讯新闻、C114） | 1 |
 
-4. **`industry` 字段过粗。** 30 条里 27 条是 `General_Manufacturing`，只有 `MOFCOM_002`、`TRD_001` 不同。
-   若要支撑 EV battery 场景，建议对政策/报告类补 `EV_Battery` / `Battery_Materials` 的适用标注。
+4. **`industry` 字段过粗 —— 已在 v0.9.1 修复。** 原先 30 条里 27 条是 `General_Manufacturing`，
+   只有 `MOFCOM_002`、`TRD_001` 不同。现在全部 49 行的 `industry` 改由
+   `backend/app/evidence_metadata.py::build_meta()` 统一派生（与 Task 4 元数据过滤同源）：
+   `EV_Battery` 32 / `Electronics_Manufacturing` 6 / `Energy_Storage` 4 / `Automotive` 4 /
+   `Battery_Materials` 2 / `General_Manufacturing` 1。
 
 ## 6. 未处理 / 已知事项
 
@@ -135,18 +138,21 @@ v0.9 新增 13 篇，其中 5 份一线年报（TSLA/NIO/XPEV/LI/ALB）合计约
 | 0.15 | 0.790 / 0.895 | 0.795 / 0.895 | 0.790 / 0.915 |
 | 0.25 | 0.780 / 0.895 | 0.780 / 0.895 | 0.770 / 0.895 |
 
-（单元格为 P@5 / R@10。）γ=0.10 / pc=80 仍是最优组合，默认参数不变。
+（单元格为 P@5 / R@10，网格在 v0.9 的 40 题集上测得。）γ=0.10 / pc=80 仍是最优组合，默认参数不变；在加入 EU 题后的 43 题集上，默认参数实测 P@5 0.777 / R@10 0.921 / EA 0.933。
 
-## A.3 尚未处理的第 4 条建议（`industry` 字段过粗）
+## A.3 第 4 条建议（`industry` 字段过粗）—— 已在 v0.9.1 修复
 
-v0.9 新增证据已在 `sources.related_industries` 使用细粒度标签（`整车/汽车`、`电池材料`、`动力电池`），
-`backend/app/evidence_metadata.py::INDUSTRY_BY_TAG` 会把它派生为 `Automotive` / `Battery_Materials` / `EV_Battery`，
-**Task 4 元数据过滤用的就是这个派生值**。
+原先 `task1_annotations.industry` 沿用 v0.7 粗口径（政策类统一写 `General_Manufacturing`，30 条里 27 条如此）。
+v0.9.1 起不再手工填写：49 行的 `industry` 全部改由 `backend/app/evidence_metadata.py::build_meta()` 派生，
+**与 Task 4 元数据过滤使用的值完全同源**，因此 xlsx 里读到的 industry 一定等于过滤层看到的 industry。
 
-但 `task1_annotations` 这一"人读视图"仍沿用 v0.7 的粗口径（政策类统一写 `General_Manufacturing`，
-仅 `MOFCOM_002`/`TRD_001` 例外），本次**刻意没有改动既有 36 行**，以免与你已复核过的内容产生差异。
-若需要，可用一条命令按 `related_industries` 重新派生全部 49 行的 `industry` 列（派生规则已写在
-`DERIVATION_RULES`，可逐字段审计）。
+派生分布：`EV_Battery` 32 / `Electronics_Manufacturing` 6 / `Energy_Storage` 4 / `Automotive` 4 /
+`Battery_Materials` 2 / `General_Manufacturing` 1。其中 `EV_Battery` 是"EV 电池焦点范围"的通用标签，
+不总是某个细分环节（细分由 `sources.related_industries` 承载）。
+
+同时修正 `sources.related_industries` 两处错标：`TRD_001`（HS 870380 整车 + 850760 锂电池）由
+`◆电子/光电` 改为 `动力电池`；`MOFCOM_002` 由 `◆随产业` 改为 `电池材料`。两次修正都能在
+`task1_status` 的 "v0.9 industry correction" 行追溯（派生规则见 `DERIVATION_RULES`，逐字段可审计）。
 
 ## A.4 复现命令（v0.9）
 

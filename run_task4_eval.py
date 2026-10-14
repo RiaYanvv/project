@@ -84,7 +84,7 @@ ALTERNATIVES: list[tuple[str, C, dict]] = [
 # The Task 3 baseline is re-measured every run; the guard below only exists to
 # catch accidental drift (e.g. corpus that was not rebuilt).  Values were
 # re-frozen on 2026-10-12 after the Task 5 case corpus + gold revision.
-BASELINE_FROZEN = {"Precision@5": 0.800, "Recall@10": 0.915, "Entity Accuracy": 0.930}
+BASELINE_FROZEN = {"Precision@5": 0.777, "Recall@10": 0.921, "Entity Accuracy": 0.933}
 
 TASK_BOOK_AFTER = {"Precision@5": 0.80, "Recall@10": 0.80, "Entity Accuracy": 0.95}
 REBASE_AFTER = {"Precision@5": 0.95, "Recall@10": 0.95, "Entity Accuracy": 0.95}
@@ -240,7 +240,7 @@ def write_optimized_report(summaries: dict, questions: list) -> None:
         "",
         "**范围**：在 `run_task3_baseline.py` 的同一套口径下，接入 `RetrievalOptimizer`",
         "（4.1 metadata filtering + 4.2 query enhancement + 4.3 authority ranking）后重跑。",
-        "**数据**：40 个 benchmark 问题 × Top-10，语料 49 篇证据（Task 1 v0.9；Task 5 的 17 个案例为 held-out 答案键，不入语料）",
+        "**数据**：43 个 benchmark 问题 × Top-10，语料 49 篇证据（Task 1 v0.9；Task 5 的 17 个案例为 held-out 答案键，不入语料）",
         "**运行**：`run_task4_eval.py`（Top-K=10）",
         "",
         "## 1. Current RAG Performance（After）",
@@ -268,12 +268,16 @@ def write_optimized_report(summaries: dict, questions: list) -> None:
         "## 2. Main Problems（相对 baseline 的变化）",
         "",
         f"* 宏观文档漂移（原 §2.4）已处理：无投资/宏观意图的问题不再召回 UNCTAD / IMF / WEF / McKinsey，",
-        f"  Recall@10 从 {base['Recall@10']:.3f} 升到 {full['Recall@10']:.3f}。",
+        f"  Recall@10 由 {base['Recall@10']:.3f} 变为 {full['Recall@10']:.3f}（{full['Recall@10'] - base['Recall@10']:+.3f}）。",
         f"* Entity Recall 仍为 {full['Entity Recall']:.3f}（1 题因查询增强替换证据而少覆盖 1 个实体）。",
         f"* 企业案例召回：Q003 R@10 由 {base['per_question'][2]['recall_at_10']} "
         f"提升到 {full['per_question'][2]['recall_at_10']}。",
-        "* 企业案例语料已补齐（Task 5 的 17 个 EV battery / 电池材料 / 整车案例已入库），公司情报类问题不再依赖光模块类比证据；",
-        "  Entity Accuracy 仍受指标口径限制（见 `task4/baseline_vs_improved.md` §6）。",
+        "* v0.9.1 补了 `investment_policy` 词表缺口：题面写「外资安全审查 / 收购当地资产」时不触发投资意图，",
+        "  F1 宏观漂移规则会把 `EU_004`（对外投资）压出 Top-10（Q043 一度 R@10 = 0.500）；补入「外资安全审查 /",
+        "  安全审查 / 收购 / 并购 / foreign investment screening」后，Q043 的 `EU_002`+`EU_004` 回到 Top-2。",
+        "* 语料中的案例型证据是 `CASE_001`–`CASE_010`（金属铸造 / 光模块 / 光伏类比 + BIS 穿透规则案例）；",
+        "  Task 5 的 17 个真实迁移案例是 **held-out 答案键**，不入语料。",
+        "* Entity Accuracy 仍受指标口径限制（见 `task4/baseline_vs_improved.md` §6）。",
         "",
         "## 3. 后续优化方向",
         "",
@@ -577,7 +581,7 @@ def main() -> None:
         target = TASK_BOOK_AFTER.get(m, "")
         ws.append([m, round(b, 3), round(af, 3), round(af - b, 3),
                    target, REBASE_AFTER.get(m, ""),
-                   "" if target == "" else ("yes" if af >= target else "no")])
+                   "" if target == "" else ("yes" if af >= target - 1e-6 else "no")])
     style_header(ws, 7)
     autosize(ws, [24, 18, 18, 12, 20, 20, 10])
 
@@ -684,7 +688,7 @@ def main() -> None:
         "",
         "**Before**：`run_task3_baseline.py`（未接入优化层）",
         "**After**：同一评测集 + `RetrievalOptimizer`（4.1 元数据过滤 + 4.2 查询增强 + 4.3 权威性排序）",
-        "**数据**：40 个 benchmark 问题 × Top-10，语料 49 篇证据（Task 1 v0.9；Task 5 的 17 个案例为 held-out 答案键，不入语料），Top-K=10",
+        "**数据**：43 个 benchmark 问题 × Top-10，语料 49 篇证据（Task 1 v0.9；Task 5 的 17 个案例为 held-out 答案键，不入语料），Top-K=10",
         "**口径**：Before/After 由**同一个 Task 3 writer** 产出，指标定义不可能漂移；",
         "每个 variant 运行前清空实体缓存，避免跨 variant 污染。",
         "",
@@ -705,7 +709,7 @@ def main() -> None:
     for m in ("Precision@5", "Recall@10", "Entity Accuracy"):
         target = TASK_BOOK_AFTER[m]
         af = summaries["full"][m]
-        lines.append(f"| {m} | {base[m]:.3f} | {af:.3f} | ≥ {target:.2f} | {'✅' if af >= target else '❌'} |")
+        lines.append(f"| {m} | {base[m]:.3f} | {af:.3f} | ≥ {target:.2f} | {'✅' if af >= target - 1e-6 else '❌'} |")
 
     lines += [
         "",

@@ -82,11 +82,14 @@ TOPIC_LEXICON: dict[str, tuple[str, ...]] = {
     "investment_policy": (
         "对外投资", "境外投资", "投资审查", "跨境投资", "海外投资", "国际投资",
         "投资环境", "投资趋势", "投资决策", "对外投资制度",
+        "外资安全审查", "投资安全审查", "外资审查", "安全审查", "外资准入",
+        "收购", "并购",
         "地缘经济", "国际组织", "宏观", "全球贸易", "全球经济", "世界经济",
         "贸易环境", "贸易增速", "贸易增长", "全球投资", "跨境",
         "outbound investment", "fdi", "geoeconomic", "global trade",
         "macroeconomic", "international organisation", "international organization",
-        "cross-border investment",
+        "cross-border investment", "foreign investment screening",
+        "investment screening", "fdi screening", "foreign direct investment",
     ),
     "market_access": (
         "市场准入", "进入美国市场", "出口美国", "进入欧盟", "客户准入", "合规要求",

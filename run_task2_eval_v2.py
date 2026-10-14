@@ -1,6 +1,6 @@
 """Task 2 retrieval evaluation with rubric scoring.
 
-Runs local-only retrieval for the 30 benchmark questions, scores each
+Runs local-only retrieval for the 43 benchmark questions, scores each
 retrieved item against the Task 2 rubric, and writes retrieval_results.xlsx.
 
 Scoring (rubric-aligned, deterministic):

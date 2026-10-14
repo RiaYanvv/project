@@ -267,8 +267,9 @@ for (_qid, _eid), _val in _EXTRA_ITEMS.items():
 # (a) new Top-5 items on the original 30 questions after the corpus grew from
 #     36 to 49 documents (company filings / WTO / USMCA / World Bank / DHS / IEA
 #     / SNE Research);
-# (b) the 10 extension questions Q031-Q040 that make the new evidence
-#     measurable.
+# (b) the 13 extension questions Q031-Q043 that make the new evidence and the
+#     EU jurisdiction measurable (Q031-Q040 = v0.9 new evidence, Q041-Q043 = EU
+#     question set added in v0.9.1).
 # Relevance is judged against each question's information need.  Rule applied
 # throughout: 2 = the evidence directly answers the question; 1 = it carries
 # material an analyst could use as supporting evidence for this question
@@ -295,6 +296,7 @@ _V09_EXTRA_ITEMS = {
     ("Q027", "TRD_003"): (1, "中国对东南亚中间品出口数据，可佐证‘迁移工序≠切断中间品依赖’，但本题核心是反规避/转运判例"),
     ("Q029", "WTO_002"): (1, "WTO 对印 TPR 属东道国贸易政策环境证据，可用作建厂决策背景，但非全球投资趋势或企业供应链调查"),
     ("Q030", "CASE_002"): (1, "东南亚四国光伏反规避认定（含马来西亚）可作跨行业对照，说明马来西亚原产地同样受美方审查，但非电池/EV 案例"),
+    ("Q039", "TRD_001"): (1, "美国自中/越/泰/马进口 EV(870380) 与锂电池(850760) 数据，可部分反映电池供给来源集中度（美国市场口径），但不提供全球份额"),
 }
 
 _V09_ITEMS = {
@@ -420,7 +422,46 @@ COV = {
 }
 
 
+
+# ---------------------------------------------------------------------------
+# v0.9 EU question set (Q041-Q043): added so EU_001-EU_004 stop being
+# unmeasurable noise.  Same rule as above: cross-jurisdiction or cross-domain
+# evidence scores 0 (the precedent set for Q022/EU_001 in the v0.8 pass).
+# ---------------------------------------------------------------------------
+_V09_EU_ITEMS = {
+ "Q041": {
+  "EU_001": (2, "本题 expected 证据：欧盟电池法规第 7/9/77 条（碳足迹、再生材料含量、尽职调查、电池护照）"),
+  "EU_003": (1, "欧盟对华纯电反补贴税属同一辖区(EU)的市场准入措施，可作欧盟侧贸易壁垒背景，但不回答电池产品合规要求"),
+  "DHS_001": (0, "美国 UFLPA 进口限制与欧盟电池合规要求属不同辖区/不同域"),
+  "CSIS_001": (0, "转运可视化分析，与欧盟电池产品合规要求无关"),
+  "SNE_001": (0, "电池装车量市场数据，不回答合规要求"),
+ },
+ "Q042": {
+  "EU_003": (2, "本题 expected 证据：欧盟对华纯电最终反补贴税税率（BYD 17.0% / Geely 18.8% / SAIC 35.3% / Tesla 7.8% 等）"),
+  "CASE_002": (0, "美国对东南亚光伏的反规避裁定，辖区与措施类型均不同"),
+  "DHS_001": (0, "强迫劳动实体清单与欧盟反补贴税率无关"),
+  "TRD_001": (0, "美国 EV/锂电池进口数据，不含欧盟税率信息；作为跨辖区贸易流数据不可用于本题计算"),
+  "SNE_001": (0, "电池装车量数据与税率无关"),
+ },
+ "Q043": {
+  "EU_002": (2, "本题 expected 证据：CRMA 本土开采 10%/加工 40%/回收 25% 目标与单一第三国 ≤65% 上限"),
+  "EU_004": (2, "本题 expected 证据：欧盟外资安全审查框架（成员国可按安全/公共秩序审查外资）"),
+  "EU_001": (1, "欧盟电池法规的合规与尽责要求，属同一辖区监管约束，可补足建厂后的产品侧义务"),
+  "EU_003": (1, "欧盟对华纯电反补贴税，属同一辖区贸易措施，影响对欧建厂/出口的成本判断"),
+  "DHS_001": (0, "美国强迫劳动清单与欧盟层面投资约束无关"),
+ },
+}
+for _qid, _items in _V09_EU_ITEMS.items():
+    ITEMS.setdefault(_qid, {}).update(_items)
+
+COV_V09_EU = {
+ "Q041": (2, "gold（EU_001）命中且排名第1，欧盟电池法规合规要求可直接作答"),
+ "Q042": (2, "gold（EU_003）命中且排名第1，各企业反补贴税率可直接作答"),
+ "Q043": (2, "两份 gold（EU_002/EU_004）全部命中，分别排名第1–2"),
+}
+
 COV.update(COV_V09)
+COV.update(COV_V09_EU)
 
 
 def main() -> None:
