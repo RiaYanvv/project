@@ -347,6 +347,98 @@
       "market_access"
     ]
   },
+  "EU_001": {
+    "authority_level": "S",
+    "countries": [
+      "EU"
+    ],
+    "country_region": "EU",
+    "data_status": "verified",
+    "evidence_id": "EU_001",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "欧洲议会与欧盟理事会（EUR-Lex / Official Journal）",
+    "related_risk": [
+      "Regulatory Risk",
+      "Market Access Risk"
+    ],
+    "title": "Regulation (EU) 2023/1542 concerning batteries and waste batteries（欧盟电池与废电池法规）",
+    "topic_cn": "市场准入",
+    "topics": [
+      "market_access",
+      "regulation"
+    ]
+  },
+  "EU_002": {
+    "authority_level": "S",
+    "countries": [
+      "EU"
+    ],
+    "country_region": "EU",
+    "data_status": "verified",
+    "evidence_id": "EU_002",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "欧洲议会与欧盟理事会（EUR-Lex / Official Journal）",
+    "related_risk": [
+      "Market Access Risk",
+      "Supply Chain Risk",
+      "Political Risk"
+    ],
+    "title": "Regulation (EU) 2024/1252 establishing a framework for ensuring a secure and sustainable supply of critical raw materials（欧盟关键原材料法案 CRMA）",
+    "topic_cn": "本地化政策",
+    "topics": [
+      "localization_policy",
+      "market_access"
+    ]
+  },
+  "EU_003": {
+    "authority_level": "S",
+    "countries": [
+      "EU",
+      "CN"
+    ],
+    "country_region": "EU/CN",
+    "data_status": "verified",
+    "evidence_id": "EU_003",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "欧盟委员会（EUR-Lex / Official Journal）",
+    "related_risk": [
+      "Trade Risk",
+      "Market Access Risk"
+    ],
+    "title": "Commission Implementing Regulation (EU) 2024/2754 imposing a definitive countervailing duty on imports of new battery electric vehicles originating in China（对华纯电动车最终反补贴税）",
+    "topic_cn": "关税",
+    "topics": [
+      "tariff"
+    ]
+  },
+  "EU_004": {
+    "authority_level": "S",
+    "countries": [
+      "EU"
+    ],
+    "country_region": "EU",
+    "data_status": "verified",
+    "evidence_id": "EU_004",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "欧洲议会与欧盟理事会（EUR-Lex / Official Journal）",
+    "related_risk": [
+      "Political Risk",
+      "Regulatory Risk"
+    ],
+    "title": "Regulation (EU) 2019/452 establishing a framework for the screening of foreign direct investments into the Union（欧盟外资安全审查框架条例）",
+    "topic_cn": "对外投资",
+    "topics": [
+      "investment_policy"
+    ]
+  },
   "FR_001": {
     "authority_level": "S",
     "countries": [
@@ -392,6 +484,30 @@
     "topic_cn": "对外投资",
     "topics": [
       "investment_policy"
+    ]
+  },
+  "IRS_001": {
+    "authority_level": "S",
+    "countries": [
+      "US"
+    ],
+    "country_region": "US",
+    "data_status": "verified",
+    "evidence_id": "IRS_001",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "美国财政部/国税局（Federal Register）",
+    "related_risk": [
+      "Market Access Risk",
+      "Supply Chain Risk",
+      "Political Risk"
+    ],
+    "title": "Clean Vehicle Credits Under Sections 25E and 30D; Transfer of Credits; Critical Minerals and Battery Components; Foreign Entities of Concern（清洁车辆抵免与FEOC最终规则）",
+    "topic_cn": "本地化政策",
+    "topics": [
+      "localization_policy",
+      "market_access"
     ]
   },
   "ITA_001": {
@@ -598,6 +714,28 @@
     "topic_cn": "对外投资",
     "topics": [
       "investment_policy"
+    ]
+  },
+  "UST_001": {
+    "authority_level": "S",
+    "countries": [
+      "US"
+    ],
+    "country_region": "US",
+    "data_status": "verified",
+    "evidence_id": "UST_001",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "美国贸易代表办公室（USTR，Federal Register）",
+    "related_risk": [
+      "Trade Risk",
+      "Market Access Risk"
+    ],
+    "title": "Notice of Modification: China's Acts, Policies and Practices Related to Technology Transfer, Intellectual Property and Innovation（Section 301 对华关税调整通知）",
+    "topic_cn": "关税",
+    "topics": [
+      "tariff"
     ]
   },
   "WEF_001": {
