@@ -173,3 +173,59 @@ v0.8 语料下 P@5 一度由 0.920 掉到 **0.853**。
 
 环境变量可调：`RETRIEVAL_LENGTH_NORM`（默认 0.10）、`RETRIEVAL_PER_SOURCE_CANDIDATES`（默认 80）。
 设为 0 即关闭对应矫正，用于复现“未修复”基线。
+
+---
+
+# 附录 A：v0.9 语料扩容实测（2026-10-14）
+
+## A.1 分词/检索层对照（v0.8 → v0.9，同一套代码）
+
+| 语料 | 文档 | chunk | P@5（Q001–Q030） | R@10（Q001–Q030） | Entity Accuracy | Hit@5 |
+|---|---|---|---|---|---|---|
+| v0.8 | 36 | 5,772 | 0.913 | 0.893 | 0.921 | 100% |
+| v0.9 | 49 | 14,303 | 0.873 | 0.887 | 0.931 | 100% |
+
+v0.9 新增 13 篇，其中 5 份一线年报（TSLA/NIO/XPEV/LI/ALB）合计约 4,732 chunk，
+占新语料 1/3。它们把 P@5 拉低约 0.04：年报的通用段落（公司概况、财务附注）与政策类查询存在词面重叠，
+会挤占 Top-5 名额。**这是可量化的长文档稀释，不是入库错误**。
+
+## A.2 参数网格（确认默认值仍最优）
+
+γ = `RETRIEVAL_LENGTH_NORM`，`pc` = `RETRIEVAL_PER_SOURCE_CANDIDATES`；40 题口径：
+
+| γ \ pc | 40 | 80 | 160 |
+|---|---|---|---|
+| 0.00 | 0.780 / 0.893 | 0.775 / 0.893 | 0.785 / 0.893 |
+| 0.05 | 0.785 / 0.911 | 0.785 / 0.911 | 0.780 / 0.911 |
+| **0.10** | **0.800 / 0.915** | **0.800 / 0.915** | **0.800 / 0.915** |
+| 0.15 | 0.790 / 0.895 | 0.795 / 0.895 | 0.790 / 0.915 |
+| 0.25 | 0.780 / 0.895 | 0.780 / 0.895 | 0.770 / 0.895 |
+
+（单元格为 P@5 / R@10。）γ=0.10 / pc=80 仍是最优组合，默认参数不变。
+
+## A.3 尚未处理的第 4 条建议（`industry` 字段过粗）
+
+v0.9 新增证据已在 `sources.related_industries` 使用细粒度标签（`整车/汽车`、`电池材料`、`动力电池`），
+`backend/app/evidence_metadata.py::INDUSTRY_BY_TAG` 会把它派生为 `Automotive` / `Battery_Materials` / `EV_Battery`，
+**Task 4 元数据过滤用的就是这个派生值**。
+
+但 `task1_annotations` 这一"人读视图"仍沿用 v0.7 的粗口径（政策类统一写 `General_Manufacturing`，
+仅 `MOFCOM_002`/`TRD_001` 例外），本次**刻意没有改动既有 36 行**，以免与你已复核过的内容产生差异。
+若需要，可用一条命令按 `related_industries` 重新派生全部 49 行的 `industry` 列（派生规则已写在
+`DERIVATION_RULES`，可逐字段审计）。
+
+## A.4 复现命令（v0.9）
+
+```bash
+.venv/bin/python backend/scripts/ingest_dataset.py \
+  --data-root /Users/zhengyuanyuan/Desktop/project-data/data \
+  --excel metadata/evidence_battery_EV_screened_v0.9.xlsx
+.venv/bin/python run_task2_eval_v2.py
+.venv/bin/python run_task3_baseline.py && .venv/bin/python build_task3_report.py
+.venv/bin/python run_task4_eval.py
+.venv/bin/python run_task67_eval.py
+.venv/bin/python build_task2_manual_scoring.py   # -> ~/Downloads
+cp ~/Downloads/Task2_manual_scoring_v3.xlsx .
+.venv/bin/python fill_task2_manual_scoring.py
+.venv/bin/python build_evaluation_report.py
+```

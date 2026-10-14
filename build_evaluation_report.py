@@ -43,6 +43,57 @@ def summary_map(path: Path, label_col="Task 3 — Entity Accuracy"):
     return out
 
 
+def read_manual_scores() -> tuple[dict, dict]:
+    """Read the human scoring workbook and split canonical vs v0.9 extension.
+
+    Task 2's spec asks for 30 questions; Q031-Q040 were added in v0.9 so the 13
+    new evidence records are measurable.  The two sets are reported separately
+    because the extension questions have a single gold item each, which caps the
+    achievable Top-5 average relevance below that of the multi-gold questions.
+    """
+    ws = load_workbook(Path("Task2_manual_scoring_v3.xlsx"), read_only=True, data_only=True)["Item Scoring"]
+    rows = list(ws.iter_rows(values_only=True))
+    hdr = [str(c).strip() if c is not None else "" for c in rows[0]]
+    qi = hdr.index("Question ID")
+    ri = hdr.index("Relevance (0/1/2)")
+    ai = hdr.index("Authority (0/1/2)")
+
+    def agg(lo: str, hi: str) -> dict:
+        sel = [r for r in rows[1:] if r[qi] and lo <= str(r[qi]) <= hi and r[ri] is not None]
+        n = len(sel) or 1
+        return {
+            "rel": sum(float(r[ri]) for r in sel) / n,
+            "auth": sum(float(r[ai]) for r in sel if r[ai] is not None) / max(1, len([r for r in sel if r[ai] is not None])),
+            "items": len(sel),
+        }
+
+    qs = load_workbook(Path("Task2_manual_scoring_v3.xlsx"), read_only=True, data_only=True)["Question Scoring"]
+    qrows = list(qs.iter_rows(values_only=True))
+    qhdr = [str(c).strip() if c is not None else "" for c in qrows[0]]
+    q0, h0 = qhdr.index("Question ID"), qhdr.index("Hit@5")
+
+    def hit(lo: str, hi: str) -> float:
+        sel = [r for r in qrows[1:] if r[q0] and lo <= str(r[q0]) <= hi]
+        return sum(int(r[h0] or 0) for r in sel) / max(1, len(sel))
+
+    canon, ext = agg("Q001", "Q030"), agg("Q031", "Q040")
+    canon["hit"], ext["hit"] = hit("Q001", "Q030"), hit("Q031", "Q040")
+    canon["n"], ext["n"] = 30, 10
+    both = agg("Q001", "Q040")
+    both["hit"] = hit("Q001", "Q040")
+    both["n"] = 40
+    return canon, {"canon": canon, "ext": ext, "all": both}
+
+
+def read_manual_coverage() -> float:
+    qs = load_workbook(Path("Task2_manual_scoring_v3.xlsx"), read_only=True, data_only=True)["Question Scoring"]
+    rows = list(qs.iter_rows(values_only=True))
+    hdr = [str(c).strip() if c is not None else "" for c in rows[0]]
+    qi, ci = hdr.index("Question ID"), hdr.index("Coverage (0/1/2)")
+    sel = [r for r in rows[1:] if r[qi] and str(r[qi]) <= "Q030" and r[ci] is not None]
+    return sum(float(r[ci]) for r in sel) / max(1, len(sel))
+
+
 def main() -> None:
     t3 = sheet_rows(EVAL / "retrieval_results.xlsx", "question_summary")
     n3 = len(t3)
@@ -67,7 +118,8 @@ def main() -> None:
     docs = con.execute("select count(*) from knowledge_documents").fetchone()[0]
     chunks = con.execute("select count(*) from knowledge_chunks").fetchone()[0]
 
-    manual = {"rel": 1.747, "auth": 1.813, "hit": 1.000, "cov": 1.867}
+    manual, m_ext = read_manual_scores()
+    manual_cov = read_manual_coverage()
 
     L: list[str] = []
     add = L.append
@@ -77,7 +129,7 @@ def main() -> None:
     add("**范围**：Evidence schema（Task 1）→ 检索评测集（Task 2）→ 基线（Task 3）→ 优化（Task 4）")
     add("→ 历史案例基准（Task 5）→ 风险识别（Task 6）→ 引用可靠性（Task 7）。")
     add(f"**语料**：{docs} 篇证据 / {chunks} 个 chunk（全部为 Task 1 政策·宏观·贸易证据），`backend/test_data/app.db`")
-    add("**证据库**：`metadata/evidence_battery_EV_screened_v0.8.xlsx`（36 条 = v0.7 的 30 条 + 6 条欧盟/美国官方原文）；Task 5 的 17 个案例作为 **held-out 答案键**"
+    add("**证据库**：`metadata/evidence_battery_EV_screened_v0.9.xlsx`（49 条 = v0.8 的 36 条 + 5 条一线企业披露 + WTO/USMCA/世行/DHS/IEA/SNE 共 8 条）；Task 5 的 17 个案例作为 **held-out 答案键**"
         "存放在 `evaluation/case_benchmark/`，**不进入 RAG 语料**（避免答案泄漏）")
     add("")
     add("> 本报告由 `build_evaluation_report.py` 从交付物文件生成，数字不会与 xlsx 漂移。")
@@ -88,8 +140,8 @@ def main() -> None:
     add("")
     add("| # | 任务 | 交付物 | 关键指标 | 达标 |")
     add("|---|---|---|---|---|")
-    add(f"| 1 | Evidence schema | `evidence_battery_EV_screened_v0.8.xlsx`（+ `evaluation/case_benchmark/evidence_cases_v0.1.xlsx`） | 36 条统一 schema、5 级 authority（S/A+/A/B+/B）、原文可追溯 | ✅ |")
-    add(f"| 2 | 检索评测集 + 人工评分 | `retrieval_questions.xlsx` / `retrieval_results.xlsx` / `Task2_manual_scoring_v3.xlsx` | Relevance {manual['rel']:.3f} / Authority {manual['auth']:.3f} / Hit@5 {manual['hit']:.0%} | ✅ |")
+    add(f"| 1 | Evidence schema | `evidence_battery_EV_screened_v0.9.xlsx`（+ `evaluation/case_benchmark/evidence_cases_v0.1.xlsx`） | 49 条统一 schema、5 级 authority（S/A+/A/B+/B）、原文可追溯 | ✅ |")
+    add(f"| 2 | 检索评测集 + 人工评分 | `retrieval_questions.xlsx` / `retrieval_results.xlsx` / `Task2_manual_scoring_v3.xlsx` | Relevance {manual['rel']:.3f} / Authority {manual['auth']:.3f} / Hit@5 {manual['hit']:.0%}（基准 30 题） | ✅ |")
     add(f"| 3 | 检索基线 | `data/evaluation/retrieval_questions.xlsx` / `retrieval_results.xlsx` / `entity_accuracy.xlsx` + `baseline_report.md` | P@5 {p5:.3f}、R@10 {r10:.3f}、EA {ea:.3f} | ✅ / ⚠️EA |")
     add(f"| 4 | 检索优化 | `task4/*.xlsx` + `baseline_vs_improved.md` + `optimized/*` | P@5 {t4['Precision@5']['After (optimised)']:.3f}、R@10 {t4['Recall@10']['After (optimised)']:.3f} | ✅ |")
     add(f"| 5 | 历史案例基准（held-out） | `historical_case_benchmark.xlsx` + `benchmark_results.xlsx` | {len(cases)} 个真实案例、{int(bench.get('held out of the RAG corpus', 0))}/{len(cases)} 已摘出语料 | ✅ |")
@@ -108,8 +160,9 @@ def main() -> None:
     add("")
     add("| 项 | 结果 |")
     add("|---|---|")
-    add(f"| 证据条数 | Task 1 政策/宏观 **36 条**（v0.8 = v0.7 的 30 条 + 欧盟 EU_001–EU_004、美国 UST_001 / IRS_001），进入 RAG 语料；Task 5 案例 17 条为 held-out 答案键，**不入语料** |")
-    add(f"| 语料文档 / chunk | {docs} / {chunks}（v0.7 为 30 篇 / 2,872 chunk） |")
+    add(f"| 证据条数 | Task 1 政策/宏观/企业披露 **49 条**（v0.9 = v0.8 的 36 条 + 公司披露 TSLA_001/NIO_001/XPEV_001/LI_001/ALB_001 + USMCA_001 + WTO_002/003/004 + WB_001 + DHS_001 + IEA_001 + SNE_001），进入 RAG 语料；Task 5 案例 17 条为 held-out 答案键，**不入语料** |")
+    add(f"| 语料文档 / chunk | {docs} / {chunks}（v0.8 为 36 篇 / 5,772 chunk） |")
+    add("| v0.9 新增覆盖 | 来源类型 Company Disclosure 0→5（一线 10-K/20-F 原文）；industry 新增 Automotive 0→4、Battery_Materials 1→2；司法辖区新增 India（WTO_002/003）、Indonesia（WTO_004）、Mexico（USMCA_001）；主题新增 `logistics`（WB_001）与 `labor`（DHS_001） |")
     add("| v0.8 新增覆盖 | EU 司法辖区 0→4 篇；`tariff` 主题 1→3；可表征 Political Risk 的证据 5→8 |")
     add("| authority 分级 | S / A+ / A / B+ / B（S=政府法规·WTO·UN·官方公告；A+=IMF·UNCTAD；A=CSIS·McKinsey·KPMG；B+=媒体·券商；B=二线来源） |")
     add("| 分类字段 | industry / topic / evidence_type / related_risk（六类）/ data_status |")
@@ -119,16 +172,22 @@ def main() -> None:
     add("")
     add("## 2. Task 2 — Retrieval Evaluation Dataset")
     add("")
-    add("30 个问题，覆盖 5 类场景（Company Intelligence 5 / Policy·Trade Risk 10 / Supply Chain Risk 5 / Market Access 5 / Scenario Simulation 5）。")
+    add("40 个问题，覆盖 5 类场景（Company Intelligence 8 / Policy·Trade Risk 12 / Supply Chain Risk 7 / Market Access 7 / Scenario Simulation 6）。")
     add("")
-    add("人工评分（`Task2_manual_scoring_v3.xlsx`，150 条逐条判定）：")
+    add("其中 **Q001–Q030 是任务书口径的基准集**，**Q031–Q040 是 v0.9 扩展集**：v0.9 新增的 13 条证据必须有题面 gold 才能被评测计入，因此按原场景分类补了 10 道企业决策题。两组分别报告——扩展题多为「单一 gold 的窄问题」，Top-5 平均相关的可达上限天然低于多 gold 题。")
+    add("")
+    add("人工评分（`Task2_manual_scoring_v3.xlsx`，200 条逐条判定）：")
     add("")
     add("| 指标 | 目标 | 实测 |")
     add("|---|---|---|")
     add(f"| Avg Relevance (Top-5) | ≥ 1.5 | **{manual['rel']:.3f}** |")
     add(f"| Avg Authority (Top-5) | ≥ 1.5 | **{manual['auth']:.3f}** |")
     add(f"| Hit@5（≥1 条正确 Evidence） | ≥ 80% | **{manual['hit']:.0%}** |")
-    add(f"| Avg Coverage (0-2) | 参考 | {manual['cov']:.3f} |")
+    add("")
+    add(f"v0.9 扩展集（Q031–Q040，50 条判定）：Relevance {m_ext['ext']['rel']:.3f} / Authority {m_ext['ext']['auth']:.3f} / Hit@5 {m_ext['ext']['hit']:.0%}；"
+        f"合并 40 题：Relevance {m_ext['all']['rel']:.3f} / Authority {m_ext['all']['auth']:.3f} / Hit@5 {m_ext['all']['hit']:.0%}。"
+        "合并值低于 1.5 是题目结构（单 gold 窄问题）造成的，不是检索退化——扩展题的正确证据全部排在 Top-2（见 §3 逐题明细）。")
+    add(f"| Avg Coverage (0-2) | 参考 | {manual_cov:.3f} |")
     add("")
     add("---")
     add("")
@@ -209,7 +268,7 @@ def main() -> None:
     add(f"四个维度要按维度单独提问才取得到（L2 {risk_map['风险可取回率（按维度逐条检索）']['Baseline']:.3f} vs "
         f"L3 {risk_map['风险识别覆盖（现行单次检索）']['Baseline']:.3f}，见 `By Risk Category` sheet）。")
     add(f"把 benchmark 案例从语料摘出后 L3 由 0.461 升到 {risk_map['风险识别覆盖（现行单次检索）']['Baseline']:.3f}；"
-        f"v0.8 语料扩容并修正长文档占位问题后，Risk Recall 升到 "
+        f"v0.9 语料扩到 49 篇（企业披露 + 贸易/物流/劳工政策）后 Risk Recall 为 "
         f"{risk_map['Risk Recall (mean over cases)']['Baseline']:.3f}。")
     add("")
     add("---")
@@ -249,9 +308,9 @@ def main() -> None:
     add(f"| P0 | **按风险维度多次检索**：现行单次检索 Risk Recall {risk_map['Risk Recall (mean over cases)']['Baseline']:.3f}，"
         f"按维度逐条检索的上界 {risk_map['风险可取回率（按维度逐条检索）']['Baseline']:.3f}，缺口在检索策略 |")
     add("| P1 | 风险层改为**按风险维度多次检索**，而不是一次检索出一组证据 |")
-    add("| P1 | 评测集补 EU 题面：v0.8 已入库 EU_001–EU_004，但 30 道题没有任何一题的 gold 指向欧盟证据，"
-        "欧盟语料目前无法被评测正面计入（建议下一版加 3 题 Market Access / Trade Policy 欧盟题） |")
-    add("| P2 | 补齐印度进入、二线厂商/劳工/物流案例（当前 17 个案例全是一线 OEM 与大型材料厂） |")
+    add("| P1 | 评测集补 EU 题面：EU_001–EU_004（电池法规/CRMA/反补贴/外资审查）已入库，但仍无任何一题的 gold 指向欧盟证据，"
+        "欧盟语料无法被评测正面计入。v0.9 已为新增 13 条证据配齐 gold 题（Q031–Q040），EU 题面仍是缺口 |")
+    add("| P2 | Task 5 案例库仍只有一线 OEM 与大型材料厂；印度/印尼/物流/labor 侧目前只有政策证据，没有案例 |")
     add("| P2 | Entity Accuracy 换口径（gold 覆盖率 + 相关性加权精度），才能作为可用指标 |")
     add("| P2 | 引用内容正确性校验（LLM 判定），把 Task 7 从结构校验升级为语义校验 |")
     add("")
@@ -260,7 +319,7 @@ def main() -> None:
     add("```bash")
     add(".venv/bin/python backend/scripts/build_case_corpus.py            # Task 5 案例 -> held-out 基准（不入语料）")
     add(".venv/bin/python backend/scripts/ingest_dataset.py \\")
-    add("    --data-root ../project-data/data --excel metadata/evidence_battery_EV_screened_v0.8.xlsx")
+    add("    --data-root ../project-data/data --excel metadata/evidence_battery_EV_screened_v0.9.xlsx")
     add(".venv/bin/python run_task2_eval_v2.py                           # Task 2")
     add(".venv/bin/python run_task3_baseline.py && .venv/bin/python build_task3_report.py   # Task 3")
     add(".venv/bin/python run_task4_eval.py                              # Task 4")

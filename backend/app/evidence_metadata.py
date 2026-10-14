@@ -1,6 +1,6 @@
 """Task 4.1 — evidence metadata registry.
 
-Task 1 (``evidence_battery_EV_screened_v0.8.xlsx``) is the single source of
+Task 1 (``evidence_battery_EV_screened_v0.9.xlsx``) is the single source of
 truth for evidence metadata, but it stores several fields in Chinese and does
 not carry the optimisation schema verbatim.  This module derives the Task 4
 filter schema from the Task 1 file so the retrieval layer can filter on
@@ -38,6 +38,9 @@ TOPIC_EN: dict[str, list[str]] = {
     # v0.8 additions (EU/regulation evidence).
     "市场准入": ["market_access", "regulation"],
     "本地化政策": ["localization_policy", "market_access"],
+    # v0.9 additions (logistics / labour evidence).
+    "物流": ["logistics", "supply_chain"],
+    "劳工": ["labor"],
 }
 
 # Task 1 `source_type` -> Task 4 `evidence_type` vocabulary.
@@ -50,6 +53,8 @@ EVIDENCE_TYPE: dict[str, str] = {
     "案例": "Case Study",
     "贸易数据": "Trade Data",
     "数据库": "Policy",
+    # v0.9 addition: first-party company filings (10-K / 20-F).
+    "公司披露": "Company Disclosure",
 }
 
 # Task 1 `topic` -> Task 4 `related_risk` vocabulary.
@@ -66,6 +71,9 @@ RISK_BY_TOPIC: dict[str, list[str]] = {
     # v0.8 additions (EU/regulation evidence).
     "市场准入": ["Regulatory Risk", "Market Access Risk"],
     "本地化政策": ["Market Access Risk", "Supply Chain Risk", "Political Risk"],
+    # v0.9 additions (logistics / labour evidence).
+    "物流": ["Supply Chain Risk", "Operational Risk"],
+    "劳工": ["Operational Risk", "Regulatory Risk"],
 }
 
 # Task 1 `verification_status` -> Task 4 `data_status` vocabulary.
@@ -119,7 +127,7 @@ DERIVATION_RULES: list[tuple[str, str, str]] = [
     ("country_region", "Task 1 `country_code`", "按 COUNTRY_CODES 归一化；多国以 / 分隔"),
     ("topic", "Task 1 `topic`", "按 TOPIC_EN 映射到 Task 4 topic 词表（可一对多）"),
     ("evidence_type", "Task 1 `source_type`", "按 EVIDENCE_TYPE 映射"),
-    ("authority_level", "Task 1 `authority_level`", "直接沿用（S / A+ / A / B+）"),
+    ("authority_level", "Task 1 `authority_level`", "直接沿用（S / A+ / A / B+ / B）"),
     ("data_status", "Task 1 `verification_status`", "已核实→verified；已核实（二手）→reported；待核实/待拉取/待验证→reported/unknown"),
     ("related_risk", "Task 1 `topic`", "按 RISK_BY_TOPIC 映射到六类风险（可一对多），属派生值"),
 ]
@@ -237,6 +245,7 @@ def _candidate_paths(explicit: str | Path | None) -> list[Path]:
         settings = Settings.from_env()
         paths.append(settings.data_root / "metadata" / "evidence_metadata_v0.1.json")
         for name in (
+            "evidence_battery_EV_screened_v0.9.xlsx",
             "evidence_battery_EV_screened_v0.8.xlsx",
             "evidence_battery_EV_screened_v0.7.xlsx",
         ):
@@ -245,6 +254,7 @@ def _candidate_paths(explicit: str | Path | None) -> list[Path]:
         pass
     paths.append(DEFAULT_METADATA_PATH)
     for name in (
+        "evidence_battery_EV_screened_v0.9.xlsx",
         "evidence_battery_EV_screened_v0.8.xlsx",
         "evidence_battery_EV_screened_v0.7.xlsx",
     ):
@@ -286,7 +296,7 @@ if __name__ == "__main__":  # pragma: no cover
     import sys
 
     src = sys.argv[1] if len(sys.argv) > 1 else str(
-        DEFAULT_METADATA_PATH.with_name("evidence_battery_EV_screened_v0.8.xlsx")
+        DEFAULT_METADATA_PATH.with_name("evidence_battery_EV_screened_v0.9.xlsx")
     )
     dst = sys.argv[2] if len(sys.argv) > 2 else str(DEFAULT_METADATA_PATH)
     reg = write_registry(src, dst)

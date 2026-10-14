@@ -1,7 +1,7 @@
 """Build the Task 2 human scoring workbook from retrieval_results.xlsx.
 
 Output: Task2_manual_scoring_v3.xlsx
-Sheets: Item Scoring (150 rows) / Question Scoring (30 rows) / Summary / Rubric
+Sheets: Item Scoring (200 rows) / Question Scoring (40 rows) / Summary / Rubric
 """
 from __future__ import annotations
 
@@ -25,8 +25,12 @@ TOPIC_MAP = {
     "export_control": {"出口管制", "出口管制/关税", "原产地与转运"},
     "trade_policy": {"原产地与转运", "反规避", "贸易流", "出口管制/关税", "供应链布局"},
     "investment_policy": {"对外投资", "宏观风险"},
-    "market_access": {"原产地与转运", "反规避", "贸易流", "出口管制"},
+    "market_access": {"原产地与转运", "反规避", "贸易流", "出口管制", "市场准入", "本地化政策"},
     "regulation": {"出口管制", "出口管制/关税", "原产地与转运"},
+    "localization_policy": {"本地化政策", "市场准入", "原产地与转运", "供应链布局", "贸易流"},
+    "labor": {"劳工", "供应链布局", "宏观风险"},
+    "logistics": {"物流", "供应链布局", "贸易流", "原产地与转运"},
+    "tariff": {"关税", "出口管制/关税", "原产地与转运", "贸易流"},
 }
 
 

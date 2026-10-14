@@ -1,0 +1,1139 @@
+{
+  "ALB_001": {
+    "authority_level": "S",
+    "countries": [
+      "US",
+      "CL",
+      "AU",
+      "CN"
+    ],
+    "country_region": "US/CL/AU/CN",
+    "data_status": "verified",
+    "evidence_id": "ALB_001",
+    "evidence_type": "Company Disclosure",
+    "industry": "Battery_Materials",
+    "industry_scope": "core",
+    "publisher": "雅保公司（Albemarle Corporation，SEC EDGAR）",
+    "related_risk": [
+      "Supply Chain Risk",
+      "Operational Risk"
+    ],
+    "title": "Albemarle Corporation Form 10-K（fiscal year ended December 31, 2025）雅保2025财年年报",
+    "topic_cn": "供应链布局",
+    "topics": [
+      "supply_chain",
+      "supplier_dependency"
+    ]
+  },
+  "BIS_001": {
+    "authority_level": "S",
+    "countries": [
+      "US"
+    ],
+    "country_region": "US",
+    "data_status": "verified",
+    "evidence_id": "BIS_001",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "美国商务部工业与安全局（BIS）",
+    "related_risk": [
+      "Regulatory Risk",
+      "Market Access Risk"
+    ],
+    "title": "Expansion of End-User Controls to Cover Affiliates of Certain Listed Entities（关联企业规则 / 50%穿透规则，临时最终规则）",
+    "topic_cn": "出口管制",
+    "topics": [
+      "export_control",
+      "regulation"
+    ]
+  },
+  "BIS_002": {
+    "authority_level": "S",
+    "countries": [
+      "US"
+    ],
+    "country_region": "US",
+    "data_status": "verified",
+    "evidence_id": "BIS_002",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "美国商务部工业与安全局（BIS）",
+    "related_risk": [
+      "Regulatory Risk",
+      "Market Access Risk"
+    ],
+    "title": "One Year Suspension of Expansion of End-User Controls for Affiliates of Certain Listed Entities（关联企业规则暂停一年）",
+    "topic_cn": "出口管制",
+    "topics": [
+      "export_control",
+      "regulation"
+    ]
+  },
+  "CASE_001": {
+    "authority_level": "B+",
+    "countries": [
+      "CN"
+    ],
+    "country_region": "CN",
+    "data_status": "reported",
+    "evidence_id": "CASE_001",
+    "evidence_type": "News",
+    "industry": "General_Manufacturing",
+    "industry_scope": "off_focus",
+    "publisher": "路透社（Reuters）",
+    "related_risk": [
+      "Supply Chain Risk",
+      "Operational Risk"
+    ],
+    "title": "Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂",
+    "topic_cn": "供应链布局",
+    "topics": [
+      "supply_chain",
+      "supplier_dependency"
+    ]
+  },
+  "CASE_002": {
+    "authority_level": "S",
+    "countries": [
+      "KH",
+      "MY",
+      "TH",
+      "VN"
+    ],
+    "country_region": "柬埔寨/马来西亚/泰国/越南",
+    "data_status": "verified",
+    "evidence_id": "CASE_002",
+    "evidence_type": "Case Study",
+    "industry": "Energy_Storage",
+    "industry_scope": "off_focus",
+    "publisher": "美国商务部（经律所解读）",
+    "related_risk": [
+      "Trade Risk",
+      "Market Access Risk"
+    ],
+    "title": "美国对东南亚四国光伏产品反规避认定：视为中国原产并适用对华双反",
+    "topic_cn": "反规避",
+    "topics": [
+      "trade_policy",
+      "market_access"
+    ]
+  },
+  "CASE_003": {
+    "authority_level": "S",
+    "countries": [
+      "MY",
+      "VN"
+    ],
+    "country_region": "马来西亚/越南",
+    "data_status": "verified",
+    "evidence_id": "CASE_003",
+    "evidence_type": "Case Study",
+    "industry": "Energy_Storage",
+    "industry_scope": "off_focus",
+    "publisher": "美国商务部（经律所解读）",
+    "related_risk": [
+      "Trade Risk",
+      "Market Access Risk"
+    ],
+    "title": "同一反规避调查中被认定“未规避”的企业（Hanwha、Jinko马来西亚、Boviet越南）",
+    "topic_cn": "反规避",
+    "topics": [
+      "trade_policy",
+      "market_access"
+    ]
+  },
+  "CASE_004": {
+    "authority_level": "B+",
+    "countries": [
+      "CN"
+    ],
+    "country_region": "CN",
+    "data_status": "reported",
+    "evidence_id": "CASE_004",
+    "evidence_type": "News",
+    "industry": "Electronics_Manufacturing",
+    "industry_scope": "off_focus",
+    "publisher": "国盛证券（经腾讯新闻转载）",
+    "related_risk": [
+      "Supply Chain Risk",
+      "Operational Risk"
+    ],
+    "title": "中际旭创：泰国工厂产能与国内基本齐平",
+    "topic_cn": "供应链布局",
+    "topics": [
+      "supply_chain",
+      "supplier_dependency"
+    ]
+  },
+  "CASE_005": {
+    "authority_level": "B+",
+    "countries": [
+      "CN"
+    ],
+    "country_region": "CN",
+    "data_status": "reported",
+    "evidence_id": "CASE_005",
+    "evidence_type": "News",
+    "industry": "Electronics_Manufacturing",
+    "industry_scope": "off_focus",
+    "publisher": "国盛证券（经腾讯新闻转载）",
+    "related_risk": [
+      "Supply Chain Risk",
+      "Operational Risk"
+    ],
+    "title": "新易盛：2022年设立泰国基地，一二期已投产",
+    "topic_cn": "供应链布局",
+    "topics": [
+      "supply_chain",
+      "supplier_dependency"
+    ]
+  },
+  "CASE_006": {
+    "authority_level": "B+",
+    "countries": [
+      "CN"
+    ],
+    "country_region": "CN",
+    "data_status": "reported",
+    "evidence_id": "CASE_006",
+    "evidence_type": "News",
+    "industry": "Electronics_Manufacturing",
+    "industry_scope": "off_focus",
+    "publisher": "国盛证券（经腾讯新闻转载）",
+    "related_risk": [
+      "Supply Chain Risk",
+      "Operational Risk"
+    ],
+    "title": "天孚通信：泰国一期投产、二期2025年投入使用",
+    "topic_cn": "供应链布局",
+    "topics": [
+      "supply_chain",
+      "supplier_dependency"
+    ]
+  },
+  "CASE_007": {
+    "authority_level": "B+",
+    "countries": [
+      "CN"
+    ],
+    "country_region": "CN",
+    "data_status": "reported",
+    "evidence_id": "CASE_007",
+    "evidence_type": "News",
+    "industry": "Electronics_Manufacturing",
+    "industry_scope": "off_focus",
+    "publisher": "C114通信网",
+    "related_risk": [
+      "Supply Chain Risk",
+      "Operational Risk"
+    ],
+    "title": "华工正源：马来西亚工厂，公开表述为规避地缘风险",
+    "topic_cn": "供应链布局",
+    "topics": [
+      "supply_chain",
+      "supplier_dependency"
+    ]
+  },
+  "CASE_008": {
+    "authority_level": "B+",
+    "countries": [
+      "CN"
+    ],
+    "country_region": "CN",
+    "data_status": "reported",
+    "evidence_id": "CASE_008",
+    "evidence_type": "News",
+    "industry": "Electronics_Manufacturing",
+    "industry_scope": "off_focus",
+    "publisher": "中国基金报",
+    "related_risk": [
+      "Supply Chain Risk",
+      "Operational Risk"
+    ],
+    "title": "光模块厂商选择东南亚建厂以规避与欧美客户合作风险（中际旭创互动平台回复等）",
+    "topic_cn": "供应链布局",
+    "topics": [
+      "supply_chain",
+      "supplier_dependency"
+    ]
+  },
+  "CASE_009": {
+    "authority_level": "S",
+    "countries": [
+      "US"
+    ],
+    "country_region": "US",
+    "data_status": "verified",
+    "evidence_id": "CASE_009",
+    "evidence_type": "Case Study",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "美国商务部工业与安全局（BIS）",
+    "related_risk": [
+      "Regulatory Risk",
+      "Market Access Risk"
+    ],
+    "title": "BIS 50%穿透规则：发布→暂停→2026-11-10恢复的完整时间线",
+    "topic_cn": "出口管制",
+    "topics": [
+      "export_control",
+      "regulation"
+    ]
+  },
+  "CASE_010": {
+    "authority_level": "S",
+    "countries": [
+      "US"
+    ],
+    "country_region": "US",
+    "data_status": "reported",
+    "evidence_id": "CASE_010",
+    "evidence_type": "Case Study",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "美国白宫（经律所解读）",
+    "related_risk": [
+      "Trade Risk",
+      "Market Access Risk"
+    ],
+    "title": "白宫点名东南亚为非法转运高风险地区，并推出AI执法工具",
+    "topic_cn": "原产地与转运",
+    "topics": [
+      "trade_policy",
+      "market_access"
+    ]
+  },
+  "CNGOV_001": {
+    "authority_level": "S",
+    "countries": [
+      "CN"
+    ],
+    "country_region": "CN",
+    "data_status": "verified",
+    "evidence_id": "CNGOV_001",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "中华人民共和国国务院",
+    "related_risk": [
+      "Political Risk",
+      "Regulatory Risk"
+    ],
+    "title": "国务院关于对外投资的规定（国务院令第837号）",
+    "topic_cn": "对外投资",
+    "topics": [
+      "investment_policy"
+    ]
+  },
+  "CSIS_001": {
+    "authority_level": "A",
+    "countries": [
+      "US"
+    ],
+    "country_region": "US",
+    "data_status": "reported",
+    "evidence_id": "CSIS_001",
+    "evidence_type": "Industry Report",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "战略与国际研究中心（CSIS）",
+    "related_risk": [
+      "Trade Risk",
+      "Market Access Risk"
+    ],
+    "title": "The Visibility Gap: How AI Can Stop Chinese Transshipment Under USMCA",
+    "topic_cn": "原产地与转运",
+    "topics": [
+      "trade_policy",
+      "market_access"
+    ]
+  },
+  "DHS_001": {
+    "authority_level": "S",
+    "countries": [
+      "US",
+      "CN"
+    ],
+    "country_region": "US/CN",
+    "data_status": "verified",
+    "evidence_id": "DHS_001",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "美国国土安全部（DHS，Federal Register）",
+    "related_risk": [
+      "Operational Risk",
+      "Regulatory Risk"
+    ],
+    "title": "Notice Regarding the Uyghur Forced Labor Prevention Act Entity List（UFLPA 实体清单更新公告）",
+    "topic_cn": "劳工",
+    "topics": [
+      "labor"
+    ]
+  },
+  "DOC_001": {
+    "authority_level": "S",
+    "countries": [
+      "US"
+    ],
+    "country_region": "US",
+    "data_status": "reported",
+    "evidence_id": "DOC_001",
+    "evidence_type": "Policy",
+    "industry": "Energy_Storage",
+    "industry_scope": "off_focus",
+    "publisher": "美国商务部",
+    "related_risk": [
+      "Trade Risk",
+      "Market Access Risk"
+    ],
+    "title": "Final Circumvention Determinations: Crystalline Silicon Photovoltaic Cells from Cambodia, Malaysia, Thailand and Vietnam（东南亚四国光伏反规避终裁）",
+    "topic_cn": "反规避",
+    "topics": [
+      "trade_policy",
+      "market_access"
+    ]
+  },
+  "EU_001": {
+    "authority_level": "S",
+    "countries": [
+      "EU"
+    ],
+    "country_region": "EU",
+    "data_status": "verified",
+    "evidence_id": "EU_001",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "欧洲议会与欧盟理事会（EUR-Lex / Official Journal）",
+    "related_risk": [
+      "Regulatory Risk",
+      "Market Access Risk"
+    ],
+    "title": "Regulation (EU) 2023/1542 concerning batteries and waste batteries（欧盟电池与废电池法规）",
+    "topic_cn": "市场准入",
+    "topics": [
+      "market_access",
+      "regulation"
+    ]
+  },
+  "EU_002": {
+    "authority_level": "S",
+    "countries": [
+      "EU"
+    ],
+    "country_region": "EU",
+    "data_status": "verified",
+    "evidence_id": "EU_002",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "欧洲议会与欧盟理事会（EUR-Lex / Official Journal）",
+    "related_risk": [
+      "Market Access Risk",
+      "Supply Chain Risk",
+      "Political Risk"
+    ],
+    "title": "Regulation (EU) 2024/1252 establishing a framework for ensuring a secure and sustainable supply of critical raw materials（欧盟关键原材料法案 CRMA）",
+    "topic_cn": "本地化政策",
+    "topics": [
+      "localization_policy",
+      "market_access"
+    ]
+  },
+  "EU_003": {
+    "authority_level": "S",
+    "countries": [
+      "EU",
+      "CN"
+    ],
+    "country_region": "EU/CN",
+    "data_status": "verified",
+    "evidence_id": "EU_003",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "欧盟委员会（EUR-Lex / Official Journal）",
+    "related_risk": [
+      "Trade Risk",
+      "Market Access Risk"
+    ],
+    "title": "Commission Implementing Regulation (EU) 2024/2754 imposing a definitive countervailing duty on imports of new battery electric vehicles originating in China（对华纯电动车最终反补贴税）",
+    "topic_cn": "关税",
+    "topics": [
+      "tariff"
+    ]
+  },
+  "EU_004": {
+    "authority_level": "S",
+    "countries": [
+      "EU"
+    ],
+    "country_region": "EU",
+    "data_status": "verified",
+    "evidence_id": "EU_004",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "欧洲议会与欧盟理事会（EUR-Lex / Official Journal）",
+    "related_risk": [
+      "Political Risk",
+      "Regulatory Risk"
+    ],
+    "title": "Regulation (EU) 2019/452 establishing a framework for the screening of foreign direct investments into the Union（欧盟外资安全审查框架条例）",
+    "topic_cn": "对外投资",
+    "topics": [
+      "investment_policy"
+    ]
+  },
+  "FR_001": {
+    "authority_level": "S",
+    "countries": [
+      "US"
+    ],
+    "country_region": "US",
+    "data_status": "unknown",
+    "evidence_id": "FR_001",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "美国国家档案馆联邦公报办公室",
+    "related_risk": [
+      "Regulatory Risk",
+      "Trade Risk",
+      "Market Access Risk"
+    ],
+    "title": "Federal Register API（美国联邦公报）",
+    "topic_cn": "出口管制/关税",
+    "topics": [
+      "export_control",
+      "tariff",
+      "regulation"
+    ]
+  },
+  "IEA_001": {
+    "authority_level": "A+",
+    "countries": [
+      "Global"
+    ],
+    "country_region": "全球",
+    "data_status": "verified",
+    "evidence_id": "IEA_001",
+    "evidence_type": "Industry Report",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "国际能源署（IEA）",
+    "related_risk": [
+      "Supply Chain Risk",
+      "Operational Risk"
+    ],
+    "title": "Global EV Outlook 2025（全球电动汽车展望2025）",
+    "topic_cn": "供应链布局",
+    "topics": [
+      "supply_chain",
+      "supplier_dependency"
+    ]
+  },
+  "IMF_001": {
+    "authority_level": "A+",
+    "countries": [
+      "Global"
+    ],
+    "country_region": "全球",
+    "data_status": "reported",
+    "evidence_id": "IMF_001",
+    "evidence_type": "Industry Report",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "国际货币基金组织（IMF）",
+    "related_risk": [
+      "Political Risk",
+      "Regulatory Risk"
+    ],
+    "title": "World Economic Outlook, April 2023, Chapter 4: Geoeconomic Fragmentation and Foreign Direct Investment",
+    "topic_cn": "对外投资",
+    "topics": [
+      "investment_policy"
+    ]
+  },
+  "IRS_001": {
+    "authority_level": "S",
+    "countries": [
+      "US"
+    ],
+    "country_region": "US",
+    "data_status": "verified",
+    "evidence_id": "IRS_001",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "美国财政部/国税局（Federal Register）",
+    "related_risk": [
+      "Market Access Risk",
+      "Supply Chain Risk",
+      "Political Risk"
+    ],
+    "title": "Clean Vehicle Credits Under Sections 25E and 30D; Transfer of Credits; Critical Minerals and Battery Components; Foreign Entities of Concern（清洁车辆抵免与FEOC最终规则）",
+    "topic_cn": "本地化政策",
+    "topics": [
+      "localization_policy",
+      "market_access"
+    ]
+  },
+  "ITA_001": {
+    "authority_level": "S",
+    "countries": [
+      "US"
+    ],
+    "country_region": "US",
+    "data_status": "verified",
+    "evidence_id": "ITA_001",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "美国国际贸易管理局（ITA）",
+    "related_risk": [
+      "Regulatory Risk",
+      "Market Access Risk"
+    ],
+    "title": "Consolidated Screening List API（美国合并筛查清单）",
+    "topic_cn": "出口管制",
+    "topics": [
+      "export_control",
+      "regulation"
+    ]
+  },
+  "KPMG_001": {
+    "authority_level": "A",
+    "countries": [
+      "US"
+    ],
+    "country_region": "US",
+    "data_status": "verified",
+    "evidence_id": "KPMG_001",
+    "evidence_type": "Industry Report",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "毕马威（KPMG）",
+    "related_risk": [
+      "Supply Chain Risk",
+      "Operational Risk"
+    ],
+    "title": "KPMG 2026 US Supply Chain Survey",
+    "topic_cn": "供应链布局",
+    "topics": [
+      "supply_chain",
+      "supplier_dependency"
+    ]
+  },
+  "LI_001": {
+    "authority_level": "S",
+    "countries": [
+      "CN"
+    ],
+    "country_region": "CN",
+    "data_status": "verified",
+    "evidence_id": "LI_001",
+    "evidence_type": "Company Disclosure",
+    "industry": "Automotive",
+    "industry_scope": "core",
+    "publisher": "理想汽车（Li Auto Inc.，SEC EDGAR）",
+    "related_risk": [
+      "Trade Risk",
+      "Market Access Risk"
+    ],
+    "title": "Li Auto Inc. Form 20-F（fiscal year ended December 31, 2025）理想汽车2025财年年报",
+    "topic_cn": "关税",
+    "topics": [
+      "tariff"
+    ]
+  },
+  "MCK_001": {
+    "authority_level": "A",
+    "countries": [
+      "Global"
+    ],
+    "country_region": "全球",
+    "data_status": "reported",
+    "evidence_id": "MCK_001",
+    "evidence_type": "Industry Report",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "麦肯锡（McKinsey）",
+    "related_risk": [
+      "Political Risk",
+      "Trade Risk"
+    ],
+    "title": "The art, science, and technology of geopolitical scenario planning",
+    "topic_cn": "宏观风险",
+    "topics": [
+      "trade_policy",
+      "supply_chain"
+    ]
+  },
+  "MOFCOM_001": {
+    "authority_level": "S",
+    "countries": [
+      "CN"
+    ],
+    "country_region": "CN",
+    "data_status": "verified",
+    "evidence_id": "MOFCOM_001",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "商务部、海关总署",
+    "related_risk": [
+      "Regulatory Risk",
+      "Market Access Risk"
+    ],
+    "title": "2026年度《两用物项和技术进出口许可证管理目录》",
+    "topic_cn": "出口管制",
+    "topics": [
+      "export_control",
+      "regulation"
+    ]
+  },
+  "MOFCOM_002": {
+    "authority_level": "S",
+    "countries": [
+      "CN"
+    ],
+    "country_region": "CN",
+    "data_status": "reported",
+    "evidence_id": "MOFCOM_002",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "商务部",
+    "related_risk": [
+      "Regulatory Risk",
+      "Market Access Risk"
+    ],
+    "title": "商务部公告2025年第72号（暂停实施2024年第46号公告第二款，涉及对美两用物项出口管制）",
+    "topic_cn": "出口管制",
+    "topics": [
+      "export_control",
+      "regulation"
+    ]
+  },
+  "NIO_001": {
+    "authority_level": "S",
+    "countries": [
+      "CN"
+    ],
+    "country_region": "CN",
+    "data_status": "verified",
+    "evidence_id": "NIO_001",
+    "evidence_type": "Company Disclosure",
+    "industry": "Automotive",
+    "industry_scope": "core",
+    "publisher": "蔚来（NIO Inc.，SEC EDGAR）",
+    "related_risk": [
+      "Regulatory Risk",
+      "Market Access Risk"
+    ],
+    "title": "NIO Inc. Form 20-F（fiscal year ended December 31, 2025）蔚来2025财年年报",
+    "topic_cn": "出口管制",
+    "topics": [
+      "export_control",
+      "regulation"
+    ]
+  },
+  "SNE_001": {
+    "authority_level": "B",
+    "countries": [
+      "Global"
+    ],
+    "country_region": "全球",
+    "data_status": "verified",
+    "evidence_id": "SNE_001",
+    "evidence_type": "Industry Report",
+    "industry": "EV_Battery",
+    "industry_scope": "core",
+    "publisher": "SNE Research",
+    "related_risk": [
+      "Supply Chain Risk",
+      "Operational Risk"
+    ],
+    "title": "January-August 2026 Global EV Battery Usage Reaches 844.2 GWh, Up 19.7% Year-on-Year（2026年1–8月全球动力电池装车量快报）",
+    "topic_cn": "供应链布局",
+    "topics": [
+      "supply_chain",
+      "supplier_dependency"
+    ]
+  },
+  "TRD_001": {
+    "authority_level": "A+",
+    "countries": [
+      "US"
+    ],
+    "country_region": "US",
+    "data_status": "unknown",
+    "evidence_id": "TRD_001",
+    "evidence_type": "Trade Data",
+    "industry": "Electronics_Manufacturing",
+    "industry_scope": "off_focus",
+    "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+    "related_risk": [
+      "Trade Risk",
+      "Supply Chain Risk"
+    ],
+    "title": "美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度",
+    "topic_cn": "贸易流",
+    "topics": [
+      "trade_policy",
+      "supply_chain"
+    ]
+  },
+  "TRD_002": {
+    "authority_level": "A+",
+    "countries": [
+      "US"
+    ],
+    "country_region": "US",
+    "data_status": "unknown",
+    "evidence_id": "TRD_002",
+    "evidence_type": "Trade Data",
+    "industry": "Energy_Storage",
+    "industry_scope": "off_focus",
+    "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+    "related_risk": [
+      "Trade Risk",
+      "Supply Chain Risk"
+    ],
+    "title": "美国自越南、泰国、马来西亚、柬埔寨进口光伏组件HS 854140，2018–2025年度",
+    "topic_cn": "贸易流",
+    "topics": [
+      "trade_policy",
+      "supply_chain"
+    ]
+  },
+  "TRD_003": {
+    "authority_level": "A+",
+    "countries": [
+      "CN"
+    ],
+    "country_region": "CN",
+    "data_status": "unknown",
+    "evidence_id": "TRD_003",
+    "evidence_type": "Trade Data",
+    "industry": "Electronics_Manufacturing",
+    "industry_scope": "off_focus",
+    "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+    "related_risk": [
+      "Trade Risk",
+      "Supply Chain Risk"
+    ],
+    "title": "中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度",
+    "topic_cn": "贸易流",
+    "topics": [
+      "trade_policy",
+      "supply_chain"
+    ]
+  },
+  "TSLA_001": {
+    "authority_level": "S",
+    "countries": [
+      "US",
+      "CN",
+      "DE"
+    ],
+    "country_region": "US/CN/DE",
+    "data_status": "verified",
+    "evidence_id": "TSLA_001",
+    "evidence_type": "Company Disclosure",
+    "industry": "Automotive",
+    "industry_scope": "core",
+    "publisher": "特斯拉公司（Tesla, Inc.，SEC EDGAR）",
+    "related_risk": [
+      "Supply Chain Risk",
+      "Operational Risk"
+    ],
+    "title": "Tesla, Inc. Form 10-K（fiscal year ended December 31, 2025）特斯拉2025财年年报",
+    "topic_cn": "供应链布局",
+    "topics": [
+      "supply_chain",
+      "supplier_dependency"
+    ]
+  },
+  "UNCTAD_001": {
+    "authority_level": "A+",
+    "countries": [
+      "Global"
+    ],
+    "country_region": "全球",
+    "data_status": "verified",
+    "evidence_id": "UNCTAD_001",
+    "evidence_type": "Industry Report",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "联合国贸易和发展会议（UNCTAD）",
+    "related_risk": [
+      "Political Risk",
+      "Regulatory Risk"
+    ],
+    "title": "World Investment Report 2026: International Investment in a Turbulent Era",
+    "topic_cn": "对外投资",
+    "topics": [
+      "investment_policy"
+    ]
+  },
+  "USMCA_001": {
+    "authority_level": "S",
+    "countries": [
+      "US",
+      "MX",
+      "CA"
+    ],
+    "country_region": "US/MX/CA",
+    "data_status": "verified",
+    "evidence_id": "USMCA_001",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "美国贸易代表办公室（USTR）",
+    "related_risk": [
+      "Trade Risk",
+      "Market Access Risk"
+    ],
+    "title": "USMCA Chapter 4: Rules of Origin（美墨加协定第4章原产地规则）",
+    "topic_cn": "原产地与转运",
+    "topics": [
+      "trade_policy",
+      "market_access"
+    ]
+  },
+  "UST_001": {
+    "authority_level": "S",
+    "countries": [
+      "US"
+    ],
+    "country_region": "US",
+    "data_status": "verified",
+    "evidence_id": "UST_001",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "美国贸易代表办公室（USTR，Federal Register）",
+    "related_risk": [
+      "Trade Risk",
+      "Market Access Risk"
+    ],
+    "title": "Notice of Modification: China's Acts, Policies and Practices Related to Technology Transfer, Intellectual Property and Innovation（Section 301 对华关税调整通知）",
+    "topic_cn": "关税",
+    "topics": [
+      "tariff"
+    ]
+  },
+  "WB_001": {
+    "authority_level": "A+",
+    "countries": [
+      "Global"
+    ],
+    "country_region": "全球",
+    "data_status": "verified",
+    "evidence_id": "WB_001",
+    "evidence_type": "Industry Report",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "世界银行（World Bank）",
+    "related_risk": [
+      "Supply Chain Risk",
+      "Operational Risk"
+    ],
+    "title": "Connecting to Compete 2023: Trade Logistics in an Uncertain Global Economy（2023年物流绩效指数报告）",
+    "topic_cn": "物流",
+    "topics": [
+      "logistics",
+      "supply_chain"
+    ]
+  },
+  "WEF_001": {
+    "authority_level": "A+",
+    "countries": [
+      "Global"
+    ],
+    "country_region": "全球",
+    "data_status": "verified",
+    "evidence_id": "WEF_001",
+    "evidence_type": "Industry Report",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "世界经济论坛（WEF）",
+    "related_risk": [
+      "Political Risk",
+      "Trade Risk"
+    ],
+    "title": "Global Risks Report 2026（全球风险报告2026，第21版）",
+    "topic_cn": "宏观风险",
+    "topics": [
+      "trade_policy",
+      "supply_chain"
+    ]
+  },
+  "WH_001": {
+    "authority_level": "S",
+    "countries": [
+      "US"
+    ],
+    "country_region": "US",
+    "data_status": "reported",
+    "evidence_id": "WH_001",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "美国白宫",
+    "related_risk": [
+      "Trade Risk",
+      "Market Access Risk"
+    ],
+    "title": "Executive Order 14411: Strengthening Customs Enforcement（加强海关执法行政令）",
+    "topic_cn": "原产地与转运",
+    "topics": [
+      "trade_policy",
+      "market_access"
+    ]
+  },
+  "WH_002": {
+    "authority_level": "S",
+    "countries": [
+      "US"
+    ],
+    "country_region": "US",
+    "data_status": "reported",
+    "evidence_id": "WH_002",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "美国白宫贸易与制造业政策办公室",
+    "related_risk": [
+      "Trade Risk",
+      "Market Access Risk"
+    ],
+    "title": "The Great Transshipment Scam: Rise, Scope, and Costs（白宫非法转运报告）",
+    "topic_cn": "原产地与转运",
+    "topics": [
+      "trade_policy",
+      "market_access"
+    ]
+  },
+  "WTO_001": {
+    "authority_level": "A+",
+    "countries": [
+      "Global"
+    ],
+    "country_region": "全球",
+    "data_status": "reported",
+    "evidence_id": "WTO_001",
+    "evidence_type": "Industry Report",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "世界贸易组织（WTO）",
+    "related_risk": [
+      "Trade Risk",
+      "Supply Chain Risk"
+    ],
+    "title": "Global Trade Outlook and Statistics（2026年3月版）",
+    "topic_cn": "贸易流",
+    "topics": [
+      "trade_policy",
+      "supply_chain"
+    ]
+  },
+  "WTO_002": {
+    "authority_level": "A+",
+    "countries": [
+      "IN"
+    ],
+    "country_region": "IN",
+    "data_status": "verified",
+    "evidence_id": "WTO_002",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "世界贸易组织（WTO）",
+    "related_risk": [
+      "Trade Risk",
+      "Supply Chain Risk"
+    ],
+    "title": "Trade Policy Review: Report by the Secretariat — India（WT/TPR/S/403）印度第七次贸易政策审议秘书处报告",
+    "topic_cn": "贸易流",
+    "topics": [
+      "trade_policy",
+      "supply_chain"
+    ]
+  },
+  "WTO_003": {
+    "authority_level": "A+",
+    "countries": [
+      "IN"
+    ],
+    "country_region": "IN",
+    "data_status": "verified",
+    "evidence_id": "WTO_003",
+    "evidence_type": "Trade Data",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "世界贸易组织（WTO）",
+    "related_risk": [
+      "Trade Risk",
+      "Supply Chain Risk"
+    ],
+    "title": "WTO Tariff Profile: India — Tariffs and Imports Summary（WTO国别关税快照：印度）",
+    "topic_cn": "贸易流",
+    "topics": [
+      "trade_policy",
+      "supply_chain"
+    ]
+  },
+  "WTO_004": {
+    "authority_level": "A+",
+    "countries": [
+      "ID"
+    ],
+    "country_region": "ID",
+    "data_status": "verified",
+    "evidence_id": "WTO_004",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "世界贸易组织（WTO）",
+    "related_risk": [
+      "Market Access Risk",
+      "Supply Chain Risk",
+      "Political Risk"
+    ],
+    "title": "Trade Policy Review: Report by the Secretariat — Indonesia（WT/TPR/S/401）印尼第七次贸易政策审议秘书处报告",
+    "topic_cn": "本地化政策",
+    "topics": [
+      "localization_policy",
+      "market_access"
+    ]
+  },
+  "XPEV_001": {
+    "authority_level": "S",
+    "countries": [
+      "CN"
+    ],
+    "country_region": "CN",
+    "data_status": "verified",
+    "evidence_id": "XPEV_001",
+    "evidence_type": "Company Disclosure",
+    "industry": "Automotive",
+    "industry_scope": "core",
+    "publisher": "小鹏汽车（XPeng Inc.，SEC EDGAR）",
+    "related_risk": [
+      "Regulatory Risk",
+      "Market Access Risk"
+    ],
+    "title": "XPeng Inc. Form 20-F（fiscal year ended December 31, 2025）小鹏汽车2025财年年报",
+    "topic_cn": "出口管制",
+    "topics": [
+      "export_control",
+      "regulation"
+    ]
+  }
+}
