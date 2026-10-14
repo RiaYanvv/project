@@ -64,11 +64,21 @@ def main() -> None:
 
     weak = sorted(per, key=lambda r: (r["recall_at_10"], r["precision_at_5"]))[:8]
 
+    # Corpus size straight from the DB, so the header can never drift.
+    try:
+        import sqlite3
+
+        con = sqlite3.connect(Path("backend/test_data/app.db"))
+        docs = con.execute("select count(*) from knowledge_documents").fetchone()[0]
+        con.close()
+    except Exception:
+        docs = "?"
+
     lines = [
         "# Task 3 — RAG Baseline Report",
         "",
         "**范围**：当前（未做 metadata filtering / query enhancement / authority ranking 优化）的检索能力",
-        "**数据**：30 个 benchmark 问题 × Top-10，语料 30 篇证据（Task 1 政策/宏观/贸易；Task 5 的 17 个案例为 held-out 答案键，不入语料），`backend/test_data/app.db`",
+        f"**数据**：30 个 benchmark 问题 × Top-10，语料 {docs} 篇证据（Task 1 v0.8 政策/宏观/贸易/监管；Task 5 的 17 个案例为 held-out 答案键，不入语料），`backend/test_data/app.db`",
         "**运行**：`run_task3_baseline.py`（Top-K=10）；报告由 `build_task3_report.py` 从结果文件生成",
         "",
         "---",

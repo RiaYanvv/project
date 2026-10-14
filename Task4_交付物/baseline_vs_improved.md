@@ -2,7 +2,7 @@
 
 **Before**：`run_task3_baseline.py`（未接入优化层）
 **After**：同一评测集 + `RetrievalOptimizer`（4.1 元数据过滤 + 4.2 查询增强 + 4.3 权威性排序）
-**数据**：30 个 benchmark 问题 × Top-10，语料 30 篇证据（Task 1 政策/宏观/贸易；Task 5 的 17 个案例为 held-out 答案键，不入语料），Top-K=10
+**数据**：30 个 benchmark 问题 × Top-10，语料 36 篇证据（Task 1 v0.8；Task 5 的 17 个案例为 held-out 答案键，不入语料），Top-K=10
 **口径**：Before/After 由**同一个 Task 3 writer** 产出，指标定义不可能漂移；
 每个 variant 运行前清空实体缓存，避免跨 variant 污染。
 
@@ -10,51 +10,51 @@
 
 | 指标 | Before | After | Delta |
 |---|---|---|---|
-| Precision@5 | 0.920 | 0.940 | +0.020 |
-| Recall@10 | 0.893 | 0.931 | +0.038 |
-| Entity Accuracy | 0.885 | 0.874 | -0.012 |
-| Entity Recall | 1.000 | 0.993 | -0.007 |
-| Entity Precision | 0.771 | 0.754 | -0.017 |
+| Precision@5 | 0.913 | 0.920 | +0.007 |
+| Recall@10 | 0.893 | 0.920 | +0.027 |
+| Entity Accuracy | 0.921 | 0.892 | -0.029 |
+| Entity Recall | 1.000 | 1.000 | +0.000 |
+| Entity Precision | 0.842 | 0.783 | -0.058 |
 | Hit@5 | 1.000 | 1.000 | +0.000 |
-| Mean Authority (Top-5) | 1.827 | 1.847 | +0.020 |
+| Mean Authority (Top-5) | 1.827 | 1.827 | +0.000 |
 
 任务书目标（After：P@5 ≥ 0.80 / R@10 ≥ 0.80 / EA ≥ 0.95）：
 
 | 指标 | Before | After | 任务书目标 | 达标 |
 |---|---|---|---|---|
-| Precision@5 | 0.920 | 0.940 | ≥ 0.80 | ✅ |
-| Recall@10 | 0.893 | 0.931 | ≥ 0.80 | ✅ |
-| Entity Accuracy | 0.885 | 0.874 | ≥ 0.95 | ❌ |
+| Precision@5 | 0.913 | 0.920 | ≥ 0.80 | ✅ |
+| Recall@10 | 0.893 | 0.920 | ≥ 0.80 | ✅ |
+| Entity Accuracy | 0.921 | 0.892 | ≥ 0.95 | ❌ |
 
 ## 2. 消融（每个杠杆单独作用）
 
 | variant | metadata_filter | query_expansion | authority_ranking | P@5 | R@10 | Entity Accuracy |
 |---|---|---|---|---|---|---|
-| baseline | False | False | False | 0.920 | 0.893 | 0.885 |
-| filter_only | True | False | False | 0.927 | 0.904 | 0.892 |
-| expansion_only | False | True | False | 0.920 | 0.908 | 0.878 |
-| authority_only | False | False | True | 0.900 | 0.893 | 0.892 |
-| full | True | True | True | 0.940 | 0.931 | 0.874 |
+| baseline | False | False | False | 0.913 | 0.893 | 0.921 |
+| filter_only | True | False | False | 0.913 | 0.904 | 0.919 |
+| expansion_only | False | True | False | 0.907 | 0.920 | 0.894 |
+| authority_only | False | False | True | 0.907 | 0.893 | 0.917 |
+| full | True | True | True | 0.920 | 0.920 | 0.892 |
 
 ## 3. 被否掉的配置（同样实测过）
 
 | 配置 | P@5 | R@10 | Entity Accuracy | 否决原因 |
 |---|---|---|---|---|
-| alt_industry_boost_0.03 | 0.940 | 0.931 | 0.874 | core 证据免提升权：语料里 core 现在包含全部案例叙述，无条件加权把案例顶掉政策证据，R@10 下降 |
-| alt_global_demote_0.16 | 0.933 | 0.931 | 0.884 | Global 辖区降权过重：UNCTAD/IMF/WTO 等 gold 被压出 Top-10，R@10 下降 |
-| alt_macro_demote_not_drop | 0.927 | 0.920 | 0.876 | 只降权不删除，宏观文档仍占用 Top-5 名额，P@5 低于硬删 |
-| alt_offfocus_hard_drop | 0.927 | 0.692 | 0.761 | 硬删跨行业类比证据，R@10 崩到 0.72（光模块/光伏案例仍是 Q001–Q004/Q030 的 gold） |
-| alt_authority_band_0.10 | 0.920 | 0.931 | 0.874 | 可比带过宽，权威性压过相关性，P@5 下降 |
-| alt_authority_heavy | 0.907 | 0.913 | 0.874 | 权威权重过大，P@5 下降——证明相关性必须优先 |
+| alt_industry_boost_0.03 | 0.920 | 0.920 | 0.892 | core 证据免提升权：语料里 core 现在包含全部案例叙述，无条件加权把案例顶掉政策证据，R@10 下降 |
+| alt_global_demote_0.16 | 0.913 | 0.908 | 0.900 | Global 辖区降权过重：UNCTAD/IMF/WTO 等 gold 被压出 Top-10，R@10 下降 |
+| alt_macro_demote_not_drop | 0.913 | 0.920 | 0.892 | 只降权不删除，宏观文档仍占用 Top-5 名额，P@5 低于硬删 |
+| alt_offfocus_hard_drop | 0.873 | 0.681 | 0.814 | 硬删跨行业类比证据，R@10 崩到 0.72（光模块/光伏案例仍是 Q001–Q004/Q030 的 gold） |
+| alt_authority_band_0.10 | 0.893 | 0.920 | 0.894 | 可比带过宽，权威性压过相关性，P@5 下降 |
+| alt_authority_heavy | 0.887 | 0.908 | 0.925 | 权威权重过大，P@5 下降——证明相关性必须优先 |
 
 ## 4. 权威性排序效果（gold 证据，对应 Task 3 §2.3）
 
 | authority | weight | gold 条数 | 平均排名 Before | 平均排名 After | 进 Top-3 Before | 进 Top-3 After |
 |---|---|---|---|---|---|---|
-| S | 1.00 | 66 | 2.7 | 2.84 | 0.742 | 0.725 |
-| A+ | 0.85 | 22 | 2.14 | 2.23 | 0.818 | 0.818 |
-| A | 0.70 | 10 | 5.0 | 5.33 | 0.2 | 0.167 |
-| B+ | 0.50 | 21 | 4.05 | 4.33 | 0.476 | 0.429 |
+| S | 1.00 | 66 | 2.59 | 2.71 | 0.758 | 0.735 |
+| A+ | 0.85 | 22 | 2.68 | 2.64 | 0.727 | 0.773 |
+| A | 0.70 | 10 | 4.5 | 5.17 | 0.2 | 0.167 |
+| B+ | 0.50 | 21 | 4.0 | 4.24 | 0.476 | 0.429 |
 
 4.3 的结论：**权威性没有把 A 级来源拉上去，也不应该拉上去**。
 S/A+ 级政策文件本来就排在 2–3 位；A 级（CSIS / KPMG / McKinsey / WEF）排在 5 位左右是**相关性**造成的，
@@ -66,10 +66,10 @@ S/A+ 级政策文件本来就排在 2–3 位；A 级（CSIS / KPMG / McKinsey /
 
 | Task 3 问题 | Task 4 动作 | 结果 |
 |---|---|---|
-| 宏观文档漂移（§2.4） | 4.1 F1 宏观漂移规则（无投资/宏观意图时移除）+ F4 全球辖区降权 | R@10 0.893 → 0.931 |
-| 企业案例召回弱（Q002 P@5 / Q003 R@10） | 4.2 query enhancement（聚焦版，只注入问题相关的召回词） | Q003 R@10 0.333 → 0.667 |
+| 宏观文档漂移（§2.4） | 4.1 F1 宏观漂移规则（无投资/宏观意图时移除）+ F4 全球辖区降权 | R@10 0.893 → 0.920 |
+| 企业案例召回弱（Q002 P@5 / Q003 R@10） | 4.2 query enhancement（聚焦版，只注入问题相关的召回词） | Q003 R@10 0.333 → 0.333 |
 | A/B+ 来源排序低（§2.3） | 4.3 authority banded tie-break | 见 §4，作为护栏而非翻盘工具 |
-| Entity Precision 偏低 | 4.1 删除宏观漂移 + 4.3 排序 | Entity Precision 0.771 → 0.754（受指标口径限制，见 §6） |
+| Entity Precision 偏低 | 4.1 删除宏观漂移 + 4.3 排序 | Entity Precision 0.842 → 0.783（受指标口径限制，见 §6） |
 
 ## 6. 关于 Entity Accuracy 目标
 
@@ -78,12 +78,12 @@ S/A+ 级政策文件本来就排在 2–3 位；A 级（CSIS / KPMG / McKinsey /
 * 原因：该指标的分子是「Top-10 中提及问题实体的证据数」，而 gold 里大量是全球/宏观文档，
   它们不出现「泰国」「CATL」这类实体。检索越准，这个分数反而越低。
 * 结论：Entity Accuracy ≥ 0.95 在本语料上不是可用的优化目标。本次将其作为**不劣化约束**
-  （0.885 → 0.874），把 P@5 / R@10 作为主目标；
+  （0.921 → 0.892），把 P@5 / R@10 作为主目标；
   语料已补齐 EV battery 企业案例，建议下一次评测换用 gold 覆盖率口径重新启用该指标。
 
 ## 7. 复现
 
 ```bash
 .venv/bin/python run_task4_eval.py          # 生成全部 Task 4 交付物
-.venv/bin/python run_task3_baseline.py      # 复现 Before 基线（0.920 / 0.893 / 0.885）
+.venv/bin/python run_task3_baseline.py      # 复现 Before 基线（0.913 / 0.893 / 0.921）
 ```

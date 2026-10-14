@@ -1,6 +1,6 @@
 """Task 4.1 — evidence metadata registry.
 
-Task 1 (``evidence_battery_EV_screened_v0.7.xlsx``) is the single source of
+Task 1 (``evidence_battery_EV_screened_v0.8.xlsx``) is the single source of
 truth for evidence metadata, but it stores several fields in Chinese and does
 not carry the optimisation schema verbatim.  This module derives the Task 4
 filter schema from the Task 1 file so the retrieval layer can filter on
@@ -35,6 +35,9 @@ TOPIC_EN: dict[str, list[str]] = {
     "供应链布局": ["supply_chain", "supplier_dependency"],
     "宏观风险": ["trade_policy", "supply_chain"],
     "贸易流": ["trade_policy", "supply_chain"],
+    # v0.8 additions (EU/regulation evidence).
+    "市场准入": ["market_access", "regulation"],
+    "本地化政策": ["localization_policy", "market_access"],
 }
 
 # Task 1 `source_type` -> Task 4 `evidence_type` vocabulary.
@@ -53,13 +56,16 @@ EVIDENCE_TYPE: dict[str, str] = {
 RISK_BY_TOPIC: dict[str, list[str]] = {
     "出口管制": ["Regulatory Risk", "Market Access Risk"],
     "出口管制/关税": ["Regulatory Risk", "Trade Risk", "Market Access Risk"],
-    "关税": ["Trade Risk"],
+    "关税": ["Trade Risk", "Market Access Risk"],
     "对外投资": ["Political Risk", "Regulatory Risk"],
     "原产地与转运": ["Trade Risk", "Market Access Risk"],
     "反规避": ["Trade Risk", "Market Access Risk"],
     "供应链布局": ["Supply Chain Risk", "Operational Risk"],
     "宏观风险": ["Political Risk", "Trade Risk"],
     "贸易流": ["Trade Risk", "Supply Chain Risk"],
+    # v0.8 additions (EU/regulation evidence).
+    "市场准入": ["Regulatory Risk", "Market Access Risk"],
+    "本地化政策": ["Market Access Risk", "Supply Chain Risk", "Political Risk"],
 }
 
 # Task 1 `verification_status` -> Task 4 `data_status` vocabulary.
@@ -230,13 +236,19 @@ def _candidate_paths(explicit: str | Path | None) -> list[Path]:
 
         settings = Settings.from_env()
         paths.append(settings.data_root / "metadata" / "evidence_metadata_v0.1.json")
-        paths.append(settings.data_root / "metadata" / "evidence_battery_EV_screened_v0.7.xlsx")
+        for name in (
+            "evidence_battery_EV_screened_v0.8.xlsx",
+            "evidence_battery_EV_screened_v0.7.xlsx",
+        ):
+            paths.append(settings.data_root / "metadata" / name)
     except Exception:  # pragma: no cover - settings import is best-effort
         pass
     paths.append(DEFAULT_METADATA_PATH)
-    paths.append(
-        DEFAULT_METADATA_PATH.with_name("evidence_battery_EV_screened_v0.7.xlsx")
-    )
+    for name in (
+        "evidence_battery_EV_screened_v0.8.xlsx",
+        "evidence_battery_EV_screened_v0.7.xlsx",
+    ):
+        paths.append(DEFAULT_METADATA_PATH.with_name(name))
     return paths
 
 
@@ -274,7 +286,7 @@ if __name__ == "__main__":  # pragma: no cover
     import sys
 
     src = sys.argv[1] if len(sys.argv) > 1 else str(
-        DEFAULT_METADATA_PATH.with_name("evidence_battery_EV_screened_v0.7.xlsx")
+        DEFAULT_METADATA_PATH.with_name("evidence_battery_EV_screened_v0.8.xlsx")
     )
     dst = sys.argv[2] if len(sys.argv) > 2 else str(DEFAULT_METADATA_PATH)
     reg = write_registry(src, dst)

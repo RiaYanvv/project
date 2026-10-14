@@ -117,6 +117,34 @@ class HybridRetrievalProvider:
         # Task 4 optimisation layer (metadata filtering / query enhancement /
         # authority ranking). ``None`` keeps the original behaviour exactly.
         self.optimizer = optimizer
+        # Corpus-scale hygiene (see `chunk_hygiene` notes in docs): a single
+        # 900k-character Official Journal instrument is split into >1000
+        # chunks, which lets it monopolise every candidate shortlist and win
+        # Top-K slots purely by size.  Two corrections keep ranking fair:
+        #   1. `RETRIEVAL_PER_SOURCE_CANDIDATES` - per-document quota in the
+        #      shortlist, so one long document cannot crowd out the pool.
+        #   2. `RETRIEVAL_LENGTH_NORM` - mild BM25-style length
+        #      normalisation of the source score.
+        # Both are tunable from the environment but on by default.
+        import os as _os
+
+        self._length_norm_gamma = float(
+            _os.getenv("RETRIEVAL_LENGTH_NORM", "0.10") or 0
+        )
+        self._source_chunk_counts: dict[str, int] | None = None
+        self._source_chunk_ref: float = 1.0
+        self._per_source_candidates = int(
+            _os.getenv("RETRIEVAL_PER_SOURCE_CANDIDATES", "80") or 0
+        ) or None
+
+    def _length_reference(self) -> float:
+        if self._source_chunk_counts is None:
+            counts = self.repository.chunk_counts()
+            self._source_chunk_counts = counts
+            values = sorted(counts.values())
+            if values:
+                self._source_chunk_ref = float(values[len(values) // 2]) or 1.0
+        return self._source_chunk_ref
 
     def search(self, query: RetrievalQuery) -> list[RetrievedEvidence]:
         query_text = self._query_text(query)
@@ -243,6 +271,7 @@ class HybridRetrievalProvider:
         base_chunks = self.repository.search_candidates(
             query_tokens,
             limit=800,
+            per_source_limit=self._per_source_candidates,
         )
 
         # Query expansion is recall-only. Add newly discovered
@@ -251,6 +280,7 @@ class HybridRetrievalProvider:
             expanded_chunks = self.repository.search_candidates(
                 candidate_tokens,
                 limit=800,
+                per_source_limit=self._per_source_candidates,
             )
 
             seen_chunk_ids = {
@@ -1165,6 +1195,18 @@ class HybridRetrievalProvider:
                     chunk,
                     text,
                     query_text,
+                )
+
+            if self._length_norm_gamma > 0:
+                # A document split into many chunks gets many chances to
+                # match.  Without a mild correction, very long instruments
+                # dominate Top-K purely by size rather than by relevance.
+                reference = self._length_reference()
+                n_chunks = (self._source_chunk_counts or {}).get(
+                    chunk.source_id, 1
+                )
+                final_score -= self._length_norm_gamma * math.log10(
+                    1.0 + n_chunks / reference
                 )
 
             scored.append((max(0.0, final_score), chunk))

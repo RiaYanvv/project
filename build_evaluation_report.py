@@ -67,7 +67,7 @@ def main() -> None:
     docs = con.execute("select count(*) from knowledge_documents").fetchone()[0]
     chunks = con.execute("select count(*) from knowledge_chunks").fetchone()[0]
 
-    manual = {"rel": 1.753, "auth": 1.813, "hit": 1.000, "cov": 1.867}
+    manual = {"rel": 1.747, "auth": 1.813, "hit": 1.000, "cov": 1.867}
 
     L: list[str] = []
     add = L.append
@@ -77,7 +77,7 @@ def main() -> None:
     add("**范围**：Evidence schema（Task 1）→ 检索评测集（Task 2）→ 基线（Task 3）→ 优化（Task 4）")
     add("→ 历史案例基准（Task 5）→ 风险识别（Task 6）→ 引用可靠性（Task 7）。")
     add(f"**语料**：{docs} 篇证据 / {chunks} 个 chunk（全部为 Task 1 政策·宏观·贸易证据），`backend/test_data/app.db`")
-    add("**证据库**：`metadata/evidence_battery_EV_screened_v0.7.xlsx`（30 条）；Task 5 的 17 个案例作为 **held-out 答案键**"
+    add("**证据库**：`metadata/evidence_battery_EV_screened_v0.8.xlsx`（36 条 = v0.7 的 30 条 + 6 条欧盟/美国官方原文）；Task 5 的 17 个案例作为 **held-out 答案键**"
         "存放在 `evaluation/case_benchmark/`，**不进入 RAG 语料**（避免答案泄漏）")
     add("")
     add("> 本报告由 `build_evaluation_report.py` 从交付物文件生成，数字不会与 xlsx 漂移。")
@@ -88,7 +88,7 @@ def main() -> None:
     add("")
     add("| # | 任务 | 交付物 | 关键指标 | 达标 |")
     add("|---|---|---|---|---|")
-    add(f"| 1 | Evidence schema | `evidence_battery_EV_screened_v0.7.xlsx`（+ `evaluation/case_benchmark/evidence_cases_v0.1.xlsx`） | 30 条统一 schema、4 级 authority、来源可追溯 | ✅ |")
+    add(f"| 1 | Evidence schema | `evidence_battery_EV_screened_v0.8.xlsx`（+ `evaluation/case_benchmark/evidence_cases_v0.1.xlsx`） | 36 条统一 schema、5 级 authority（S/A+/A/B+/B）、原文可追溯 | ✅ |")
     add(f"| 2 | 检索评测集 + 人工评分 | `retrieval_questions.xlsx` / `retrieval_results.xlsx` / `Task2_manual_scoring_v3.xlsx` | Relevance {manual['rel']:.3f} / Authority {manual['auth']:.3f} / Hit@5 {manual['hit']:.0%} | ✅ |")
     add(f"| 3 | 检索基线 | `data/evaluation/retrieval_questions.xlsx` / `retrieval_results.xlsx` / `entity_accuracy.xlsx` + `baseline_report.md` | P@5 {p5:.3f}、R@10 {r10:.3f}、EA {ea:.3f} | ✅ / ⚠️EA |")
     add(f"| 4 | 检索优化 | `task4/*.xlsx` + `baseline_vs_improved.md` + `optimized/*` | P@5 {t4['Precision@5']['After (optimised)']:.3f}、R@10 {t4['Recall@10']['After (optimised)']:.3f} | ✅ |")
@@ -98,7 +98,8 @@ def main() -> None:
     add("")
     add(f"**一句话**：检索层已经可用（基线 P@5 {p5:.3f} / R@10 {r10:.3f}，优化后 "
         f"{t4['Precision@5']['After (optimised)']:.3f} / {t4['Recall@10']['After (optimised)']:.3f}，均超任务书 80% 目标）；")
-    add("**风险识别层仍是短板**——把 Task 5 的 17 个案例从语料摘出（改为 held-out 答案键）后，Risk Recall 由 0.461 升到 0.779，"
+    add(f"**风险识别层仍是短板**——把 Task 5 的 17 个案例从语料摘出（改为 held-out 答案键）后，Risk Recall 由 0.461 升到 "
+        f"{risk_map['Risk Recall (mean over cases)']['Baseline']:.3f}，"
         "剩余缺口在「按风险维度检索」的策略，而非语料覆盖。")
     add("")
     add("---")
@@ -107,9 +108,10 @@ def main() -> None:
     add("")
     add("| 项 | 结果 |")
     add("|---|---|")
-    add(f"| 证据条数 | Task 1 政策/宏观 30 条（进入 RAG 语料）；Task 5 案例 17 条为 held-out 答案键，**不入语料** |")
-    add(f"| 语料文档 / chunk | {docs} / {chunks}（chunk 优化前 30,303） |")
-    add("| authority 分级 | S / A+ / A / B+（S=政府法规·WTO·UN·官方公告；A+=IMF·UNCTAD；A=CSIS·McKinsey·KPMG；B+=媒体·券商） |")
+    add(f"| 证据条数 | Task 1 政策/宏观 **36 条**（v0.8 = v0.7 的 30 条 + 欧盟 EU_001–EU_004、美国 UST_001 / IRS_001），进入 RAG 语料；Task 5 案例 17 条为 held-out 答案键，**不入语料** |")
+    add(f"| 语料文档 / chunk | {docs} / {chunks}（v0.7 为 30 篇 / 2,872 chunk） |")
+    add("| v0.8 新增覆盖 | EU 司法辖区 0→4 篇；`tariff` 主题 1→3；可表征 Political Risk 的证据 5→8 |")
+    add("| authority 分级 | S / A+ / A / B+ / B（S=政府法规·WTO·UN·官方公告；A+=IMF·UNCTAD；A=CSIS·McKinsey·KPMG；B+=媒体·券商；B=二线来源） |")
     add("| 分类字段 | industry / topic / evidence_type / related_risk（六类）/ data_status |")
     add("| 派生规则 | `backend/app/evidence_metadata.py`，逐字段可审计 |")
     add("")
@@ -204,8 +206,11 @@ def main() -> None:
     add("")
     add("**根因**：现行单次检索在「公司决策」类问题上把 Top-5 交给公司/案例类文档，")
     add("而这些文档的 `related_risk` 集中在 Supply Chain / Operational；Trade / Market Access / Regulatory / Political")
-    add("四个维度要按维度单独提问才取得到（L2 0.966 vs L3 0.779，见 `By Risk Category` sheet）。")
-    add("把 benchmark 案例从语料摘出后 L3 已由 0.461 升到 0.779——此前最大的干扰项就是案例文档占位。")
+    add(f"四个维度要按维度单独提问才取得到（L2 {risk_map['风险可取回率（按维度逐条检索）']['Baseline']:.3f} vs "
+        f"L3 {risk_map['风险识别覆盖（现行单次检索）']['Baseline']:.3f}，见 `By Risk Category` sheet）。")
+    add(f"把 benchmark 案例从语料摘出后 L3 由 0.461 升到 {risk_map['风险识别覆盖（现行单次检索）']['Baseline']:.3f}；"
+        f"v0.8 语料扩容并修正长文档占位问题后，Risk Recall 升到 "
+        f"{risk_map['Risk Recall (mean over cases)']['Baseline']:.3f}。")
     add("")
     add("---")
     add("")
@@ -241,9 +246,12 @@ def main() -> None:
     add("")
     add("| 优先级 | 事项 |")
     add("|---|---|")
-    add("| P0 | **按风险维度多次检索**：现行单次检索 Risk Recall 0.779，按维度逐条检索的上界 0.966，缺口在检索策略 |")
+    add(f"| P0 | **按风险维度多次检索**：现行单次检索 Risk Recall {risk_map['Risk Recall (mean over cases)']['Baseline']:.3f}，"
+        f"按维度逐条检索的上界 {risk_map['风险可取回率（按维度逐条检索）']['Baseline']:.3f}，缺口在检索策略 |")
     add("| P1 | 风险层改为**按风险维度多次检索**，而不是一次检索出一组证据 |")
-    add("| P1 | 补齐 EU 电池法规合规、印度进入、二线厂商/劳工/物流案例（当前 17 个案例全是一线 OEM 与大型材料厂） |")
+    add("| P1 | 评测集补 EU 题面：v0.8 已入库 EU_001–EU_004，但 30 道题没有任何一题的 gold 指向欧盟证据，"
+        "欧盟语料目前无法被评测正面计入（建议下一版加 3 题 Market Access / Trade Policy 欧盟题） |")
+    add("| P2 | 补齐印度进入、二线厂商/劳工/物流案例（当前 17 个案例全是一线 OEM 与大型材料厂） |")
     add("| P2 | Entity Accuracy 换口径（gold 覆盖率 + 相关性加权精度），才能作为可用指标 |")
     add("| P2 | 引用内容正确性校验（LLM 判定），把 Task 7 从结构校验升级为语义校验 |")
     add("")
@@ -252,7 +260,7 @@ def main() -> None:
     add("```bash")
     add(".venv/bin/python backend/scripts/build_case_corpus.py            # Task 5 案例 -> held-out 基准（不入语料）")
     add(".venv/bin/python backend/scripts/ingest_dataset.py \\")
-    add("    --data-root ../project-data/data --excel metadata/evidence_battery_EV_screened_v0.7.xlsx")
+    add("    --data-root ../project-data/data --excel metadata/evidence_battery_EV_screened_v0.8.xlsx")
     add(".venv/bin/python run_task2_eval_v2.py                           # Task 2")
     add(".venv/bin/python run_task3_baseline.py && .venv/bin/python build_task3_report.py   # Task 3")
     add(".venv/bin/python run_task4_eval.py                              # Task 4")

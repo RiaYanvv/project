@@ -138,14 +138,29 @@ def _split_oversized(block: str, target_size: int, overlap: int) -> list[str]:
     return pieces
 
 
-def chunk_text(text: str, target_size: int = 950, overlap: int = 140) -> list[str]:
+def chunk_text(
+    text: str,
+    target_size: int = 950,
+    overlap: int = 140,
+    max_chunks: int | None = None,
+) -> list[str]:
     """Structure-aware chunking.
 
     Paragraph/heading boundaries are respected first, then sentences are
     packed up to ``target_size``. Near-duplicate chunks (identical first
     400 characters) are dropped so boilerplate records do not flood the
     index.
+
+    ``max_chunks`` optionally caps how many chunks a single document may
+    contribute (oversized documents are re-chunked at a coarser granularity
+    rather than truncated). It is off by default.
     """
+    if max_chunks and max_chunks > 0:
+        needed = math.ceil(len(text) / max_chunks)
+        if needed > target_size:
+            target_size = needed
+            overlap = min(overlap, max(120, target_size // 8))
+
     blocks = _paragraph_blocks(text)
     if not blocks:
         return []
@@ -384,6 +399,17 @@ class KnowledgeRepository:
             "ready": chunk_count > 0,
         }
 
+    def chunk_counts(self) -> dict[str, int]:
+        """Number of indexed chunks per source, used for length normalisation."""
+        with closing(self._connect()) as connection, connection:
+            rows = connection.execute(
+                """
+                SELECT source_id, COUNT(*) AS n
+                FROM knowledge_chunks GROUP BY source_id
+                """
+            ).fetchall()
+        return {row["source_id"]: row["n"] for row in rows}
+
     def document_source(self, source_id: str) -> dict[str, str | None] | None:
         """Source metadata for one document, used to serve original evidence."""
         if not source_id:
@@ -428,8 +454,16 @@ class KnowledgeRepository:
         self,
         terms: list[str],
         limit: int = 800,
+        per_source_limit: int | None = None,
     ) -> list[KnowledgeChunk]:
-        """Use SQLite to shortlist relevant chunks before BM25/vector ranking."""
+        """Use SQLite to shortlist relevant chunks before BM25/vector ranking.
+
+        ``per_source_limit`` caps how many chunks a single document may
+        contribute to the shortlist.  Without it, a very long instrument (a
+        regulation published in the Official Journal can be split into a
+        thousand chunks) crowds the whole candidate pool out of BM25 order and
+        shorter, more relevant documents never reach the ranking stage.
+        """
         cleaned = []
         for term in terms:
             normalized = term.strip().lower()
@@ -440,6 +474,13 @@ class KnowledgeRepository:
                 break
         if not cleaned:
             return []
+
+        # When a per-source cap is active the SQL limit has to reach deeper
+        # than the shortlist size, otherwise long documents would already have
+        # consumed the whole LIMIT before de-duplication runs.
+        sql_limit = limit
+        if per_source_limit and per_source_limit > 0:
+            sql_limit = min(limit * 6, 6000)
 
         match_query = " OR ".join(
             f'"{term.replace(chr(34), chr(34) * 2)}"' for term in cleaned
@@ -462,10 +503,10 @@ class KnowledgeRepository:
                     )
                     LIMIT ?
                     """,
-                    (match_query, limit),
+                    (match_query, sql_limit),
                 ).fetchall()
             if fts_rows:
-                return [self._row_to_chunk(row) for row in fts_rows]
+                return self._cap_per_source(fts_rows, limit, per_source_limit)
         except sqlite3.OperationalError:
             # Older SQLite builds can lack FTS5. The LIKE fallback below keeps
             # the application functional, only slower.
@@ -503,9 +544,31 @@ class KnowledgeRepository:
                 ORDER BY match_score DESC, d.authority_level ASC
                 LIMIT ?
                 """,
-                [*params, *params, limit],
+                [*params, *params, sql_limit],
             ).fetchall()
-        return [self._row_to_chunk(row) for row in rows]
+        return self._cap_per_source(rows, limit, per_source_limit)
+
+    @staticmethod
+    def _cap_per_source(
+        rows: list[sqlite3.Row],
+        limit: int,
+        per_source_limit: int | None,
+    ) -> list[KnowledgeChunk]:
+        if not per_source_limit or per_source_limit <= 0:
+            return [KnowledgeRepository._row_to_chunk(row) for row in rows]
+
+        selected: list[sqlite3.Row] = []
+        counts: dict[str, int] = {}
+        for row in rows:
+            source_id = row["source_id"]
+            taken = counts.get(source_id, 0)
+            if taken >= per_source_limit:
+                continue
+            counts[source_id] = taken + 1
+            selected.append(row)
+            if len(selected) >= limit:
+                break
+        return [KnowledgeRepository._row_to_chunk(row) for row in selected]
 
     @staticmethod
     def _row_to_chunk(row: sqlite3.Row) -> KnowledgeChunk:

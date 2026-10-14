@@ -107,3 +107,69 @@ task2 检索质量**无回退**（Hit@3 / Hit@5 仍 100%）。DB 体积 **284 MB
 # task2 检索回归
 .venv/bin/python run_task2_baseline.py
 ```
+
+---
+
+# 附录 A — v0.8 语料（2026-10-14）
+
+## A.1 变更
+
+Task 1 证据库由 30 条扩到 **36 条**（`evidence_battery_EV_screened_v0.8.xlsx`）：
+
+- 新增 4 条欧盟法规原文（`EU_001` 电池法规 / `EU_002` CRMA / `EU_003` 对华 BEV 反补贴税 / `EU_004` 外资审查框架）；
+- 新增 2 条美国法规原文（`UST_001` Section 301 关税调整 / `IRS_001` IRA 清洁车辆抵免 FEOC 规则）；
+- 全部为 S 级、原文落盘 `data/raw/policy/*.html`、URL 可回溯。
+
+入库结果：**36 documents / 5,772 chunks**（v0.7 为 30 / 2,872）。authority 分布变为 `S`×20、`A+`×7、`A`×3、`B+`×6。
+
+## A.2 v0.8 暴露出的新分块问题：长文档占位
+
+v0.7 的 chunk 修复解决的是“**同一文档内**的重复/噪声”，但没有解决“**跨文档**的体量不均”：
+
+| 文档 | 字符数 | chunk 数 | 说明 |
+| --- | ---: | ---: | --- |
+| `EU_003` | 950,498 | 1,171 | 344 页 OJ 全文（含 1,500 余条 recital），有效内容只有第 1–3 条 |
+| `UNCTAD_001` | 618,911 | 826 | 世界投资报告全文 |
+| `IRS_001` | 487,026 | 578 | Federal Register 全文 |
+| `EU_001` | 421,391 | 528 | 欧盟电池法规全文 |
+| … | | | 语料中位数：38 chunk |
+| `FR_001` / `MOFCOM_002` | <1,000 | 1 | 数据库/短公告 |
+
+后果（实测）：单篇 `EU_003` 在 800 条的候选短名单里能占 **343/800**；`EU_001` 在“电池材料企业受限方筛查”
+一题里占 **507/800**。短小但真正相关的文档（如 3–8 chunk 的企业案例）根本进不了排序阶段。
+v0.8 语料下 P@5 一度由 0.920 掉到 **0.853**。
+
+## A.3 修复（在检索层，不动原文）
+
+保留原文完整入库（可追溯性优先），改为在检索阶段做体量矫正：
+
+1. `KnowledgeRepository.search_candidates(per_source_limit=…)`：候选短名单加**每文档配额**
+   （`RETRIEVAL_PER_SOURCE_CANDIDATES`，默认 80），并相应加深 SQL 取数深度，
+   保证长文档不能吃光名额。`backend/app/retrieval.py` 两个取数点都传入该配额。
+2. `HybridRetrievalProvider`：来源评分加 **BM25 式长度归一**
+   （`RETRIEVAL_LENGTH_NORM`，默认 0.10），按 `log10(1 + n_chunks / 语料中位数)` 温和降权。
+
+## A.4 修复效果（同一批 30 题、同一套代码）
+
+| 配置 | Precision@5 | Recall@10 | Entity Accuracy |
+| --- | ---: | ---: | ---: |
+| v0.8 语料，未修复 | 0.853 | 0.886 | 0.915 |
+| v0.8 语料，仅每文档配额 | 0.860 | 0.893 | 0.917 |
+| v0.8 语料，仅长度归一 | 0.907 | 0.893 | 0.910 |
+| **v0.8 语料，两者都开（默认）** | **0.913** | **0.893** | **0.921** |
+
+同口径对照（同代码、不同语料）：v0.7 → 0.907 / 0.898 / 0.894；v0.8 → 0.913 / 0.893 / 0.921。
+即 **v0.8 语料在相同检索口径下优于 v0.7**。
+
+## A.5 复现命令
+
+```bash
+.venv/bin/python backend/scripts/ingest_dataset.py \
+  --data-root /Users/zhengyuanyuan/Desktop/project-data/data \
+  --excel metadata/evidence_battery_EV_screened_v0.8.xlsx
+.venv/bin/python run_task2_eval_v2.py
+.venv/bin/python run_task3_baseline.py && .venv/bin/python build_task3_report.py
+```
+
+环境变量可调：`RETRIEVAL_LENGTH_NORM`（默认 0.10）、`RETRIEVAL_PER_SOURCE_CANDIDATES`（默认 80）。
+设为 0 即关闭对应矫正，用于复现“未修复”基线。

@@ -240,6 +240,27 @@ ITEMS = {
  },
 }
 
+# ---------------------------------------------------------------------------
+# v0.8 review pass: items that entered the Top-5 only after the corpus grew to
+# 36 documents (EU/US policy evidence).  Judged against each question's actual
+# information need, not copied from the automatic column.
+# ---------------------------------------------------------------------------
+_EXTRA_ITEMS = {
+    ("Q008", "FR_001"): (2, "本题 expected 证据：美国联邦公报是 BIS 关联企业规则发布/暂停/恢复的官方可追溯渠道"),
+    ("Q010", "CASE_001"): (1, "订单转移海外后回流的企业案例，可佐证‘海外加工未必改变原产地定性与救济结果’，但非原产地认定执法案例"),
+    ("Q011", "MCK_001"): (1, "地缘情景规划方法论，可作为海外投资立项的风险评估框架，属支持性证据"),
+    ("Q017", "WH_001"): (1, "加强海关执法行政令，涉及原产地核查，是原产地风险的执法背景，但未直接讨论中间品依赖"),
+    ("Q020", "CSIS_001"): (2, "本题 expected 证据：USMCA 下中国转运可视化与执法分析"),
+    ("Q022", "EU_001"): (0, "欧盟电池法规属欧盟市场准入要求，与‘客户被美国限制清单覆盖’的受限方筛查问题无关，属跨辖区噪声"),
+    ("Q022", "IRS_001"): (1, "FEOC 规则以‘外国关注实体’认定电池组件/关键矿物准入资格，可支持美国市场准入风险判断，但不针对客户限制清单筛查"),
+    ("Q025", "CNGOV_001"): (0, "中国境内对外投资管理规定，不反映全球需求与投资环境，与本题宏观证据需求无关"),
+    ("Q028", "CASE_010"): (2, "本题 expected 证据：白宫点名东南亚为转运高风险并推出 AI 执法工具"),
+    ("Q029", "EU_004"): (1, "欧盟外资安全审查框架，属‘投资政策’证据，可用于评估海外建厂面临的东道国审查风险"),
+    ("Q030", "CASE_003"): (1, "马来西亚/越南被认定‘未规避’的企业对照案例，可为‘泰国 vs 泰马分散’的市场准入比较提供参考，但属光伏行业类比"),
+}
+for (_qid, _eid), _val in _EXTRA_ITEMS.items():
+    ITEMS.setdefault(_qid, {})[_eid] = _val
+
 COV = {
  "Q001": (2, "泰国产能案例（CASE_004/005/006/008）全部命中，可直接回答建厂节奏"),
  "Q002": (2, "马来西亚布局案例与美方对马来西亚原产地的官方判断均已覆盖（CASE_008未命中，由CASE_007/CASE_003/CASE_002覆盖）"),
@@ -319,12 +340,16 @@ def main() -> None:
     scored = [v for v in scored if v not in (None, "")]
     avg_auth = sum(scored) / len(scored) if scored else 0.0
 
-    vals = [sum(v for v, _ in ITEMS[q].values()) / len(ITEMS[q]) for q in ITEMS]
+    rel_scored = [r[ah["Relevance (0/1/2)"] - 1].value for r in chk.iter_rows(min_row=2)
+                  if r[ah["Question ID"] - 1].value]
+    rel_scored = [v for v in rel_scored if v not in (None, "")]
+    avg_rel = sum(rel_scored) / len(rel_scored) if rel_scored else 0.0
+
     print(f"saved {SRC} and {DL}")
     print(f"rows flagged as 人工!=Auto: {len(diffs)}")
     for d in diffs:
         print(f"  - {d}")
-    print(f"Avg Relevance = {sum(vals)/len(vals):.3f}   "
+    print(f"Avg Relevance = {avg_rel:.3f}   "
           f"Avg Authority = {avg_auth:.3f}   "
           f"Avg Coverage = {sum(c for c, _ in COV.values())/len(COV):.3f}")
 
