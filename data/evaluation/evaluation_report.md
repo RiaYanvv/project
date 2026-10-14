@@ -2,7 +2,7 @@
 
 **范围**：Evidence schema（Task 1）→ 检索评测集（Task 2）→ 基线（Task 3）→ 优化（Task 4）
 → 历史案例基准（Task 5）→ 风险识别（Task 6）→ 引用可靠性（Task 7）。
-**语料**：47 篇证据 / 2907 个 chunk（30 篇政策·宏观 + 17 篇企业案例），`backend/test_data/app.db`
+**语料**：47 篇证据 / 2909 个 chunk（30 篇政策·宏观 + 17 篇企业案例），`backend/test_data/app.db`
 **证据库**：`metadata/evidence_battery_EV_screened_v0.7.xlsx`（30 条）+ `metadata/evidence_cases_v0.1.xlsx`（17 条）
 
 > 本报告由 `build_evaluation_report.py` 从交付物文件生成，数字不会与 xlsx 漂移。
@@ -14,8 +14,8 @@
 | # | 任务 | 交付物 | 关键指标 | 达标 |
 |---|---|---|---|---|
 | 1 | Evidence schema | `evidence_battery_EV_screened_v0.7.xlsx` + `evidence_cases_v0.1.xlsx` | 47 条统一 schema、4 级 authority、来源可追溯 | ✅ |
-| 2 | 检索评测集 + 人工评分 | `retrieval_questions.xlsx` / `retrieval_results.xlsx` / `Task2_manual_scoring_v3.xlsx` | Relevance 1.613 / Authority 1.760 / Hit@5 100% | ✅ |
-| 3 | 检索基线 | `data/evaluation/retrieval_questions.xlsx` / `retrieval_results.xlsx` / `entity_accuracy.xlsx` + `baseline_report.md` | P@5 0.913、R@10 0.816、EA 0.927 | ✅ / ⚠️EA |
+| 2 | 检索评测集 + 人工评分 | `retrieval_questions.xlsx` / `retrieval_results.xlsx` / `Task2_manual_scoring_v3.xlsx` | Relevance 1.620 / Authority 1.760 / Hit@5 100% | ✅ |
+| 3 | 检索基线 | `data/evaluation/retrieval_questions.xlsx` / `retrieval_results.xlsx` / `entity_accuracy.xlsx` + `baseline_report.md` | P@5 0.913、R@10 0.810、EA 0.929 | ✅ / ⚠️EA |
 | 4 | 检索优化 | `task4/*.xlsx` + `baseline_vs_improved.md` + `optimized/*` | P@5 0.940、R@10 0.827 | ✅ |
 | 5 | 历史案例基准 | `historical_case_benchmark.xlsx` + `benchmark_results.xlsx` | 17 个真实案例、案例文档召回@5 0.941 | ✅ |
 | 6 | 风险识别 | `risk_assessment_checklist.xlsx` | Recall 0.461 / Precision 0.676 | ⚠️ |
@@ -31,7 +31,7 @@
 | 项 | 结果 |
 |---|---|
 | 证据条数 | Task 1 政策/宏观 30 条 + Task 5 案例 17 条 = **47 条** |
-| 语料文档 / chunk | 47 / 2907（chunk 优化前 30,303） |
+| 语料文档 / chunk | 47 / 2909（chunk 优化前 30,303） |
 | authority 分级 | S / A+ / A / B+（S=政府法规·WTO·UN·官方公告；A+=IMF·UNCTAD；A=CSIS·McKinsey·KPMG；B+=媒体·券商） |
 | 分类字段 | industry / topic / evidence_type / related_risk（六类）/ data_status |
 | 派生规则 | `backend/app/evidence_metadata.py`，逐字段可审计 |
@@ -46,7 +46,7 @@
 
 | 指标 | 目标 | 实测 |
 |---|---|---|
-| Avg Relevance (Top-5) | ≥ 1.5 | **1.613** |
+| Avg Relevance (Top-5) | ≥ 1.5 | **1.620** |
 | Avg Authority (Top-5) | ≥ 1.5 | **1.760** |
 | Hit@5（≥1 条正确 Evidence） | ≥ 80% | **100%** |
 | Avg Coverage (0-2) | 参考 | 1.733 |
@@ -58,8 +58,8 @@
 | 指标 | Baseline | 任务书目标 |
 |---|---|---|
 | Precision@5 | **0.913** | ≥ 0.80 ✅ |
-| Recall@10 | **0.816** | ≥ 0.80 ✅ |
-| Entity Accuracy | **0.927** | ≥ 0.95 ❌（口径不可达，见下） |
+| Recall@10 | **0.810** | ≥ 0.80 ✅ |
+| Entity Accuracy | **0.929** | ≥ 0.95 ❌（口径不可达，见下） |
 | Hit@5 | 100% | — |
 
 Entity Accuracy ≥ 0.95 在本语料上不可达：该指标分子是「Top-10 中提及问题实体的证据数」，
@@ -73,24 +73,24 @@ Entity Accuracy ≥ 0.95 在本语料上不可达：该指标分子是「Top-10 
 | 指标 | Before | After | Delta | 任务书目标 |
 |---|---|---|---|---|
 | Precision@5 | 0.913 | 0.940 | +0.027 | ≥ 0.80 |
-| Recall@10 | 0.816 | 0.827 | +0.011 | ≥ 0.80 |
-| Entity Accuracy | 0.927 | 0.912 | -0.015 | ≥ 0.95 |
+| Recall@10 | 0.810 | 0.827 | +0.017 | ≥ 0.80 |
+| Entity Accuracy | 0.929 | 0.912 | -0.017 | ≥ 0.95 |
 
 三个杠杆单独作用（消融）：
 
 | variant | metadata_filter | query_expansion | authority_ranking | P@5 | R@10 | Entity Accuracy |
 |---|---|---|---|---|---|---|
-| baseline | False | False | False | 0.913 | 0.816 | 0.927 |
-| filter_only | True | False | False | 0.927 | 0.803 | 0.912 |
-| expansion_only | False | True | False | 0.927 | 0.833 | 0.917 |
-| authority_only | False | False | True | 0.913 | 0.810 | 0.925 |
+| baseline | False | False | False | 0.913 | 0.810 | 0.929 |
+| filter_only | True | False | False | 0.927 | 0.803 | 0.915 |
+| expansion_only | False | True | False | 0.927 | 0.827 | 0.919 |
+| authority_only | False | False | True | 0.913 | 0.810 | 0.927 |
 | full | True | True | True | 0.940 | 0.827 | 0.912 |
 
 ---
 
 ## 5. Task 5 — Historical Case Benchmark
 
-共 **17 个真实案例**（任务书要求 ≥10），26 条来源文章。
+共 **17 个真实案例**（任务书要求 ≥10），28 条来源文章。
 
 | 验收项 | 结果 |
 |---|---|
