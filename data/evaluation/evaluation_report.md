@@ -2,8 +2,8 @@
 
 **范围**：Evidence schema（Task 1）→ 检索评测集（Task 2）→ 基线（Task 3）→ 优化（Task 4）
 → 历史案例基准（Task 5）→ 风险识别（Task 6）→ 引用可靠性（Task 7）。
-**语料**：47 篇证据 / 2909 个 chunk（30 篇政策·宏观 + 17 篇企业案例），`backend/test_data/app.db`
-**证据库**：`metadata/evidence_battery_EV_screened_v0.7.xlsx`（30 条）+ `metadata/evidence_cases_v0.1.xlsx`（17 条）
+**语料**：30 篇证据 / 2872 个 chunk（全部为 Task 1 政策·宏观·贸易证据），`backend/test_data/app.db`
+**证据库**：`metadata/evidence_battery_EV_screened_v0.7.xlsx`（30 条）；Task 5 的 17 个案例作为 **held-out 答案键**存放在 `evaluation/case_benchmark/`，**不进入 RAG 语料**（避免答案泄漏）
 
 > 本报告由 `build_evaluation_report.py` 从交付物文件生成，数字不会与 xlsx 漂移。
 
@@ -13,16 +13,16 @@
 
 | # | 任务 | 交付物 | 关键指标 | 达标 |
 |---|---|---|---|---|
-| 1 | Evidence schema | `evidence_battery_EV_screened_v0.7.xlsx` + `evidence_cases_v0.1.xlsx` | 47 条统一 schema、4 级 authority、来源可追溯 | ✅ |
-| 2 | 检索评测集 + 人工评分 | `retrieval_questions.xlsx` / `retrieval_results.xlsx` / `Task2_manual_scoring_v3.xlsx` | Relevance 1.620 / Authority 1.760 / Hit@5 100% | ✅ |
-| 3 | 检索基线 | `data/evaluation/retrieval_questions.xlsx` / `retrieval_results.xlsx` / `entity_accuracy.xlsx` + `baseline_report.md` | P@5 0.913、R@10 0.810、EA 0.929 | ✅ / ⚠️EA |
-| 4 | 检索优化 | `task4/*.xlsx` + `baseline_vs_improved.md` + `optimized/*` | P@5 0.940、R@10 0.827 | ✅ |
-| 5 | 历史案例基准 | `historical_case_benchmark.xlsx` + `benchmark_results.xlsx` | 17 个真实案例、案例文档召回@5 0.941 | ✅ |
-| 6 | 风险识别 | `risk_assessment_checklist.xlsx` | Recall 0.461 / Precision 0.676 | ⚠️ |
+| 1 | Evidence schema | `evidence_battery_EV_screened_v0.7.xlsx`（+ `evaluation/case_benchmark/evidence_cases_v0.1.xlsx`） | 30 条统一 schema、4 级 authority、来源可追溯 | ✅ |
+| 2 | 检索评测集 + 人工评分 | `retrieval_questions.xlsx` / `retrieval_results.xlsx` / `Task2_manual_scoring_v3.xlsx` | Relevance 1.753 / Authority 1.813 / Hit@5 100% | ✅ |
+| 3 | 检索基线 | `data/evaluation/retrieval_questions.xlsx` / `retrieval_results.xlsx` / `entity_accuracy.xlsx` + `baseline_report.md` | P@5 0.920、R@10 0.893、EA 0.885 | ✅ / ⚠️EA |
+| 4 | 检索优化 | `task4/*.xlsx` + `baseline_vs_improved.md` + `optimized/*` | P@5 0.940、R@10 0.931 | ✅ |
+| 5 | 历史案例基准（held-out） | `historical_case_benchmark.xlsx` + `benchmark_results.xlsx` | 17 个真实案例、17/17 已摘出语料 | ✅ |
+| 6 | 风险识别 | `risk_assessment_checklist.xlsx` | Recall 0.779 / Precision 0.566 | ⚠️ |
 | 7 | 引用可靠性 | `evidence_quality_test.xlsx` | 引用可追溯率 100%、语料元数据完整率 100% | ✅ |
 
-**一句话**：检索层已经可用（P@5 0.940 / R@10 0.827，均超过任务书 80% 目标）；
-**风险识别层是当前最大短板**——不是语料缺证据，而是单次检索被案例文档占满，取不到贸易/监管/政治维度的证据。
+**一句话**：检索层已经可用（基线 P@5 0.920 / R@10 0.893，优化后 0.940 / 0.931，均超任务书 80% 目标）；
+**风险识别层仍是短板**——把 Task 5 的 17 个案例从语料摘出（改为 held-out 答案键）后，Risk Recall 由 0.461 升到 0.779，剩余缺口在「按风险维度检索」的策略，而非语料覆盖。
 
 ---
 
@@ -30,8 +30,8 @@
 
 | 项 | 结果 |
 |---|---|
-| 证据条数 | Task 1 政策/宏观 30 条 + Task 5 案例 17 条 = **47 条** |
-| 语料文档 / chunk | 47 / 2909（chunk 优化前 30,303） |
+| 证据条数 | Task 1 政策/宏观 30 条（进入 RAG 语料）；Task 5 案例 17 条为 held-out 答案键，**不入语料** |
+| 语料文档 / chunk | 30 / 2872（chunk 优化前 30,303） |
 | authority 分级 | S / A+ / A / B+（S=政府法规·WTO·UN·官方公告；A+=IMF·UNCTAD；A=CSIS·McKinsey·KPMG；B+=媒体·券商） |
 | 分类字段 | industry / topic / evidence_type / related_risk（六类）/ data_status |
 | 派生规则 | `backend/app/evidence_metadata.py`，逐字段可审计 |
@@ -46,10 +46,10 @@
 
 | 指标 | 目标 | 实测 |
 |---|---|---|
-| Avg Relevance (Top-5) | ≥ 1.5 | **1.620** |
-| Avg Authority (Top-5) | ≥ 1.5 | **1.760** |
+| Avg Relevance (Top-5) | ≥ 1.5 | **1.753** |
+| Avg Authority (Top-5) | ≥ 1.5 | **1.813** |
 | Hit@5（≥1 条正确 Evidence） | ≥ 80% | **100%** |
-| Avg Coverage (0-2) | 参考 | 1.733 |
+| Avg Coverage (0-2) | 参考 | 1.867 |
 
 ---
 
@@ -57,9 +57,9 @@
 
 | 指标 | Baseline | 任务书目标 |
 |---|---|---|
-| Precision@5 | **0.913** | ≥ 0.80 ✅ |
-| Recall@10 | **0.810** | ≥ 0.80 ✅ |
-| Entity Accuracy | **0.929** | ≥ 0.95 ❌（口径不可达，见下） |
+| Precision@5 | **0.920** | ≥ 0.80 ✅ |
+| Recall@10 | **0.893** | ≥ 0.80 ✅ |
+| Entity Accuracy | **0.885** | ≥ 0.95 ❌（口径不可达，见下） |
 | Hit@5 | 100% | — |
 
 Entity Accuracy ≥ 0.95 在本语料上不可达：该指标分子是「Top-10 中提及问题实体的证据数」，
@@ -72,19 +72,19 @@ Entity Accuracy ≥ 0.95 在本语料上不可达：该指标分子是「Top-10 
 
 | 指标 | Before | After | Delta | 任务书目标 |
 |---|---|---|---|---|
-| Precision@5 | 0.913 | 0.940 | +0.027 | ≥ 0.80 |
-| Recall@10 | 0.810 | 0.827 | +0.017 | ≥ 0.80 |
-| Entity Accuracy | 0.929 | 0.912 | -0.017 | ≥ 0.95 |
+| Precision@5 | 0.920 | 0.940 | +0.020 | ≥ 0.80 |
+| Recall@10 | 0.893 | 0.931 | +0.038 | ≥ 0.80 |
+| Entity Accuracy | 0.885 | 0.874 | -0.012 | ≥ 0.95 |
 
 三个杠杆单独作用（消融）：
 
 | variant | metadata_filter | query_expansion | authority_ranking | P@5 | R@10 | Entity Accuracy |
 |---|---|---|---|---|---|---|
-| baseline | False | False | False | 0.913 | 0.810 | 0.929 |
-| filter_only | True | False | False | 0.927 | 0.803 | 0.915 |
-| expansion_only | False | True | False | 0.927 | 0.827 | 0.919 |
-| authority_only | False | False | True | 0.913 | 0.810 | 0.927 |
-| full | True | True | True | 0.940 | 0.827 | 0.912 |
+| baseline | False | False | False | 0.920 | 0.893 | 0.885 |
+| filter_only | True | False | False | 0.927 | 0.904 | 0.892 |
+| expansion_only | False | True | False | 0.920 | 0.908 | 0.878 |
+| authority_only | False | False | True | 0.900 | 0.893 | 0.892 |
+| full | True | True | True | 0.940 | 0.931 | 0.874 |
 
 ---
 
@@ -92,16 +92,19 @@ Entity Accuracy ≥ 0.95 在本语料上不可达：该指标分子是「Top-10 
 
 共 **17 个真实案例**（任务书要求 ≥10），28 条来源文章。
 
+**定位**：这 17 个案例是评测用的 **held-out 答案键**，刻意不进入 RAG 语料——否则检索会直接把「标准答案」（案例文档本身）捞回来，指标虚高。因此本节不计算「案例文档召回」。
+
 | 验收项 | 结果 |
 |---|---|
 | 案例类型 | China → Southeast Asia relocation 8 / China + 1 5 / Reconsideration·Return 4 |
 | 决策触发 | 6/6 全覆盖（tariff / geopolitical / cost / supplier / market_access / regulation） |
 | 背景→决策→结果 | 4 段齐全，100% |
-| 真实性 | 全部来自公开报道或公司公告，逐条标注 verification_status |
-| 案例文档召回@5 | **0.941** |
-| 企业文档召回@10 | 0.941 |
+| 真实性 | 全部来自公开报道或公司公告，逐条绑定 `related_evidence_ids` |
+| 是否进入 RAG 语料 | **否**（17/17 held-out） |
+| 语料规模（复核） | 30 篇，全部为 Task 1 证据 |
+| 案例风险召回（基线 / 优化） | 0.779 / 0.779（详见 Task 6） |
 
-唯一未被召回的案例文档是 `PLUS1_004`（晶科能源，光伏），因为 `industry=battery_ev` 的行业门槛会主动压低光伏证据——属预期的领域收窄。
+案例文档已从 `data/raw/case/` 迁出到 `data/evaluation/case_benchmark/case/*.md`，`ingest_dataset.py` 不再扫描该目录。
 
 ---
 
@@ -109,22 +112,23 @@ Entity Accuracy ≥ 0.95 在本语料上不可达：该指标分子是「Top-10 
 
 | 指标 | Baseline | 说明 |
 |---|---|---|
-| Risk Recall | **0.461** | 期望风险中被证据链覆盖的比例 |
-| Risk Precision | **0.676** | 识别出的风险中属于期望风险的比例 |
-| Missing risks | 30 次 | 期望风险未被覆盖 |
-| False positives | 6 次 | 非该题风险却被识别 |
+| Risk Recall | **0.779** | 期望风险中被证据链覆盖的比例 |
+| Risk Precision | **0.566** | 识别出的风险中属于期望风险的比例 |
+| Missing risks | 13 次 | 期望风险未被覆盖 |
+| False positives | 28 次 | 非该题风险却被识别 |
 
 三级诊断（定位差距在哪一层）：
 
 | 层级 | 含义 | 值 |
 |---|---|---|
 | L1 语料可表征 | 语料里有标注该类风险的证据 | 1.000 |
-| L2 检索可取回 | 按风险维度逐条检索时的覆盖 | 0.711 |
-| L3 现行流程 | 单次检索（现行产品行为） | 0.461 |
+| L2 检索可取回 | 按风险维度逐条检索时的覆盖 | 0.966 |
+| L3 现行流程 | 单次检索（现行产品行为） | 0.779 |
 
-**根因**：案例文档 topic 统一为「供应链布局」，而现行排序没有「只在问企业案例时才召回案例」的约束。
-于是公司决策类问题里，Top-5 被案例占满（其 related_risk 只有 Supply Chain / Operational），
-Trade / Market Access / Regulatory / Political 四个维度系统性丢失（见 `By Risk Category` sheet）。
+**根因**：现行单次检索在「公司决策」类问题上把 Top-5 交给公司/案例类文档，
+而这些文档的 `related_risk` 集中在 Supply Chain / Operational；Trade / Market Access / Regulatory / Political
+四个维度要按维度单独提问才取得到（L2 0.966 vs L3 0.779，见 `By Risk Category` sheet）。
+把 benchmark 案例从语料摘出后 L3 已由 0.461 升到 0.779——此前最大的干扰项就是案例文档占位。
 
 ---
 
@@ -160,7 +164,7 @@ Trade / Market Access / Regulatory / Political 四个维度系统性丢失（见
 
 | 优先级 | 事项 |
 |---|---|
-| P0 | **案例文档过召回**：给重排加「非案例问题降权案例证据」规则，预计把 Risk Recall 从 0.46 提到 0.71+（Task 6 的 L2 上界） |
+| P0 | **按风险维度多次检索**：现行单次检索 Risk Recall 0.779，按维度逐条检索的上界 0.966，缺口在检索策略 |
 | P1 | 风险层改为**按风险维度多次检索**，而不是一次检索出一组证据 |
 | P1 | 补齐 EU 电池法规合规、印度进入、二线厂商/劳工/物流案例（当前 17 个案例全是一线 OEM 与大型材料厂） |
 | P2 | Entity Accuracy 换口径（gold 覆盖率 + 相关性加权精度），才能作为可用指标 |
@@ -169,9 +173,9 @@ Trade / Market Access / Regulatory / Political 四个维度系统性丢失（见
 ## 10. 复现
 
 ```bash
-.venv/bin/python backend/scripts/build_case_corpus.py            # Task 5 案例 -> 语料
+.venv/bin/python backend/scripts/build_case_corpus.py            # Task 5 案例 -> held-out 基准（不入语料）
 .venv/bin/python backend/scripts/ingest_dataset.py \
-    --data-root ../project-data/data --excel metadata/evidence_cases_v0.1.xlsx
+    --data-root ../project-data/data --excel metadata/evidence_battery_EV_screened_v0.7.xlsx
 .venv/bin/python run_task2_eval_v2.py                           # Task 2
 .venv/bin/python run_task3_baseline.py && .venv/bin/python build_task3_report.py   # Task 3
 .venv/bin/python run_task4_eval.py                              # Task 4
