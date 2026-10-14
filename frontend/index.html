@@ -8,8 +8,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css" />
-    <link rel="stylesheet" href="./refinements.css" />
+    <!-- Bump this id when shipping: it is shown on the home screen and used to
+         bust the browser cache for the assets below. -->
+    <meta name="locus-build" content="2026.10.14-1" />
+    <link rel="stylesheet" href="./styles.css?v=2026.10.14-1" />
+    <link rel="stylesheet" href="./refinements.css?v=2026.10.14-1" />
   </head>
   <body>
     <div class="splash" id="splash" aria-hidden="true">
@@ -72,6 +75,7 @@
           <article><span>02</span><h2>Assess risks with evidence</h2><p>Connect policy, supply-chain and market signals to the decision at hand.</p></article>
           <article><span>03</span><h2>Compare strategic options</h2><p>See the trade-offs across relocation, expansion and diversified production paths.</p></article>
         </section>
+        <p class="build-stamp" id="build-stamp" title="Loaded frontend build"></p>
       </section>
 
       <section class="screen consultation-screen" id="consultation" aria-labelledby="consultation-title">
@@ -332,6 +336,20 @@
         </div>
       </div>
 
+      <!-- Generic in-app confirmation (app.js: openActionDialog). Used before a
+           new decision discards a draft the user is still typing. -->
+      <div class="modal" id="action-modal" hidden>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="action-modal-title">
+          <p class="eyebrow" id="action-modal-eyebrow">Please confirm</p>
+          <h3 id="action-modal-title">Confirm</h3>
+          <p id="action-modal-body"></p>
+          <div class="modal-actions">
+            <button class="button button-secondary" type="button" id="action-modal-cancel">Cancel</button>
+            <button class="button button-primary" type="button" id="action-modal-confirm">Confirm</button>
+          </div>
+        </div>
+      </div>
+
       <div class="modal" id="scenario-change-modal" hidden>
         <div class="modal-card scenario-change-card" role="dialog" aria-modal="true" aria-labelledby="scenario-change-title">
           <p class="eyebrow">Scenario update</p>
@@ -528,7 +546,7 @@
         });
       })();
     </script>
-    <script src="./i18n.js"></script>
-    <script src="./app.js"></script>
+    <script src="./i18n.js?v=2026.10.14-1"></script>
+    <script src="./app.js?v=2026.10.14-1"></script>
   </body>
 </html>

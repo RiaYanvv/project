@@ -10,10 +10,17 @@ const state = {
   // True once the user actually reorders the priority list. Until then the
   // scenario score must treat every factor as equally important.
   prioritiesDeclared: false,
+  // Where the current form content came from: "empty" (nothing filled in),
+  // "project" (restored from a saved decision) or "draft" (the user's own typing).
+  // "Start New Decision" must not carry a previous decision's profile over, but
+  // it must not silently throw away a draft either.
+  formOrigin: "empty",
 };
 let runInFlight = false;
 const draftKey = "locus-decision-draft";
 const projectsKey = "locus-decision-projects";
+// Shown on the home screen and used as the asset cache key (index.html).
+const APP_BUILD = (document.querySelector('meta[name="locus-build"]') || {}).content || "dev";
 
 /* Browsers can block localStorage (private mode, security software, full quota).
    Every storage call is guarded so the consultation still works without it. */
@@ -2837,6 +2844,7 @@ function saveDraft() {
   try {
     localStorage.setItem(draftKey, JSON.stringify({ values, production: state.production, markets: state.markets }));
   } catch { /* storage blocked — the form keeps working, just without a draft */ }
+  state.formOrigin = "draft";
   updateFormProgress();
   markDraftSaved();
 }
@@ -2937,6 +2945,7 @@ function resetDecisionForm() {
   updateSummaryCount();
   updateFormProgress();
   clearDraft();
+  state.formOrigin = "empty";
   setSavedLabel("Draft saves automatically as you type");
 }
 
@@ -3140,6 +3149,70 @@ function closeNameDialog(status) {
   }
 }
 
+/* Generic yes/no dialog, used before an action discards something the user typed. */
+let actionDialogResolve = null;
+
+function openActionDialog(options) {
+  const modal = $("#action-modal");
+  if (!modal) return Promise.resolve("unavailable");
+  const title = $("#action-modal-title");
+  if (title) title.textContent = options.title || "";
+  const eyebrow = $("#action-modal-eyebrow");
+  if (eyebrow) {
+    eyebrow.textContent = options.eyebrow || "";
+    eyebrow.hidden = !options.eyebrow;
+  }
+  const body = $("#action-modal-body");
+  if (body) body.textContent = options.body || "";
+  const confirm = $("#action-modal-confirm");
+  if (confirm) confirm.textContent = options.confirmLabel || L("Confirm", "确认");
+  const cancel = $("#action-modal-cancel");
+  if (cancel) cancel.textContent = options.cancelLabel || L("Cancel", "取消");
+  modal.hidden = false;
+  if (confirm) confirm.focus();
+  return new Promise(resolve => { actionDialogResolve = resolve; });
+}
+
+function closeActionDialog(status) {
+  const modal = $("#action-modal");
+  const resolve = actionDialogResolve;
+  actionDialogResolve = null;
+  if (modal) modal.hidden = true;
+  if (resolve) resolve(status);
+}
+
+/* "Start New Decision" opens a clean form. A profile restored from a saved
+   decision is dropped without ceremony — it is still in My Decisions — but a
+   draft the user is still writing is only dropped after confirmation, so a
+   refresh never costs them their typing. */
+async function prepareNewDecisionForm() {
+  const origin = state.formOrigin;
+  if (origin === "project") {
+    resetDecisionForm();
+    state.projectId = null;
+    showToast(L("Starting a new decision — the form has been cleared.", "开始新决策，表单已清空。"));
+    return true;
+  }
+  if (origin !== "draft") return true;
+  const answer = await openActionDialog({
+    eyebrow: L("New decision", "新决策"),
+    title: L("Start a new decision?", "开始新决策？"),
+    body: L(
+      "The form still holds what you typed earlier. Starting a new decision clears it; the previous decision stays in My Decisions.",
+      "表单里还留着上次填写的内容。开始新决策会清空它；上一条决策仍然可以在 My Decisions 里找到。",
+    ),
+    confirmLabel: L("Clear and start", "清空并开始"),
+    cancelLabel: L("Keep my draft", "保留草稿"),
+  });
+  if (answer === "ok") {
+    resetDecisionForm();
+    state.projectId = null;
+    return true;
+  }
+  if (answer === "cancelled") return false;
+  return true;
+}
+
 async function renameProject(id) {
   const projects = readProjects();
   const index = projects.findIndex(item => item.decision_project_id === id);
@@ -3248,6 +3321,9 @@ function confirmDeleteProject() {
 function formFromProfile(profile) {
   const form = $("#decision-form");
   if (!form || !profile) return;
+  // The form now shows a saved decision, not a fresh draft: "Start New Decision"
+  // must clear it instead of carrying the previous company over.
+  state.formOrigin = "project";
   form.company_name.value = profile.company_name || "";
   form.products.value = profile.products || "";
   form.decision_question.value = profile.decision_question || "";
@@ -3499,6 +3575,7 @@ function restoreDraft() {
         else if (field.type !== "file") field.value = values[0];
       });
     });
+    state.formOrigin = "draft";
   } catch { localStorage.removeItem(draftKey); }
 }
 
@@ -3507,6 +3584,7 @@ function restoreDraft() {
 document.addEventListener("click", async event => {
   const target = event.target.closest("[data-screen-target]");
   if (target && !(await confirmProjectNameBeforeLeaving(target.dataset.screenTarget))) return;
+  if (target && target.dataset.screenTarget === "consultation" && !(await prepareNewDecisionForm())) return;
   if (target) showScreen(target.dataset.screenTarget);
   if (event.target.closest("#add-production")) addLocation("production");
   if (event.target.closest("#add-market")) addLocation("markets");
@@ -3529,6 +3607,8 @@ document.addEventListener("click", async event => {
   if (event.target.closest("#report-confirm")) confirmReport();
   if (event.target.closest("#name-modal-confirm")) { closeNameDialog("ok"); return; }
   if (event.target.closest("#name-modal-cancel")) { closeNameDialog("cancelled"); return; }
+  if (event.target.closest("#action-modal-confirm")) { closeActionDialog("ok"); return; }
+  if (event.target.closest("#action-modal-cancel")) { closeActionDialog("cancelled"); return; }
   if (
     event.target.closest("#scenario-history-button")
     || event.target.closest("#chat-history-button")
@@ -3763,6 +3843,10 @@ updateFormProgress();
 i18nObserver.observe(document.body, { childList: true, subtree: true });
 applyLanguage(storedLanguage());
 checkAgentConnection();
+/* Which build this tab is actually running — the cache key in index.html and
+   this stamp move together, so a stale page is visible at a glance. */
+const buildStamp = $("#build-stamp");
+if (buildStamp) buildStamp.textContent = `${L("Build", "版本")} ${APP_BUILD}`;
 /* The page is running: from here on an uncaught error is reported as a runtime
    problem instead of the "Locus failed to start" banner (index.html). */
 if (typeof window.__locusMarkBooted === "function") window.__locusMarkBooted();
