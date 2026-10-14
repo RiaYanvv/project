@@ -68,7 +68,7 @@ def main() -> None:
         "# Task 3 — RAG Baseline Report",
         "",
         "**范围**：当前（未做 metadata filtering / query enhancement / authority ranking 优化）的检索能力",
-        "**数据**：30 个 benchmark 问题 × Top-10，语料 47 篇证据（30 政策/宏观 + 17 企业案例，`backend/test_data/app.db`）",
+        "**数据**：30 个 benchmark 问题 × Top-10，语料 30 篇证据（Task 1 政策/宏观/贸易；Task 5 的 17 个案例为 held-out 答案键，不入语料），`backend/test_data/app.db`",
         "**运行**：`run_task3_baseline.py`（Top-K=10）；报告由 `build_task3_report.py` 从结果文件生成",
         "",
         "---",

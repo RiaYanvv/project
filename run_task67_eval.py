@@ -31,7 +31,7 @@ from backend.app.schemas import RetrievalQuery
 
 DATA = Path("/Users/zhengyuanyuan/Desktop/project-data/data")
 CASE_DB = DATA / "processed" / "case_database_v0.1.xlsx"
-CASE_META = DATA / "metadata" / "evidence_cases_v0.1.xlsx"
+CASE_META = DATA / "evaluation" / "case_benchmark" / "evidence_cases_v0.1.xlsx"
 OUT = DATA / "evaluation"
 TOP_K = 10
 CITED_K = 5
@@ -254,6 +254,7 @@ def write_benchmark(cases: list[dict], registry: dict) -> None:
         ("背景→决策→结果链条", "100%", "Initial Situation / Decision Trigger / Actual Decision / Outcome 四段齐全"),
         ("能否用于 Scenario Simulation", "是", "含 4 个「待观察」与 2 个「失败/退出」案例"),
         ("每条案例是否有标准答案", "是", "actual_decision + outcome + expected_risks 即标准答案"),
+        ("是否进入 RAG 语料", "否（held-out）", "案例是评测答案键，故意不进入知识库，避免答案泄漏"),
         ("已知局限", "", "结果字段多来自媒体转述；4 个案例结果尚未发生；行业级案例 RETURN_003 无单一企业数据"),
     ]
     for row in checks:
@@ -273,56 +274,34 @@ def company_tokens(case: dict) -> list[str]:
 
 
 def write_benchmark_results(cases, scored, registry, repo) -> None:
-    titles = {}
-    for chunk in repo.all_chunks():
-        titles.setdefault(chunk.source_id, chunk.title or "")
-
     wb = Workbook()
     ws = wb.active
     ws.title = "Case Results"
-    ws.append(["case_id", "company_name", "industry", "decision_problem",
-               "case_doc_id", "case_doc_rank_baseline", "case_doc_rank_optimized",
-               "company_docs_in_corpus", "company_docs_retrieved",
-               "company_doc_recall", "expected_risks", "risks_identified_baseline",
+    ws.append(["case_id", "company_name", "industry", "case_type", "decision_problem",
+               "benchmark_held_out", "expected_decision_type", "evidence_index_ids",
+               "expected_risks", "risks_identified_baseline",
                "risk_recall_baseline", "risk_recall_optimized",
-               "source_articles", "verdict"])
+               "policy_evidence_top5_baseline", "verdict"])
     for case in cases:
         s = scored[case["case_id"]]["baseline"]
         so = scored[case["case_id"]]["optimized"]
-        case_doc = case["case_id"]
-        rank_b = s["retrieved"].index(case_doc) + 1 if case_doc in s["retrieved"] else 0
-        rank_o = so["retrieved"].index(case_doc) + 1 if case_doc in so["retrieved"] else 0
-        tokens = company_tokens(case)
-        company_docs = [eid for eid in registry
-                        if any(t and t in titles.get(eid, "") for t in tokens)]
-        hit = [e for e in company_docs if e in s["retrieved_set"]]
         ws.append([
-            case["case_id"], case["company_name"], case["industry"], case["decision_problem"],
-            case_doc, rank_b, rank_o,
-            len(company_docs), "; ".join(hit),
-            round(len(hit) / len(company_docs), 3) if company_docs else "",
+            case["case_id"], case["company_name"], case["industry"], case["case_type"],
+            case["decision_problem"], "是（未进入 RAG 语料）", case.get("decision_type"),
+            "; ".join(case["evidence_ids"]),
             "; ".join(sorted(case["expected_risks"])),
             "; ".join(sorted(s["risks"])),
-            round(len(case["expected_risks"] & s["risks"]) / len(case["expected_risks"]), 3),
-            round(len(case["expected_risks"] & so["risks"]) / len(case["expected_risks"]), 3),
-            "; ".join(case["evidence_ids"]), case.get("outcome_verdict"),
+            round(len(case["expected_risks"] & s["risks"]) / max(1, len(case["expected_risks"])), 3),
+            round(len(case["expected_risks"] & so["risks"]) / max(1, len(case["expected_risks"])), 3),
+            "; ".join(s["retrieved"][:5]),
+            case.get("outcome_verdict"),
         ])
-    style_header(ws, 16)
-    autosize(ws, [12, 22, 18, 44, 12, 12, 12, 14, 22, 12, 32, 34, 12, 12, 20, 26])
-    ws.auto_filter.ref = f"A1:P{ws.max_row}"
+    style_header(ws, 14)
+    autosize(ws, [12, 22, 18, 26, 46, 18, 18, 24, 32, 34, 12, 12, 42, 26])
+    ws.auto_filter.ref = f"A1:N{ws.max_row}"
 
     s = wb.create_sheet("Summary")
     n = len(cases)
-    case_doc5 = sum(1 for c in cases
-                    if c["case_id"] in scored[c["case_id"]]["baseline"]["retrieved"][:5]) / n
-    case_doc10 = sum(1 for c in cases
-                     if c["case_id"] in scored[c["case_id"]]["baseline"]["retrieved_set"]) / n
-    comp = []
-    for c in cases:
-        docs = [eid for eid in registry
-                if any(t and t in titles.get(eid, "") for t in company_tokens(c))]
-        if docs:
-            comp.append(len([e for e in docs if e in scored[c["case_id"]]["baseline"]["retrieved_set"]]) / len(docs))
     rb = sum(len(c["expected_risks"] & scored[c["case_id"]]["baseline"]["risks"]) /
              max(1, len(c["expected_risks"])) for c in cases) / n
     ro = sum(len(c["expected_risks"] & scored[c["case_id"]]["optimized"]["risks"]) /
@@ -330,19 +309,19 @@ def write_benchmark_results(cases, scored, registry, repo) -> None:
     s.append(["Task 5 — Historical Case Benchmark", "Value", "Note"])
     for row in (
         ["cases", n, "任务书要求 ≥10"],
-        ["case-document recall@5", round(case_doc5, 3), "案例自己的语料文档是否进入 Top-5"],
-        ["case-document recall@10", round(case_doc10, 3), "同上，Top-10"],
-        ["company-document recall@10", round(sum(comp) / len(comp), 3) if comp else "",
-         "该案例所属企业在语料中的所有文档被召回的比例"],
-        ["risk recall (baseline)", round(rb, 3), "见 Task 6"],
+        ["held out of the RAG corpus", n, "17/17 案例仅供评测，不进入知识库（避免答案泄漏）"],
+        ["RAG corpus size", len(registry), "语料只含 Task 1 证据，不含任何 benchmark 案例"],
+        ["risk recall (baseline)", round(rb, 3), "见 Task 6：期望风险中被检索证据覆盖的比例"],
         ["risk recall (optimized)", round(ro, 3), "见 Task 6"],
         [],
-        ["口径说明", "", "案例绑定的 NEWS_* 是源文章（Task 5 Evidence Index），不在 RAG 语料中，"
-                         "因此不作为检索 gold；检索 gold 用案例自己在语料中的文档（= case_id）"],
+        ["口径说明", "", "本 benchmark 的案例是 held-out 答案键，故意不在 RAG 语料中，"
+                         "因此不再计算「案例文档召回」。检索层能力由 Task 2/3/4 评价，"
+                         "风险识别由 Task 6 评价；端到端「决策是否正确」需要 Agent 生成层，"
+                         "属下一阶段。"],
     ):
         s.append(row)
     style_header(s, 3, "1F3864")
-    autosize(s, [34, 14, 76])
+    autosize(s, [34, 14, 92])
     wb.save(OUT / "benchmark_results.xlsx")
 
 
@@ -448,7 +427,7 @@ def write_risk_checklist(cases, scored, registry):
     representable = sum(sum(1 for r in c["expected_risks"] if tag_counts.get(r, 0) > 0) /
                         max(1, len(c["expected_risks"])) for c in cases) / n
     ws.append(["风险可表征率（语料中存在该类风险的证据）", round(representable, 3), round(representable, 3),
-               "L1：语料层面。六类风险在 47 篇语料中均有标注，缺失的是「与案例挂钩」的证据"])
+               f"L1：语料层面。六类风险在 {len(registry)} 篇语料中均有标注（不含 held-out 案例），缺失的是「与案例挂钩」的证据"])
     ws.append(["风险可取回率（按维度逐条检索）", round(ceil, 3), round(ceil, 3),
                "L2：检索层面。按风险维度单独提问时的覆盖上限；不是现行产品行为"])
     ws.append(["风险识别覆盖（现行单次检索）", round(rows[0][1], 3), round(rows[1][1], 3),

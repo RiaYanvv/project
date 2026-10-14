@@ -1,14 +1,18 @@
-"""Turn the Task 5 case database into ingestable corpus files.
+"""Materialise the Task 5 historical-case benchmark as readable documents.
 
-Task 5 shipped ``data/processed/case_database_v0.1.xlsx`` (17 cases).  The RAG
-ingest pipeline expects a raw document per evidence id plus a metadata row, so
-this script materialises both:
+Task 5 is an **evaluation-only** artefact: ``data/processed/case_database_v0.1.xlsx``
+(17 real relocation cases) is the ground truth for the end-to-end benchmark.
+It is deliberately **kept out of the RAG corpus** so the answer key is not
+retrievable by the system under test.
 
-  data/raw/case/<case_id>.md          structured case narrative
-  data/metadata/evidence_cases_v0.1.xlsx   metadata workbook (Task 1 schema)
+This script only renders the benchmark for human review / downstream scoring:
 
-Metadata is derived deterministically from the case record; the derivation
-rules are written into the workbook so they can be audited.
+  data/evaluation/case_benchmark/case/<case_id>.md        case narrative
+  data/evaluation/case_benchmark/evidence_cases_v0.1.xlsx case metadata + audit
+
+Do NOT feed these files into ``backend/scripts/ingest_dataset.py``.  Metadata is
+derived deterministically from the case record; the derivation rules are written
+into the workbook so they can be audited.
 """
 from __future__ import annotations
 
@@ -310,7 +314,10 @@ def main() -> int:
     cases = [dict(zip(header, row)) for row in rows if row and row[0]]
     workbook.close()
 
-    raw_dir = args.data_root / "raw" / "case"
+    # Benchmark-only: lives under evaluation/, never under raw/ or metadata/,
+    # so it cannot be picked up by the RAG ingest pipeline.
+    bench_dir = args.data_root / "evaluation" / "case_benchmark"
+    raw_dir = bench_dir / "case"
     raw_dir.mkdir(parents=True, exist_ok=True)
 
     for case in cases:
@@ -323,9 +330,7 @@ def main() -> int:
     if unknown:
         raise SystemExit(f"missing geography mapping for: {unknown}")
 
-    meta_dir = args.data_root / "metadata"
-    meta_dir.mkdir(parents=True, exist_ok=True)
-    out_path = meta_dir / "evidence_cases_v0.1.xlsx"
+    out_path = bench_dir / "evidence_cases_v0.1.xlsx"
 
     wb = Workbook()
     ws = wb.active
@@ -359,9 +364,19 @@ def main() -> int:
                       row["publisher"], row["source_url"]])
     style_header(audit, 11, "2E5E4E")
 
+    (bench_dir / "README.md").write_text(
+        "# Task 5 — Historical Case Benchmark (evaluation only)\n\n"
+        "These files are the ground truth for the end-to-end benchmark.\n"
+        "They are intentionally NOT part of the RAG corpus — do not ingest them\n"
+        "via `backend/scripts/ingest_dataset.py`.\n\n"
+        f"- `case/` — {len(cases)} case narratives\n"
+        "- `evidence_cases_v0.1.xlsx` — case metadata (Task 1 schema) + audit\n",
+        encoding="utf-8",
+    )
     wb.save(out_path)
-    print(f"wrote {len(cases)} raw files to {raw_dir}")
+    print(f"wrote {len(cases)} benchmark case files to {raw_dir}")
     print(f"wrote metadata workbook to {out_path}")
+    print("NOTE: benchmark-only — do not ingest into the RAG corpus.")
     print(json.dumps({c: build_metadata_row(x)["authority_level"] for c, x in zip(case_ids, cases)},
                      ensure_ascii=False))
     return 0
