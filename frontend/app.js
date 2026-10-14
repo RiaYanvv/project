@@ -921,6 +921,12 @@ function mapScenario(item, evidenceFor, meta) {
     breakdown: item.score_breakdown || [],
     bands: item.dimension_bands || {},
     dimensionAssessments: item.dimension_assessments || {},
+    previousVersion: Number(item.previous_version) || null,
+    previousWeightedScore: item.previous_weighted_score == null
+      ? null
+      : Number(item.previous_weighted_score),
+    weightedScoreDelta: Number(item.weighted_score_delta) || 0,
+    scoreChangeReason: item.score_change_reason || item.change_summary || "",
     insufficient: Boolean(item.insufficient_evidence),
     links: item.evidence_links || [],
     evidence: (item.evidence_ids || []).map(evidenceFor),
@@ -986,6 +992,43 @@ function normalizedScenarioHistory() {
   }));
 }
 
+function applyScenarioVersions(versions) {
+  if (!Array.isArray(versions) || !versions.length || !state.assessment) return false;
+  const normalised = versions
+    .map(item => ({ ...item, version: Number(item.version) || 1 }))
+    .sort((left, right) => left.version - right.version);
+  const latest = normalised.reduce((max, item) => Math.max(max, item.version), 1);
+  state.assessment = {
+    ...state.assessment,
+    scenario_history: normalised,
+    meta: {
+      ...(state.assessment.meta || {}),
+      scenario_version: latest,
+    },
+  };
+  state.scenarioVersion = latest;
+  updateCurrentProject({
+    assessment: state.assessment,
+    scenario_version: latest,
+  });
+  return true;
+}
+
+async function hydrateScenarioHistoryFromBackend() {
+  const assessmentId = state.assessment?.meta?.assessment_id;
+  if (!assessmentId || !window.LOCUS_API_BASE) return;
+  try {
+    const response = await fetchWithTimeout(
+      `${window.LOCUS_API_BASE}/api/v1/assessments/${assessmentId}/scenario-versions`,
+      { cache: "no-store" },
+      20000,
+    );
+    if (!response.ok) return;
+    applyScenarioVersions(await response.json());
+    renderVersionBanners();
+  } catch { /* local state remains a safe fallback */ }
+}
+
 function renderVersionBanners() {
   const viewed = currentViewedScenarioVersion();
   const latest = latestScenarioVersion();
@@ -1033,6 +1076,9 @@ async function openVersionHistory() {
         20000,
       );
       if (response.ok) items = await response.json();
+      if (response.ok && applyScenarioVersions(items)) {
+        items = state.assessment?.scenario_history || items;
+      }
     } catch { /* fall back to local snapshots */ }
   }
   if (!items.length) {
@@ -1057,6 +1103,7 @@ function selectScenarioVersion(version) {
   closeVersionHistory();
   renderScenarios(state.assessment);
   renderVersionBanners();
+  showScreen("scenarios");
 }
 
 function levelOf(risks) {
@@ -1648,7 +1695,7 @@ function scoreDeltaMarkup(before, after) {
   return `<span class="score-delta ${tone}">${arrow}</span>`;
 }
 
-function dimensionList(scores, breakdown, previousScores = null) {
+function dimensionList(scores, breakdown, previousScores = null, dimensionAssessments = {}) {
   const bandLabels = {
     very_favourable: L("Very favourable", "非常有利"),
     favourable: L("Favourable", "有利"),
@@ -1660,14 +1707,21 @@ function dimensionList(scores, breakdown, previousScores = null) {
   (breakdown || []).forEach(entry => { byDimension[entry.dimension] = entry; });
   return SCENARIO_DIMENSIONS.map(([key, label]) => {
     const value = Math.max(0, Math.min(100, Number(scores[key]) || 0));
-    const entry = byDimension[SCENARIO_BREAKDOWN_KEY[key]];
+    const metric = SCENARIO_BREAKDOWN_KEY[key];
+    const entry = byDimension[metric];
+    const dimensionAssessment = dimensionAssessments[metric] || {};
     const basis = !entry
       ? ""
       : entry.basis === "evidence"
         ? `<span class="dim-basis evidence" title="${escapeHtml(L("Backed by linked evidence", "有证据支撑"))}">${L("evidence", "证据")}</span>`
         : `<span class="dim-basis inference" title="${escapeHtml(L("Model inference — no evidence linked", "模型推断——未关联证据"))}">${L("inference", "推断")}</span>`;
     const band = bandLabels[entry?.band] || "";
-    const delta = previousScores ? scoreDeltaMarkup(previousScores[key], value) : "";
+    const backendPrevious = dimensionAssessment.previous_score
+      ?? dimensionAssessment.previousScore
+      ?? entry?.previous_score
+      ?? entry?.previousScore;
+    const previousValue = previousScores ? previousScores[key] : backendPrevious;
+    const delta = previousValue == null ? "" : scoreDeltaMarkup(previousValue, value);
     return `<li><span class="dim-label">${escapeHtml(label)}${basis}${band ? `<em class="dim-band">${escapeHtml(band)}</em>` : ""}</span><span class="dim-bar"><i style="width:${value}%"></i></span><b>${value}${delta}</b></li>`;
   }).join("");
 }
@@ -1754,6 +1808,11 @@ function scenarioCard(scenario, index, recommendedId, weighting, previousScenari
   const recommended = Boolean(scenario.scenario_id && scenario.scenario_id === recommendedId);
   const overallDelta = previousScenario
     ? scoreDeltaMarkup(previousScenario.overall_score, scenario.overall_score)
+    : scenario.previousWeightedScore == null
+      ? ""
+      : scoreDeltaMarkup(scenario.previousWeightedScore, scenario.overall_score);
+  const changeNote = scenario.previousVersion && scenario.scoreChangeReason
+    ? `<p class="scenario-score-change">${escapeHtml(L(`Why it changed from v${scenario.previousVersion}: `, `相较 v${scenario.previousVersion} 的变化原因：`))}${highlightScenarioReason(scenario.scoreChangeReason, [])}</p>`
     : "";
   return `
   <article class="scenario-card${recommended ? " recommended" : ""}">
@@ -1764,7 +1823,8 @@ function scenarioCard(scenario, index, recommendedId, weighting, previousScenari
     <p class="scenario-summary">${escapeHtml(scenario.summary || "")}</p>
     <div class="scenario-score"><b>${scenario.overall_score}</b><span>/ 100</span>${overallDelta}</div>
     <p class="scenario-score-label">Overall score · Confidence: <b>${escapeHtml(scenario.confidence.label)}</b></p>
-    <ul class="scenario-dimensions">${dimensionList(scenario.scores, scenario.breakdown, previousScenario?.scores || null)}</ul>
+    ${changeNote}
+    <ul class="scenario-dimensions">${dimensionList(scenario.scores, scenario.breakdown, previousScenario?.scores || null, scenario.dimensionAssessments)}</ul>
     <button class="button button-secondary scenario-toggle" type="button" data-scenario-toggle="${index}" aria-expanded="false">View Analysis <span>→</span></button>
     ${scenarioDetail(scenario, index, weighting)}
   </article>`;
@@ -3371,7 +3431,7 @@ function restoreChatFromProject(project) {
   state.versionPreview = null;
 }
 
-function openProjectById(id) {
+async function openProjectById(id) {
   const project = readProjects().find(item => item.decision_project_id === id);
   if (!project) {
     showToast("This decision project could not be found — reload My Decisions.");
@@ -3397,6 +3457,7 @@ function openProjectById(id) {
   if (project.assessment) state.assessment = project.assessment;
   formFromProfile(project.company_profile || {});
   restoreChatFromProject(project);
+  await hydrateScenarioHistoryFromBackend();
   const stage = project.current_stage || "INITIAL_ASSESSMENT";
   // Decisions saved before the analysis service was reachable hold indicative
   // content only; refresh them instead of showing stale results.
