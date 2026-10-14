@@ -449,6 +449,43 @@ def get_assessment(assessment_id: str) -> Assessment:
     return assessment
 
 
+def _scenario_version_snapshots(
+    assessment: Assessment,
+) -> list[ScenarioVersionSnapshot]:
+    """Return an append-only history, backfilling legacy assessments.
+
+    Assessments created before scenario snapshots existed were stored with
+    scenarios but an empty history. Returning [] made the history drawer look
+    broken and made "restore from history" impossible. The current scenario
+    becomes v1 for those records without mutating the assessment on read.
+    """
+    history = list(assessment.scenario_history)
+    if not history and assessment.scenarios:
+        history = [
+            ScenarioVersionSnapshot(
+                version=max(1, assessment.scenario_version),
+                created_at=assessment.updated_at,
+                label=(
+                    "初始分析"
+                    if assessment.language == "zh"
+                    else "Initial analysis"
+                ),
+                scenarios=assessment.scenarios,
+                recommendation=assessment.recommendation,
+                is_latest=True,
+            )
+        ]
+    if not history:
+        return []
+    latest_version = max(item.version for item in history)
+    return [
+        item.model_copy(
+            update={"is_latest": item.version == latest_version}
+        )
+        for item in sorted(history, key=lambda item: item.version)
+    ]
+
+
 @app.get(
     "/api/v1/assessments/{assessment_id}/scenario-versions",
     response_model=list[ScenarioVersionSnapshot],
@@ -459,7 +496,7 @@ def get_scenario_versions(
     assessment = repository.get(assessment_id)
     if assessment is None:
         raise HTTPException(status_code=404, detail="assessment not found")
-    return assessment.scenario_history
+    return _scenario_version_snapshots(assessment)
 
 
 @app.get(
@@ -476,7 +513,7 @@ def get_scenario_version(
     snapshot = next(
         (
             item
-            for item in assessment.scenario_history
+            for item in _scenario_version_snapshots(assessment)
             if item.version == version
         ),
         None,

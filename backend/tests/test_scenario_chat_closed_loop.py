@@ -542,6 +542,73 @@ class ScenarioChatClosedLoopTest(unittest.TestCase):
         self.assertEqual(first.version, 1)
         self.assertTrue(first.is_latest)
 
+    def test_legacy_assessment_can_resimulate_without_resetting_history(self) -> None:
+        agent, _ = self.make_agent(
+            {"action": "answer", "scenario_update_required": False}
+        )
+        assessment = agent.run(make_company(), language="zh")
+        legacy = assessment.model_copy(
+            update={
+                "company_input": None,
+                "scenario_history": [],
+            }
+        )
+
+        updated = agent.resimulate(
+            legacy,
+            additional_constraints=["新增越南产能信息"],
+            language="zh",
+        )
+
+        self.assertEqual(updated.scenario_version, 2)
+        self.assertEqual(
+            [item.version for item in updated.scenario_history],
+            [1, 2],
+        )
+        self.assertIsNotNone(updated.company_input)
+        self.assertIsNotNone(updated.scenario_comparison)
+        self.assertEqual(updated.scenario_comparison.before_version, 1)
+        self.assertEqual(updated.scenario_comparison.after_version, 2)
+        self.assertTrue(
+            all(
+                item.previous_version == 1
+                for item in updated.scenario_comparison.after_scenarios
+            )
+        )
+        self.assertTrue(
+            all(
+                item.score_change_reason
+                for item in updated.scenario_comparison.after_scenarios
+            )
+        )
+        restored = Assessment.model_validate_json(updated.model_dump_json())
+        self.assertIsNotNone(restored.scenario_comparison)
+
+    def test_legacy_empty_history_is_backfilled_for_the_drawer(self) -> None:
+        agent, _ = self.make_agent(
+            {"action": "answer", "scenario_update_required": False}
+        )
+        assessment = agent.run(make_company(), language="zh")
+        legacy = assessment.model_copy(update={"scenario_history": []})
+
+        with patch.object(
+            main_module.repository,
+            "get",
+            return_value=legacy,
+        ):
+            versions = main_module.get_scenario_versions(
+                legacy.assessment_id
+            )
+            first = main_module.get_scenario_version(
+                legacy.assessment_id,
+                1,
+            )
+
+        self.assertEqual(len(versions), 1)
+        self.assertEqual(versions[0].version, 1)
+        self.assertTrue(versions[0].is_latest)
+        self.assertEqual(first.version, 1)
+
     def test_second_turn_sees_the_first_turn(self) -> None:
         agent, llm = self.make_agent(
             {"action": "answer", "scenario_update_required": False}

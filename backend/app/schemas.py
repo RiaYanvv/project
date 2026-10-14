@@ -274,6 +274,9 @@ class ScenarioDimensionAssessment(StrictModel):
         "score_changed",
     ] = "unchanged"
     highlight_terms: list[str] = Field(default_factory=list)
+    previous_band: ScenarioBand | None = None
+    previous_score: float | None = None
+    score_delta: float = 0
 
 
 class ScenarioResult(StrictModel):
@@ -300,6 +303,10 @@ class ScenarioResult(StrictModel):
     evidence_links: list[EvidenceLink] = Field(default_factory=list)
     insufficient_evidence: bool = False
     change_summary: str = ""
+    previous_version: int | None = None
+    previous_weighted_score: float | None = None
+    weighted_score_delta: float = 0
+    score_change_reason: str = ""
 
 
 class Recommendation(StrictModel):
@@ -317,6 +324,7 @@ class Recommendation(StrictModel):
 
 class ScenarioVersionSnapshot(StrictModel):
     version: int = Field(ge=1)
+    base_version: int | None = Field(default=None, ge=1)
     created_at: str = ""
     label: str = ""
     scenarios: list[ScenarioResult] = Field(default_factory=list)
@@ -324,6 +332,15 @@ class ScenarioVersionSnapshot(StrictModel):
     context_update_ids: list[str] = Field(default_factory=list)
     change_summary: str = ""
     is_latest: bool = True
+
+
+class ScenarioComparison(StrictModel):
+    before_version: int | None = Field(default=None, ge=1)
+    after_version: int = Field(ge=1)
+    before_scenarios: list[ScenarioResult] = Field(default_factory=list)
+    after_scenarios: list[ScenarioResult] = Field(default_factory=list)
+    change_summary: str = ""
+    applied_update_ids: list[str] = Field(default_factory=list)
 
 
 class ReportExecutiveBrief(StrictModel):
@@ -759,6 +776,7 @@ class Assessment(StrictModel):
     scenarios: list[ScenarioResult]
     scenario_version: int = 1
     scenario_history: list[ScenarioVersionSnapshot] = Field(default_factory=list)
+    scenario_comparison: ScenarioComparison | None = None
     recommendation: Recommendation
     scoring: dict[str, int] = Field(default_factory=dict)
     weighting_mode: Literal["user", "equal"] = "equal"

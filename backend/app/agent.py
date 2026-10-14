@@ -41,6 +41,7 @@ from .schemas import (
     RiskItem,
     ScenarioScoreBreakdown,
     ScenarioBand,
+    ScenarioComparison,
     ScenarioDimensionAssessment,
     ScenarioResult,
     ScenarioVersionSnapshot,
@@ -917,11 +918,13 @@ class AgentService:
                 if zh
                 else "System note: formal scenario re-simulation completed."
             )
+        before_by_id = {item.scenario_id: item for item in before}
         before_by_name = {item.name: item for item in before}
         candidates = [
             (
                 item,
-                before_by_name.get(item.name),
+                before_by_id.get(item.scenario_id)
+                or before_by_name.get(item.name),
             )
             for item in after
         ]
@@ -933,7 +936,12 @@ class AgentService:
         selected, previous, _delta = max(
             changed,
             key=lambda item: abs(item[2]),
-            default=(after[0], before_by_name.get(after[0].name), 0.0),
+            default=(
+                after[0],
+                before_by_id.get(after[0].scenario_id)
+                or before_by_name.get(after[0].name),
+                0.0,
+            ),
         )
         prefix = (
             "系统提示：已根据本次咨询新增信息完成正式重算。"
@@ -993,6 +1001,7 @@ class AgentService:
         before: list[ScenarioResult],
         after: list[ScenarioResult],
         language: str,
+        before_version: int | None = None,
     ) -> list[ScenarioResult]:
         zh = (language or "en").lower() == "zh"
         band_labels = {
@@ -1002,10 +1011,13 @@ class AgentService:
             "unfavourable": "不利" if zh else "unfavourable",
             "very_unfavourable": "非常不利" if zh else "very unfavourable",
         }
+        before_by_id = {item.scenario_id: item for item in before}
         before_by_name = {item.name: item for item in before}
         annotated: list[ScenarioResult] = []
         for scenario in after:
-            previous = before_by_name.get(scenario.name)
+            previous = before_by_id.get(scenario.scenario_id) or before_by_name.get(
+                scenario.name
+            )
             changes: list[str] = []
             assessments = {
                 key: value.model_copy(deep=True)
@@ -1017,6 +1029,15 @@ class AgentService:
                     new_value = getattr(scenario, metric, None)
                     old_band = previous.dimension_bands.get(metric)
                     new_band = scenario.dimension_bands.get(metric)
+                    assessment.previous_band = old_band
+                    assessment.previous_score = (
+                        float(old_value) if old_value is not None else None
+                    )
+                    assessment.score_delta = (
+                        float(new_value) - float(old_value)
+                        if old_value is not None and new_value is not None
+                        else 0
+                    )
                     if old_band != new_band:
                         old_label = band_labels.get(
                             getattr(old_band, "value", old_band),
@@ -1047,6 +1068,29 @@ class AgentService:
                     update={
                         "dimension_assessments": assessments,
                         "change_summary": (
+                            "；".join(changes)
+                            if changes
+                            else (
+                                "各维度保持不变"
+                                if zh
+                                else "No dimension changed"
+                            )
+                        ),
+                        "previous_version": (
+                            before_version if previous is not None else None
+                        ),
+                        "previous_weighted_score": (
+                            float(previous.weighted_score)
+                            if previous is not None
+                            else None
+                        ),
+                        "weighted_score_delta": (
+                            float(scenario.weighted_score)
+                            - float(previous.weighted_score)
+                            if previous is not None
+                            else 0
+                        ),
+                        "score_change_reason": (
                             "；".join(changes)
                             if changes
                             else (
@@ -1508,9 +1552,8 @@ class AgentService:
         """
         company = assessment.company_input
         if company is None:
-            raise ValueError(
-                "this assessment has no stored company input, so scenarios cannot "
-                "be re-run"
+            company = self._company_input_from_profile(
+                assessment.company_profile
             )
         selected_model = model_name or getattr(self.llm, "model", "mock")
         active_llm = self.llm.with_runtime(selected_model, api_key, None)
@@ -1550,6 +1593,11 @@ class AgentService:
             base_snapshot.scenarios
             if base_snapshot is not None
             else assessment.scenarios
+        )
+        base_version_used = (
+            base_snapshot.version
+            if base_snapshot is not None
+            else max(1, assessment.scenario_version)
         )
         constraints.extend(
             self._context_update_text(item)
@@ -1609,6 +1657,7 @@ class AgentService:
             base_scenarios,
             scenarios,
             language,
+            base_version_used,
         )
         recommendation_payload = active_llm.generate_recommendation(
             company,
@@ -1649,6 +1698,16 @@ class AgentService:
             if (language or "en").lower() == "zh"
             else f"{change_summary} This run is Scenario v{scenario_version}."
         )
+        scenario_comparison = ScenarioComparison(
+            before_version=base_version_used,
+            after_version=scenario_version,
+            before_scenarios=base_scenarios,
+            after_scenarios=scenarios,
+            change_summary=change_summary,
+            applied_update_ids=[
+                item.update_id for item in selected_updates
+            ],
+        )
         applied_context_updates = [
             (
                 item.model_copy(
@@ -1687,6 +1746,7 @@ class AgentService:
         scenario_history.append(
             ScenarioVersionSnapshot(
                 version=scenario_version,
+                base_version=base_version_used,
                 created_at=utc_now(),
                 label=version_label,
                 scenarios=scenarios,
@@ -1737,6 +1797,7 @@ class AgentService:
                 "scenarios": scenarios,
                 "scenario_version": scenario_version,
                 "scenario_history": scenario_history,
+                "scenario_comparison": scenario_comparison,
                 "context_updates": applied_context_updates,
                 "recommendation": recommendation,
                 "limitations": limitations,
@@ -4633,6 +4694,81 @@ class AgentService:
                 )
             )
         return facts
+
+    @staticmethod
+    def _company_input_from_profile(profile: CompanyProfile) -> CompanyInput:
+        """Reconstruct the original form input for assessments stored before it
+        became part of the schema.
+
+        Scenario re-simulation needs a CompanyInput. Old records only have the
+        rendered CompanyProfile; falling back to a full assessment reset made
+        the scenario version jump back to v1, so this adapter keeps history
+        append-only.
+        """
+        allowed_restrictions = {
+            "tariff_pressure",
+            "export_controls",
+            "sanctions_concerns",
+            "local_regulation",
+            "supplier_dependency",
+            "labor_cost_increase",
+            "logistics_problems",
+            "geopolitical_uncertainty",
+            "market_access",
+            "capacity_expansion",
+            "other",
+            "none",
+        }
+        allowed_industries = {
+            "battery_ev",
+            "semiconductor",
+            "electronics",
+            "optoelectronics",
+            "industrial_equipment",
+            "other",
+        }
+        priorities = [
+            item.model_dump(mode="json")
+            for item in (profile.priorities or [])
+            if getattr(item, "dimension", None)
+        ]
+        if not priorities:
+            priorities = [
+                {"dimension": dimension, "weight": 1}
+                for dimension in AgentService.SCORING_DIMENSIONS
+            ]
+        return CompanyInput.model_validate(
+            {
+                "company_name": profile.company_name,
+                "industry": (
+                    profile.industry
+                    if profile.industry in allowed_industries
+                    else "other"
+                ),
+                "products": list(profile.products or ["unknown"]),
+                "home_country": profile.home_country or "CN",
+                "production_locations": [
+                    item.model_dump(mode="json")
+                    for item in (profile.production_footprint or [])
+                ],
+                "target_markets": list(profile.target_markets or []),
+                "decision_question": profile.decision_question or "",
+                "time_horizon": (
+                    profile.time_horizon
+                    if profile.time_horizon
+                    in {"within_6_months", "6_18_months", "2_5_years"}
+                    else "2_5_years"
+                ),
+                "priorities": priorities,
+                "priorities_declared": bool(profile.priorities),
+                "restrictions": [
+                    item
+                    for item in (profile.restrictions or [])
+                    if item in allowed_restrictions
+                ],
+                "notes": profile.summary or None,
+            }
+        )
 
     def _build_profile(
         self, company: CompanyInput, request_id: str, language: str = "en"
