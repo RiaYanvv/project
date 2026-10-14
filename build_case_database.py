@@ -30,7 +30,7 @@ EV = [
  ("NEWS_014","东方财富网","宁德时代与印尼合作项目正式动工，未来总投资近60亿美元","2025-07-02","https://finance.eastmoney.com/a/202507023446498365.html"),
  ("NEWS_015","凤凰科技","比亚迪汽车印尼工厂年底前竣工：总投资10亿美元，年产能15万辆","2025-01-22","https://tech.ifeng.com/c/8gLk1Msnjan"),
  ("NEWS_016","东方财富财富号","晶科能源：全球工厂以中国为核心，叠加东南亚（马来西亚、越南）与北美（美国）成熟产能","2026-02-25","https://caifuhao.eastmoney.com/news/20260225153639217944650"),
- ("NEWS_017","新浪财经","三星拟投资40亿美元在越南建芯片测试工厂","2026-05-27","https://finance.sina.com.cn/stock/t/2026-05-27/doc-inhzikrs0845798.shtml"),
+ ("NEWS_017","新浪财经","三星拟投资40亿美元在越南建芯片测试工厂","2026-05-27","https://finance.sina.com.cn/stock/t/2026-05-27/doc-inhzikrs0845798.shtml","原链接已失效（页面不存在），待替换来源；金额口径待核实"),
  ("COMPANY_FILING_001","恩捷股份公告（经东方财富网报道）","恩捷股份：终止马来西亚锂电池隔离膜项目投资","2026-05-22","https://finance.eastmoney.com/a/202605223746866215.html"),
  ("NEWS_018","央广网","恩捷股份终止马来西亚锂电池隔离膜项目 原计划投资20亿元","2026-05-22","https://finance.cnr.cn/ycbd/20260522/t20260522_527631400.shtml"),
  ("NEWS_019","新浪科技","富士康撤回印度中国工程师，苹果制造遇挑战","2025-07-03","https://finance.sina.com.cn/tech/roll/2025-07-03/doc-infeerfp4024842.shtml"),
@@ -39,6 +39,8 @@ EV = [
  ("NEWS_021","36氪","300亿元投资搁浅？蜂巢能源暂停投建德国电池工厂","2024-10-25","https://www.36kr.com/p/3007796900800009"),
  ("NEWS_022","财新网","蜂巢能源终止欧洲子公司运营 关停两座德国电池工厂","2024-10-28","https://www.caixin.com/2024-10-28/102250409.html"),
  ("NEWS_023","中国储能网","越南大面积缺电，找广西买电","2024-08-22","https://www.escn.com.cn/news/show-1700850.html"),
+ ("NEWS_024","ANTARA（印尼国家通讯社）","Pabrik BYD di Subang resmi beroperasi dan serap 5.000 pekerja lokal（比亚迪苏邦工厂正式投产，吸纳 5000 名本地员工）","2026-09-03","https://otomotif.antaranews.com/berita/5724273/pabrik-byd-di-subang-resmi-beroperasi-dan-serap-5000-pekerja-lokal"),
+ ("NEWS_025","ANTARA（印尼国家通讯社）","BYD setop impor mobil ke Indonesia, beralih penuh ke produksi lokal（比亚迪停止整车进口，全面转向本地生产）","2026-09-03","https://otomotif.antaranews.com/berita/5724855/byd-setop-impor-mobil-ke-indonesia-beralih-penuh-ke-produksi-lokal"),
 ]
 
 RELOC = "China → Southeast Asia relocation"
@@ -257,7 +259,7 @@ dict(case_id="PLUS1_002", company_name="宁德时代 CATL", industry="EV Battery
  notes="可用于讨论'资源国要求本地化'这一触发因素。"),
 
 dict(case_id="PLUS1_003", company_name="比亚迪 BYD", industry="Automotive (EV)",
- source="凤凰科技（转路透社）", date="2025-01-22", url="https://tech.ifeng.com/c/8gLk1Msnjan",
+ source="ANTARA（印尼国家通讯社）", date="2026-09-03", url="https://otomotif.antaranews.com/berita/5724273/pabrik-byd-di-subang-resmi-beroperasi-dan-serap-5000-pekerja-lokal",
  case_type=PLUS1,
  initial_production_layout="整车产能集中在中国，海外首个工厂为泰国罗勇（2024-07 投产）。",
  initial_main_markets="中国 + 东南亚 + 欧洲 + 拉美。",
@@ -266,16 +268,16 @@ dict(case_id="PLUS1_003", company_name="比亚迪 BYD", industry="Automotive (EV
  decision_trigger="tariff_pressure",
  trigger_detail="印尼对整车进口征收高关税并推行电动车本地化要求，2023-05 与印尼政府签署投资谅解备忘录。",
  decision_type="多地区混合布局",
- actual_decision="在西爪哇省苏邦工业园区建设印尼工厂，总投资约 10 亿美元，规划年产能 15 万辆，计划 2025 年底前竣工；与泰国工厂共同构成东南亚双基地，中国产能保留。",
+ actual_decision="在西爪哇省苏邦 Smartpolitan 工业园区建设印尼工厂，投资约 16 万亿印尼盾（约 10 亿美元），最大年产能 15 万辆；2026-09-03 正式投产启用，为比亚迪全球第 13 座整车工厂。与泰国工厂共同构成东南亚双基地，中国产能保留。",
  related_risk="Trade Risk; Market Access Risk; Operational Risk",
- outcome_cost_impact="本地生产规避印尼整车进口关税，获得电动车补贴资格。",
- outcome_production_performance="截至 2025 年报道仍处于建设阶段，预计 2025 年底竣工（结果待验证）。",
- outcome_market_access="以本地生产进入印尼市场，直接与日系品牌竞争。",
+ outcome_cost_impact="本地生产规避印尼整车进口关税并满足本地化率（TKDN）要求，保住电动车激励资格；工厂投资约 16 万亿印尼盾。",
+ outcome_production_performance="2026-09-03 正式投产，最大年产能 15 万辆，投产后实际产量约 1 万辆/月；启用仪式同场下线印尼本地生产的第 10 万辆整车。",
+ outcome_market_access="2026-09 起停止整车进口、全面转为本地生产，以本地化进入印尼市场并与日系品牌竞争。",
  outcome_supply_chain_impact="电池与关键零部件初期由中国供应，形成中印尼跨境供应链。",
- outcome_verdict="待观察（建设中）",
- related_evidence_ids="NEWS_015",
- verification_status="中（来源为路透社转述的公司高管表态，竣工情况需以最新公告核实）",
- notes="与 RELOC_001 同属比亚迪，可对比同一企业不同市场的进入节奏。"),
+ outcome_verdict="成功（已投产并转为全本地生产）",
+ related_evidence_ids="NEWS_015; NEWS_024; NEWS_025",
+ verification_status="高（印尼国家通讯社 ANTARA 报道工厂投产、产能与停止整车进口）",
+ notes="与 RELOC_001 同属比亚迪。原 2025 年'预计年底竣工'的建设中表述已按 2026-09-03 投产事实更新。"),
 
 dict(case_id="PLUS1_004", company_name="晶科能源 JinkoSolar", industry="Solar Manufacturing",
  source="东方财富财富号", date="2026-02-25", url="https://caifuhao.eastmoney.com/news/20260225153639217944650",
@@ -308,16 +310,16 @@ dict(case_id="PLUS1_005", company_name="三星电子 Samsung Electronics", indus
  decision_trigger="geopolitical_uncertainty",
  trigger_detail="中美科技与关税摩擦，以及 AI 驱动的存储芯片短缺，推动封装测试产能向第三国分散。",
  decision_type="多地区混合布局",
- actual_decision="计划在越南北部（太原省）投资约 40 亿美元建设芯片测试与封装工厂，分阶段实施；中国西安等既有基地继续运营，形成'韩国 + 中国 + 越南'的多地产能结构。",
+ actual_decision="计划在越南北部（太原省）投资约 15 亿美元建设芯片测试与封装工厂（已见报道的初始项目）。媒体另称可能追加约 25 亿美元的第二工厂投资——该项为条件性后续计划，尚未确认实施，不能与初始项目合并为单一'约 40 亿美元'已确定项目。中国西安等既有基地继续运营，形成'韩国 + 中国 + 越南'的多地产能结构。",
  related_risk="Political Risk; Supply Chain Risk; Trade Risk; Operational Risk",
  outcome_cost_impact="越南人工与土地成本低于韩国，但芯片封测对工程师与配套要求高，初期效率受限。",
- outcome_production_performance="截至 2026 年仍为投资计划阶段（结果待验证）。",
+ outcome_production_performance="截至 2026 年 10 月仍为投资计划阶段，未见公司正式公告确认实施或落地产能。",
  outcome_market_access="分散对单一国家出口管制的暴露。",
  outcome_supply_chain_impact="封装测试外移，但前道晶圆制造仍集中在韩国与中国。",
- outcome_verdict="待观察（计划阶段）",
+ outcome_verdict="待观察（计划阶段；投资金额需拆分核实）",
  related_evidence_ids="NEWS_017",
- verification_status="中（多方媒体转述，未见公司正式公告）",
- notes="半导体行业'China+1'的代表，按任务优先级属第二梯队。"),
+ verification_status="中（媒体转述，未见公司正式公告；原新浪链接已失效，金额需以公司公告核实）",
+ notes="半导体行业'China+1'的对照案例，属第二梯队，非 EV/Battery 主线；已报道的约 15 亿美元初始项目与条件性的约 25 亿美元后续投资必须分开表述。"),
 
 dict(case_id="RETURN_001", company_name="恩捷股份 Yunnan Energy New Material (Semcorp)", industry="Battery Materials",
  source="恩捷股份公告（经东方财富网 / 央广网报道）", date="2026-05-22", url="https://finance.eastmoney.com/a/202605223746866215.html",
@@ -350,16 +352,16 @@ dict(case_id="RETURN_002", company_name="富士康 Foxconn / 苹果 Apple（供�
  decision_trigger="geopolitical_uncertainty",
  trigger_detail="印度本地化配套与技术能力不足，导致良率与交付不达预期。",
  decision_type="提高中国生产比例",
- actual_decision="2025 年 7 月及 12 月，富士康两度从印度工厂撤回中国大陆工程师与技术团队，部分产能与订单回流中国大陆；印度的组装布局并未取消，但节奏明显放缓。",
+ actual_decision="2025 年 7 月及 12 月，富士康两度要求/撤回其印度工厂的中国大陆工程师与技术团队（彭博社等报道）。印度的组装布局并未取消，但推进节奏明显放缓。注：现有证据仅支持'工程团队撤回、工程支持减弱'，不足以证明订单或产能已实际回流中国。",
  related_risk="Operational Risk; Political Risk; Supply Chain Risk",
- outcome_cost_impact="撤回技术人员降低了印度工厂的爬坡效率，短期成本上升；中国基地继续承担高难度工序。",
- outcome_production_performance="印度工厂良率与产能爬坡受阻，中国大陆产能利用率回升。",
+ outcome_cost_impact="撤回技术人员降低了印度工厂的爬坡效率，短期成本上升；高难度工序仍由中国基地承担。",
+ outcome_production_performance="印度工厂工程支持减弱、本地良率与产能爬坡受阻（有报道支持）；中国大陆产能利用率是否回升尚无直接证据，待验证。",
  outcome_market_access="对美出口仍依托中国与东南亚双通道。",
- outcome_supply_chain_impact="验证了'关键工序与工程能力仍在中国'的结构性依赖。",
- outcome_verdict="局部回流（未完全放弃印度）",
+ outcome_supply_chain_impact="印证了'关键工序与工程能力仍依赖中国'的结构性依赖（有报道支持）。",
+ outcome_verdict="工程团队撤回（订单/产能回流中国为待验证推断，未完全放弃印度）",
  related_evidence_ids="NEWS_019; NEWS_020",
- verification_status="中高（多家媒体一致，均引自知情人士）",
- notes="最好与'订单回流中国'行业案例（RETURN_003）一起用于情景模拟。"),
+ verification_status="中（工程团队撤回有彭博社等报道支持；'订单/产能回流中国'缺乏直接证据，不可作为既定事实）",
+ notes="保留'工程支持减弱 + 本地爬坡受阻'的已支持事实；'订单回流中国'如需保留须补直接证据。可与行业级 RETURN_003 配合做情景模拟。"),
 
 dict(case_id="RETURN_003", company_name="制造业外迁企业（行业层面）", industry="General Manufacturing / Supply Chain",
  source="路透社（经环球网 / 新浪转载）", date="2026-09-14", url="https://3w.huanqiu.com/a/de583b/4TE5JD6omnj",
@@ -486,8 +488,12 @@ def main() -> None:
     ev.append(["evidence_id", "outlet", "title", "date", "url", "url_status"])
     for c in ev[1]:
         c.font = Font(bold=True, color="FFFFFF"); c.fill = hl2; c.alignment = wrap
-    for eid, outlet, title, d, u in EV:
-        ev.append([eid, outlet, title, d, u, "链接已核验" if u else "链接待补（标题与日期已核验）"])
+    for entry in EV:
+        eid, outlet, title, d, u = entry[:5]
+        status = entry[5] if len(entry) > 5 else (
+            "链接已核验" if u else "链接待补（标题与日期已核验）"
+        )
+        ev.append([eid, outlet, title, d, u, status])
     for i, w in enumerate([22, 40, 60, 13, 52, 28], 1):
         ev.column_dimensions[get_column_letter(i)].width = w
     ev.freeze_panes = "A2"

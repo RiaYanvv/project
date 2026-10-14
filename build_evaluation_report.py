@@ -67,7 +67,7 @@ def main() -> None:
     docs = con.execute("select count(*) from knowledge_documents").fetchone()[0]
     chunks = con.execute("select count(*) from knowledge_chunks").fetchone()[0]
 
-    manual = {"rel": 1.613, "auth": 1.760, "hit": 1.000, "cov": 1.733}
+    manual = {"rel": 1.620, "auth": 1.760, "hit": 1.000, "cov": 1.733}
 
     L: list[str] = []
     add = L.append

@@ -84,7 +84,7 @@ ALTERNATIVES: list[tuple[str, C, dict]] = [
 # The Task 3 baseline is re-measured every run; the guard below only exists to
 # catch accidental drift (e.g. corpus that was not rebuilt).  Values were
 # re-frozen on 2026-10-12 after the Task 5 case corpus + gold revision.
-BASELINE_FROZEN = {"Precision@5": 0.913, "Recall@10": 0.816, "Entity Accuracy": 0.927}
+BASELINE_FROZEN = {"Precision@5": 0.913, "Recall@10": 0.810, "Entity Accuracy": 0.929}
 
 TASK_BOOK_AFTER = {"Precision@5": 0.80, "Recall@10": 0.80, "Entity Accuracy": 0.95}
 REBASE_AFTER = {"Precision@5": 0.95, "Recall@10": 0.95, "Entity Accuracy": 0.95}
