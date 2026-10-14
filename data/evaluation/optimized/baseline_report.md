@@ -2,39 +2,43 @@
 
 **范围**：在 `run_task3_baseline.py` 的同一套口径下，接入 `RetrievalOptimizer`
 （4.1 metadata filtering + 4.2 query enhancement + 4.3 authority ranking）后重跑。
-**数据**：40 个 benchmark 问题 × Top-10，语料 49 篇证据（Task 1 v0.9；Task 5 的 17 个案例为 held-out 答案键，不入语料）
+**数据**：43 个 benchmark 问题 × Top-10，语料 49 篇证据（Task 1 v0.9；Task 5 的 17 个案例为 held-out 答案键，不入语料）
 **运行**：`run_task4_eval.py`（Top-K=10）
 
 ## 1. Current RAG Performance（After）
 
 | 指标 | Before | After | Delta |
 |---|---|---|---|
-| Precision@5 | 0.800 | 0.835 | +0.035 |
-| Recall@10 | 0.916 | 0.919 | +0.003 |
-| Entity Accuracy | 0.930 | 0.920 | -0.011 |
+| Precision@5 | 0.777 | 0.800 | +0.023 |
+| Recall@10 | 0.921 | 0.925 | +0.003 |
+| Entity Accuracy | 0.933 | 0.921 | -0.013 |
 | Entity Recall | 1.000 | 1.000 | +0.000 |
-| Entity Precision | 0.861 | 0.839 | -0.021 |
+| Entity Precision | 0.867 | 0.842 | -0.025 |
 | Hit@5 | 1.000 | 1.000 | +0.000 |
-| Mean Authority (Top-5) | 1.860 | 1.870 | +0.010 |
+| Mean Authority (Top-5) | 1.860 | 1.874 | +0.014 |
 
 分场景（After）：
 
 | scenario_category | n | P@5 | R@10 | Entity Acc |
 |---|---|---|---|---|
 | Company Intelligence | 8 | 0.85 | 0.833 | 0.892 |
-| Market Access | 7 | 0.886 | 0.94 | 0.958 |
-| Policy / Trade Risk | 12 | 0.85 | 0.958 | 0.93 |
+| Market Access | 8 | 0.8 | 0.948 | 0.943 |
+| Policy / Trade Risk | 14 | 0.786 | 0.964 | 0.933 |
 | Scenario Simulation Support | 6 | 0.833 | 0.895 | 0.94 |
-| Supply Chain Risk | 7 | 0.743 | 0.948 | 0.875 |
+| Supply Chain Risk | 7 | 0.743 | 0.948 | 0.883 |
 
 ## 2. Main Problems（相对 baseline 的变化）
 
 * 宏观文档漂移（原 §2.4）已处理：无投资/宏观意图的问题不再召回 UNCTAD / IMF / WEF / McKinsey，
-  Recall@10 从 0.916 升到 0.919。
+  Recall@10 由 0.921 变为 0.925（+0.003）。
 * Entity Recall 仍为 1.000（1 题因查询增强替换证据而少覆盖 1 个实体）。
 * 企业案例召回：Q003 R@10 由 0.333 提升到 0.333。
-* 企业案例语料已补齐（Task 5 的 17 个 EV battery / 电池材料 / 整车案例已入库），公司情报类问题不再依赖光模块类比证据；
-  Entity Accuracy 仍受指标口径限制（见 `task4/baseline_vs_improved.md` §6）。
+* v0.9.1 补了 `investment_policy` 词表缺口：题面写「外资安全审查 / 收购当地资产」时不触发投资意图，
+  F1 宏观漂移规则会把 `EU_004`（对外投资）压出 Top-10（Q043 一度 R@10 = 0.500）；补入「外资安全审查 /
+  安全审查 / 收购 / 并购 / foreign investment screening」后，Q043 的 `EU_002`+`EU_004` 回到 Top-2。
+* 语料中的案例型证据是 `CASE_001`–`CASE_010`（金属铸造 / 光模块 / 光伏类比 + BIS 穿透规则案例）；
+  Task 5 的 17 个真实迁移案例是 **held-out 答案键**，不入语料。
+* Entity Accuracy 仍受指标口径限制（见 `task4/baseline_vs_improved.md` §6）。
 
 ## 3. 后续优化方向
 

@@ -705,8 +705,8 @@
     "data_status": "reported",
     "evidence_id": "MOFCOM_002",
     "evidence_type": "Policy",
-    "industry": "EV_Battery",
-    "industry_scope": "general",
+    "industry": "Battery_Materials",
+    "industry_scope": "core",
     "publisher": "商务部",
     "related_risk": [
       "Regulatory Risk",
@@ -774,8 +774,8 @@
     "data_status": "unknown",
     "evidence_id": "TRD_001",
     "evidence_type": "Trade Data",
-    "industry": "Electronics_Manufacturing",
-    "industry_scope": "off_focus",
+    "industry": "EV_Battery",
+    "industry_scope": "core",
     "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
     "related_risk": [
       "Trade Risk",

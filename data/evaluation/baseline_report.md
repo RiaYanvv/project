@@ -1,7 +1,7 @@
 # Task 3 — RAG Baseline Report
 
 **范围**：当前（未做 metadata filtering / query enhancement / authority ranking 优化）的检索能力
-**数据**：40 个 benchmark 问题 × Top-10，语料 49 篇证据（Task 1 v0.9 政策/宏观/贸易/监管/企业披露/物流/劳工；Task 5 的 17 个案例为 held-out 答案键，不入语料），`backend/test_data/app.db`
+**数据**：43 个 benchmark 问题 × Top-10，语料 49 篇证据（Task 1 v0.9 政策/宏观/贸易/监管/企业披露/物流/劳工；Task 5 的 17 个案例为 held-out 答案键，不入语料），`backend/test_data/app.db`
 **运行**：`run_task3_baseline.py`（Top-K=10）；报告由 `build_task3_report.py` 从结果文件生成
 
 ---
@@ -10,16 +10,16 @@
 
 | 指标 | Baseline | 说明 |
 |---|---|---|
-| **Precision@5** | **0.800** | Top-5 中 relevance ≥ 1 的比例，按题平均 |
-| **Recall@10** | **0.916** | Top-10 中召回的 gold 证据 / 该题 gold 总数，按题平均 |
-| **Entity Accuracy** | **0.930** | (实体召回 + 实体精度) / 2，33 个含实体问题 |
+| **Precision@5** | **0.777** | Top-5 中 relevance ≥ 1 的比例，按题平均 |
+| **Recall@10** | **0.921** | Top-10 中召回的 gold 证据 / 该题 gold 总数，按题平均 |
+| **Entity Accuracy** | **0.933** | (实体召回 + 实体精度) / 2，36 个含实体问题 |
 
 支撑指标：
 
 | 指标 | Baseline |
 |---|---|
 | Entity Recall | 1.000（问题中的实体在 Top-10 中的覆盖） |
-| Entity Precision | 0.861（Top-10 中 13.9% 的证据与问题实体无关） |
+| Entity Precision | 0.867（Top-10 中 13.3% 的证据与问题实体无关） |
 | Hit@5 / Hit@10 | 100% / 100%（每题至少 1 条 gold） |
 | Mean Authority (Top-5) | 1.86（S/A+/A=2，B+=1） |
 
@@ -28,14 +28,14 @@
 | scenario_category | n | P@5 | R@10 | Entity Acc |
 |---|---|---|---|---|
 | Company Intelligence (8) | 8 | 0.825 | 0.917 | 0.942 |
-| Market Access (7) | 7 | 0.857 | 0.940 | 0.967 |
-| Policy / Trade Risk (12) | 12 | 0.817 | 0.925 | 0.915 |
+| Market Access (8) | 8 | 0.800 | 0.948 | 0.957 |
+| Policy / Trade Risk (14) | 14 | 0.757 | 0.936 | 0.929 |
 | Scenario Simulation Support (6) | 6 | 0.800 | 0.829 | 0.940 |
-| Supply Chain Risk (7) | 7 | 0.686 | 0.948 | 0.900 |
+| Supply Chain Risk (7) | 7 | 0.714 | 0.948 | 0.900 |
 
 **一句话结论**：Top-5 的"能不能捞到正确证据"没有明显问题（Hit@5 = 100%），
-Recall@10 = 0.916 的主要拖累来自**企业案例题**与**案例证据对政策/宏观题的过召回**；
-Entity Accuracy (0.930) 受指标口径限制，主要反映 Entity Precision (0.861)。
+Recall@10 = 0.921 的主要拖累来自**企业案例题**与**案例证据对政策/宏观题的过召回**；
+Entity Accuracy (0.933) 受指标口径限制，主要反映 Entity Precision (0.867)。
 
 ---
 
@@ -64,8 +64,8 @@ Entity Accuracy (0.930) 受指标口径限制，主要反映 Entity Precision (0
 
 | authority | 条数 | 平均排名 | 进 Top-3 |
 |---|---|---|---|
-| S | 74 | 2.73 | 74% |
-| A+ | 29 | 2.59 | 76% |
+| S | 78 | 2.64 | 77% |
+| A+ | 29 | 2.62 | 76% |
 | A | 10 | 4.40 | 30% |
 | B+ | 20 | 4.30 | 45% |
 
@@ -100,9 +100,9 @@ Entity Accuracy (0.930) 受指标口径限制，主要反映 Entity Precision (0
 
 | 指标 | 任务书假设 Before | 实测 Baseline | 任务书 After 目标 |
 |---|---|---|---|
-| Precision@5 | 65% | **80.0%** | ≥ 80% |
-| Recall@10 | 70% | **91.6%** | ≥ 80% |
-| Entity Accuracy | 85% | **93.0%** | ≥ 95% |
+| Precision@5 | 65% | **77.7%** | ≥ 80% |
+| Recall@10 | 70% | **92.1%** | ≥ 80% |
+| Entity Accuracy | 85% | **93.3%** | ≥ 95% |
 
 **说明**：实测 baseline 高于任务书的假设值；且 Entity Accuracy ≥ 0.95 在本语料上不可达
 （gold 中包含大量不出现问题实体的宏观文档，检索越准该指标反而越低，见 `task4/baseline_vs_improved.md` §6）。
@@ -116,7 +116,7 @@ relevance 判定：2 = 在该题 `expected_evidence_ids` 内；1 = 不在 gold �
 
 **Recall@10** = Top-10 中召回的 gold 证据数 ÷ 该题 gold 总数，按题平均。
 
-**Entity Accuracy** = (Entity Recall + Entity Precision) ÷ 2，只对**问题文本中出现实体**的 33 题计算；
+**Entity Accuracy** = (Entity Recall + Entity Precision) ÷ 2，只对**问题文本中出现实体**的 36 题计算；
 无实体问题不计入。
 
 **已知口径局限**
@@ -124,7 +124,7 @@ relevance 判定：2 = 在该题 `expected_evidence_ids` 内；1 = 不在 gold �
 2. 通用实体（China / United States / tariff）在多数文档中都出现，会**抬高** Entity Precision。
 3. 实体识别基于规则词典，未用 NER 模型。
 4. 本题集 Entity Recall 恒为 1.000：语料实体高度共现，召回端已饱和；
-   Entity Accuracy 的区分度全部来自 Entity Precision（0.861）。
+   Entity Accuracy 的区分度全部来自 Entity Precision（0.867）。
 5. `retrieval_results.xlsx` 中的 relevance / authority 为自动判定；人工评分见 Task 2 的 `Task2_manual_scoring_v3.xlsx`。
 
 ---
@@ -148,7 +148,7 @@ relevance 判定：2 = 在该题 `expected_evidence_ids` 内；1 = 不在 gold �
 
 | 文件 | 内容 |
 |---|---|
-| `retrieval_questions.xlsx` | 40 个测试问题（同 Task 2） |
-| `retrieval_results.xlsx` | `Summary` 指标看板 / `retrieval_results` 400 行（40 题 × Top-10）/ `question_summary` |
+| `retrieval_questions.xlsx` | 43 个测试问题（同 Task 2） |
+| `retrieval_results.xlsx` | `Summary` 指标看板 / `retrieval_results` 430 行（43 题 × Top-10）/ `question_summary` |
 | `entity_accuracy.xlsx` | `Entity Accuracy` 逐题 / `Entity Detail` 逐实体 / `Summary` |
 | `baseline_report.md` | 本文件 |

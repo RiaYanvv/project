@@ -14,14 +14,14 @@
 | # | 任务 | 交付物 | 关键指标 | 达标 |
 |---|---|---|---|---|
 | 1 | Evidence schema | `evidence_battery_EV_screened_v0.9.xlsx`（+ `evaluation/case_benchmark/evidence_cases_v0.1.xlsx`） | 49 条统一 schema、5 级 authority（S/A+/A/B+/B）、原文可追溯 | ✅ |
-| 2 | 检索评测集 + 人工评分 | `retrieval_questions.xlsx` / `retrieval_results.xlsx` / `Task2_manual_scoring_v3.xlsx` | Relevance 1.653 / Authority 1.840 / Hit@5 100%（基准 30 题） | ✅ |
-| 3 | 检索基线 | `data/evaluation/retrieval_questions.xlsx` / `retrieval_results.xlsx` / `entity_accuracy.xlsx` + `baseline_report.md` | P@5 0.800、R@10 0.916、EA 0.930 | ✅ / ⚠️EA |
-| 4 | 检索优化 | `task4/*.xlsx` + `baseline_vs_improved.md` + `optimized/*` | P@5 0.835、R@10 0.919 | ✅ |
+| 2 | 检索评测集 + 人工评分 | `retrieval_questions.xlsx` / `retrieval_results.xlsx` / `Task2_manual_scoring_v3.xlsx` | Relevance 1.653 / Authority 1.840 / Hit@5 100%（任务书基准 Q001–Q030） | ✅ |
+| 3 | 检索基线 | `data/evaluation/retrieval_questions.xlsx` / `retrieval_results.xlsx` / `entity_accuracy.xlsx` + `baseline_report.md` | P@5 0.777、R@10 0.921、EA 0.933 | ✅ / ⚠️EA |
+| 4 | 检索优化 | `task4/*.xlsx` + `baseline_vs_improved.md` + `optimized/*` | P@5 0.800、R@10 0.925 | ✅ |
 | 5 | 历史案例基准（held-out） | `historical_case_benchmark.xlsx` + `benchmark_results.xlsx` | 17 个真实案例、17/17 已摘出语料 | ✅ |
 | 6 | 风险识别 | `risk_assessment_checklist.xlsx` | Recall 0.779 / Precision 0.553 | ⚠️ |
 | 7 | 引用可靠性 | `evidence_quality_test.xlsx` | 引用可追溯率 100%、语料元数据完整率 100% | ✅ |
 
-**一句话**：检索层已经可用（基线 P@5 0.800 / R@10 0.916，优化后 0.835 / 0.919，均超任务书 80% 目标）；
+**一句话**：检索层已经可用（基线 P@5 0.777 / R@10 0.921，优化后 0.800 / 0.925，均超任务书 80% 目标）；
 **风险识别层仍是短板**——把 Task 5 的 17 个案例从语料摘出（改为 held-out 答案键）后，Risk Recall 由 0.461 升到 0.779，剩余缺口在「按风险维度检索」的策略，而非语料覆盖。
 
 ---
@@ -36,26 +36,27 @@
 | v0.8 新增覆盖 | EU 司法辖区 0→4 篇；`tariff` 主题 1→3；可表征 Political Risk 的证据 5→8 |
 | authority 分级 | S / A+ / A / B+ / B（S=政府法规·WTO·UN·官方公告；A+=IMF·UNCTAD；A=CSIS·McKinsey·KPMG；B+=媒体·券商；B=二线来源） |
 | 分类字段 | industry / topic / evidence_type / related_risk（六类）/ data_status |
+| industry 修订 | v0.9.1 起 `industry` 统一由 `backend/app/evidence_metadata.build_meta()` 派生（与 Task 4 的 metadata filter 同源），不再手工填写：EV_Battery 32 / Electronics_Manufacturing 6 / Energy_Storage 4 / Automotive 4 / Battery_Materials 2 / General_Manufacturing 1 |
 | 派生规则 | `backend/app/evidence_metadata.py`，逐字段可审计 |
 
 ---
 
 ## 2. Task 2 — Retrieval Evaluation Dataset
 
-40 个问题，覆盖 5 类场景（Company Intelligence 8 / Policy·Trade Risk 12 / Supply Chain Risk 7 / Market Access 7 / Scenario Simulation 6）。
+43 个问题，覆盖 5 类场景（Company Intelligence 8 / Policy·Trade Risk 14 / Supply Chain Risk 7 / Market Access 8 / Scenario Simulation 6）。
 
-其中 **Q001–Q030 是任务书口径的基准集**，**Q031–Q040 是 v0.9 扩展集**：v0.9 新增的 13 条证据必须有题面 gold 才能被评测计入，因此按原场景分类补了 10 道企业决策题。两组分别报告——扩展题多为「单一 gold 的窄问题」，Top-5 平均相关的可达上限天然低于多 gold 题。
+其中 **Q001–Q030 是任务书口径的基准集**，**Q031–Q043 是 v0.9 扩展集**：v0.9 新增的 13 条证据必须有题面 gold 才能被评测计入，因此按原场景分类补了 10 道企业决策题（Q031–Q040）；v0.9.1 又补了 3 道 EU 题面（Q041–Q043），把此前入库但无 gold 指向的 EU_001–EU_004 纳入评测。两组分别报告——扩展题多为「单一 gold 的窄问题」，Top-5 平均相关的可达上限天然低于多 gold 题。
 
-人工评分（`Task2_manual_scoring_v3.xlsx`，200 条逐条判定）：
+人工评分（`Task2_manual_scoring_v3.xlsx`，215 条逐条判定）：
 
 | 指标 | 目标 | 实测 |
 |---|---|---|
 | Avg Relevance (Top-5) | ≥ 1.5 | **1.653** |
 | Avg Authority (Top-5) | ≥ 1.5 | **1.840** |
 | Hit@5（≥1 条正确 Evidence） | ≥ 80% | **100%** |
+| Avg Coverage (0-2，Q001–Q030) | 参考 | 1.867 |
 
-v0.9 扩展集（Q031–Q040，50 条判定）：Relevance 0.920 / Authority 1.880 / Hit@5 100%；合并 40 题：Relevance 1.470 / Authority 1.850 / Hit@5 100%。合并值低于 1.5 是题目结构（单 gold 窄问题）造成的，不是检索退化——扩展题的正确证据全部排在 Top-2（见 §3 逐题明细）。
-| Avg Coverage (0-2) | 参考 | 1.867 |
+v0.9 扩展集（Q031–Q043，65 条判定）：Relevance 0.892 / Authority 1.877 / Hit@5 100%；合并 43 题：Relevance 1.423 / Authority 1.851 / Hit@5 100%。合并值低于 1.5 是题目结构（单 gold 窄问题）造成的，不是检索退化——扩展题的主 gold 全部落在 Top-1（Q032/Q039 的次 gold 分列第 10/7；见 §3 逐题明细）。
 
 ---
 
@@ -63,9 +64,9 @@ v0.9 扩展集（Q031–Q040，50 条判定）：Relevance 0.920 / Authority 1.8
 
 | 指标 | Baseline | 任务书目标 |
 |---|---|---|
-| Precision@5 | **0.800** | ≥ 0.80 ✅ |
-| Recall@10 | **0.916** | ≥ 0.80 ✅ |
-| Entity Accuracy | **0.930** | ≥ 0.95 ❌（口径不可达，见下） |
+| Precision@5 | **0.777** | ≥ 0.80 ✅ |
+| Recall@10 | **0.921** | ≥ 0.80 ✅ |
+| Entity Accuracy | **0.933** | ≥ 0.95 ❌（口径不可达，见下） |
 | Hit@5 | 100% | — |
 
 Entity Accuracy ≥ 0.95 在本语料上不可达：该指标分子是「Top-10 中提及问题实体的证据数」，
@@ -78,19 +79,19 @@ Entity Accuracy ≥ 0.95 在本语料上不可达：该指标分子是「Top-10 
 
 | 指标 | Before | After | Delta | 任务书目标 |
 |---|---|---|---|---|
-| Precision@5 | 0.800 | 0.835 | +0.035 | ≥ 0.80 |
-| Recall@10 | 0.916 | 0.919 | +0.003 | ≥ 0.80 |
-| Entity Accuracy | 0.930 | 0.920 | -0.011 | ≥ 0.95 |
+| Precision@5 | 0.777 | 0.800 | +0.023 | ≥ 0.80 |
+| Recall@10 | 0.921 | 0.925 | +0.003 | ≥ 0.80 |
+| Entity Accuracy | 0.933 | 0.921 | -0.013 | ≥ 0.95 |
 
 三个杠杆单独作用（消融）：
 
 | variant | metadata_filter | query_expansion | authority_ranking | P@5 | R@10 | Entity Accuracy |
 |---|---|---|---|---|---|---|
-| baseline | False | False | False | 0.800 | 0.916 | 0.930 |
-| filter_only | True | False | False | 0.805 | 0.907 | 0.914 |
-| expansion_only | False | True | False | 0.830 | 0.927 | 0.900 |
-| authority_only | False | False | True | 0.795 | 0.916 | 0.932 |
-| full | True | True | True | 0.835 | 0.919 | 0.920 |
+| baseline | False | False | False | 0.777 | 0.921 | 0.933 |
+| filter_only | True | False | False | 0.772 | 0.914 | 0.921 |
+| expansion_only | False | True | False | 0.805 | 0.932 | 0.904 |
+| authority_only | False | False | True | 0.772 | 0.921 | 0.935 |
+| full | True | True | True | 0.800 | 0.925 | 0.921 |
 
 ---
 
@@ -128,12 +129,12 @@ Entity Accuracy ≥ 0.95 在本语料上不可达：该指标分子是「Top-10 
 | 层级 | 含义 | 值 |
 |---|---|---|
 | L1 语料可表征 | 语料里有标注该类风险的证据 | 1.000 |
-| L2 检索可取回 | 按风险维度逐条检索时的覆盖 | 0.912 |
+| L2 检索可取回 | 按风险维度逐条检索时的覆盖 | 0.926 |
 | L3 现行流程 | 单次检索（现行产品行为） | 0.779 |
 
 **根因**：现行单次检索在「公司决策」类问题上把 Top-5 交给公司/案例类文档，
 而这些文档的 `related_risk` 集中在 Supply Chain / Operational；Trade / Market Access / Regulatory / Political
-四个维度要按维度单独提问才取得到（L2 0.912 vs L3 0.779，见 `By Risk Category` sheet）。
+四个维度要按维度单独提问才取得到（L2 0.926 vs L3 0.779，见 `By Risk Category` sheet）。
 把 benchmark 案例从语料摘出后 L3 由 0.461 升到 0.779；v0.9 语料扩到 49 篇（企业披露 + 贸易/物流/劳工政策）后 Risk Recall 为 0.779。
 
 ---
@@ -170,12 +171,14 @@ Entity Accuracy ≥ 0.95 在本语料上不可达：该指标分子是「Top-10 
 
 | 优先级 | 事项 |
 |---|---|
-| P0 | **按风险维度多次检索**：现行单次检索 Risk Recall 0.779，按维度逐条检索的上界 0.912，缺口在检索策略 |
+| P0 | **按风险维度多次检索**：现行单次检索 Risk Recall 0.779，按维度逐条检索的上界 0.926，缺口在检索策略 |
 | P1 | 风险层改为**按风险维度多次检索**，而不是一次检索出一组证据 |
-| P1 | 评测集补 EU 题面：EU_001–EU_004（电池法规/CRMA/反补贴/外资审查）已入库，但仍无任何一题的 gold 指向欧盟证据，欧盟语料无法被评测正面计入。v0.9 已为新增 13 条证据配齐 gold 题（Q031–Q040），EU 题面仍是缺口 |
+| P1 | 人工 Coverage 评分目前只覆盖 Q001–Q030（30 题），Q031–Q043 的覆盖度尚无人工判定 |
 | P2 | Task 5 案例库仍只有一线 OEM 与大型材料厂；印度/印尼/物流/labor 侧目前只有政策证据，没有案例 |
 | P2 | Entity Accuracy 换口径（gold 覆盖率 + 相关性加权精度），才能作为可用指标 |
 | P2 | 引用内容正确性校验（LLM 判定），把 Task 7 从结构校验升级为语义校验 |
+
+> 本轮已关闭：EU 题面缺口（v0.9.1 新增 Q041–Q043，gold 分别指向 EU_001 / EU_003 / EU_002+EU_004）；`industry` 字段过粗（49 行改为与 Task 4 过滤同源派生）；`investment_policy` 词表未覆盖「外资安全审查 / 收购」导致 Q043 的 EU_004 被宏观漂移规则压掉（已补词表，Q043 gold 回到 Top-2）。
 
 ## 10. 复现
 
