@@ -51,10 +51,10 @@
 
 | 指标 | 值 | 目标 |
 |---|---|---|
-| Precision@5 | 0.800（优化后） | ≥ 0.80 |
-| Recall@10 | 0.925（优化后） | ≥ 0.80 |
-| Entity Accuracy | 0.935 | ≥ 0.95（现行口径下不可达，见评估报告） |
-| Task 6 风险召回 | 0.799 → **0.946**（P0 按风险维度检索） | ✅（Precision 0.559→0.535，见评估报告 §6） |
+| Precision@5 | 0.814（优化后） | ≥ 0.80 |
+| Recall@10 | 0.907（优化后） | ≥ 0.80 |
+| Entity Accuracy | 0.936 | ≥ 0.95（现行口径下不可达，见评估报告） |
+| Task 6 风险召回 | 0.887 → **1.000**（P0 按风险维度检索，Missing 0） | ✅（Precision 0.551→0.539，见评估报告 §6） |
 | Task 7 引用可追溯率 | 100% | ✅ |
 
 ## 检索层开关
@@ -66,7 +66,7 @@
 | `RETRIEVAL_OPTIMIZER` | `0` | Task 4 优化层（metadata filter / query enhancement / authority ranking） |
 | `RISK_DIMENSION_RETRIEVAL` | `1` | Task 6 P0：按风险维度多次检索。设为 `0` 退回单次检索 |
 
-风险维度检索**不走** `RETRIEVAL_OPTIMIZER`（实测会让 Risk Recall 从 0.946 掉到 0.877），
+风险维度检索**不走** `RETRIEVAL_OPTIMIZER`（实测会让 Risk Recall 从 1.000 掉到 0.877），
 `AgentService._dimension_provider` 会显式绕开优化层。
 
 ## 说明

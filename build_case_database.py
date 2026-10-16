@@ -410,7 +410,7 @@ dict(case_id="RETURN_004", company_name="蜂巢能源 SVOLT（欧洲业务）", 
 # 案例 -> 证据库绑定（v0.9.1 修复）
 #
 # 原先 `related_evidence_ids` 用的是 NEWS_001…REUTERS_001 这类外部新闻编号，
-# 它们不在 Task 1 的 49 条证据库里，案例到证据库的链路是断的。这里改为绑定
+# 它们不在 Task 1 的证据库里（v0.9.2 起 53 条），案例到证据库的链路是断的。这里改为绑定
 # Task 1 真实证据，并按四条规则选，逐条给依据：
 #   R1 触发条件：支撑 decision_trigger 的政策/法规/数据（关税/出口管制/物流/劳工）
 #   R2 目的地：该东道国的政策审议或关税/贸易数据
@@ -487,7 +487,7 @@ COLS = [
  ("outcome_market_access","结果：市场准入"),
  ("outcome_supply_chain_impact","结果：供应链影响"),
  ("outcome_verdict","结果结论（成功/失败/待观察）"),
- ("related_evidence_ids","关联证据 ID（Task 1 证据库，49 条内）"),
+ ("related_evidence_ids","关联证据 ID（Task 1 证据库，53 条内）"),
  ("external_source_refs","外部来源编号（新闻报道，见 Evidence Index）"),
  ("related_evidence_rationale","绑定依据（R1触发/R2目的地/R3行业/R4类比）"),
  ("verification_status","真实性核验状态"),
@@ -605,17 +605,17 @@ def main() -> None:
     qa.append(["背景→决策→结果链条", "100% 完整", "每个案例均有 Initial Situation / Decision / Outcome 三段"])
     qa.append(["真实性核验", "全部来自公开报道或公司公告", "verification_status 逐条标注；两条为财经自媒体整理，需以年报核实"])
     qa.append(["可追溯性（外部来源）", f"{len(EV)} 条新闻/公告，编号见 Evidence Index", "external_source_refs 指向 Evidence Index，含 outlet/标题/日期/URL 与 used_by_cases"])
-    qa.append(["可追溯性（证据库绑定）", "17/17 全部解析到 Task 1 的 49 条证据", "related_evidence_ids 已由外部新闻编号改为证据库内真实 ID；每条附绑定依据（R1触发/R2目的地/R3行业/R4类比）"])
+    qa.append(["可追溯性（证据库绑定）", "17/17 全部解析到 Task 1 的 53 条证据", "related_evidence_ids 已由外部新闻编号改为证据库内真实 ID；每条附绑定依据（R1触发/R2目的地/R3行业/R4类比）"])
     qa.append(["证据库链路校验", "通过", "逐个 ID 与 evidence_metadata_v0.1.json 比对，无悬空引用"])
     qa.append(["能否用于 Scenario Simulation", "是", "含 4 个'待观察/建设中'与 2 个'失败/退出'案例，可测试不确定与反向情景"])
     qa.append(["未覆盖", "无", "'维持现有海外布局'由 RETURN_004 覆盖"])
     qa.append([])
-    qa.append(["held-out 校验", "通过", "RAG 语料 49 篇文档 ID 中无 RELOC_*/PLUS1_*/RETURN_*；17 个案例来源 URL 与语料 URL 零重合"])
+    qa.append(["held-out 校验", "通过", "RAG 语料 53 篇文档 ID 中无 RELOC_*/PLUS1_*/RETURN_*；17 个案例来源 URL 与语料 URL 零重合"])
     qa.append(["语料泄漏检查（逐字）", "通过", "backend/scripts/check_case_leakage.py：17/17 通过，最高逐字重合 1.0%（10 字滑窗，阈值 5%）"])
     qa.append(["隔离校验复跑", ".venv/bin/python backend/scripts/check_case_leakage.py", "退出码 0 = 案例 ID 不撞 / 来源 URL 不撞 / 无逐字重合 / related_evidence_ids 全部可解析"])
     qa.append(["语料背景重合（已登记）", "4 处", "RELOC_001/PLUS1_003 经 IEA_001 的 OEM 名单；PLUS1_004 经 DOC_001 的光伏反规避语境；PLUS1_005 经 IMF_001 的 FDI 举例；RETURN_002 经 UNCTAD_001 的路透引用"])
     qa.append(["同源提示", "RETURN_002", "其外部来源为路透报道，而语料 UNCTAD_001 引用了同一系列路透稿；属背景级同源，评测时需知悉"])
-    qa.append(["通用吸引子", "CASE_001", "语料 CASE_001（大旺金属回流）出现在全部 17 个案例的 Top-5，是 Task 6 false positive 的来源之一，与 RETURN_003 构成同现象不同主体"])
+    qa.append(["通用吸引子", "CASE_001", "语料 CASE_001（大旺金属回流）在 13/17（基线）/ 16/17（优化层）个案例的 Top-5 出现（v0.9.2 语料复测），是 Task 6 false positive 的来源之一，与 RETURN_003 构成同现象不同主体"])
     qa.append([])
     qa.append(["已知局限", "", "1) 多数结果字段来自媒体转述，财务口径的成本影响未做量化；2) 4 个案例的最终结果尚未发生；3) 行业级案例 RETURN_003 缺少单一企业完整数据。"])
     for i, w in enumerate([26, 40, 110], 1):

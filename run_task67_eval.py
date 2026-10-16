@@ -84,7 +84,7 @@ BENCH_SCHEMA = [
     ("industry", "行业", "Automotive (EV)"),
     ("initial_situation", "决策前状态（生产布局 / 主要市场 / 供应链 / 问题）", "整车产能全部在中国"),
     ("decision_problem", "需要决策的问题", "是否将部分产能转移至泰国"),
-    ("related_evidence_ids", "证据库绑定（Task 1 的 49 条证据，附绑定依据）", "TRD_001; EU_003"),
+    ("related_evidence_ids", "证据库绑定（Task 1 的 53 条证据，附绑定依据）", "TRD_001; EU_003"),
     ("external_source_refs", "外部新闻来源编号（见 case_database 的 Evidence Index）", "NEWS_001"),
     ("actual_decision", "真实决策", "泰国罗勇府建厂，2024-07 投产"),
     ("outcome", "后续结果（成本 / 生产 / 准入 / 供应链）", "降低准入壁垒，但零部件仍依赖中国"),
@@ -294,7 +294,7 @@ def write_benchmark(cases: list[dict], registry: dict) -> None:
         ("每条案例是否有标准答案", "是", "actual_decision + outcome + expected_risks 即标准答案"),
         ("是否进入 RAG 语料", "否（held-out）", "案例是评测答案键，故意不进入知识库，避免答案泄漏"),
         ("证据库绑定", "17/17", "related_evidence_ids 已改为 Task 1 证据库内的真实 ID，逐条附绑定依据（R1触发/R2目的地/R3行业/R4类比）"),
-        ("held-out 校验", "通过", "语料 49 篇文档 ID 中无 RELOC_*/PLUS1_*/RETURN_*；17 个案例来源 URL 与语料 URL 零重合"),
+        ("held-out 校验", "通过", "语料 53 篇文档 ID 中无 RELOC_*/PLUS1_*/RETURN_*；17 个案例来源 URL 与语料 URL 零重合"),
         ("语料泄漏检查（逐字）", "通过", "backend/scripts/check_case_leakage.py：17/17 通过，最高逐字重合 1.0%（10 字滑窗，阈值 5%）"),
         ("隔离校验复跑", "check_case_leakage.py", ".venv/bin/python backend/scripts/check_case_leakage.py —— 退出码 0 表示案例 ID / 来源 URL / 逐字重合 / 证据绑定四项全过"),
         ("语料背景重合（已登记）", "4 处", "RELOC_001/PLUS1_003 经 IEA_001 的 OEM 名单；PLUS1_004 经 DOC_001 的光伏反规避语境；PLUS1_005 经 IMF_001 的 FDI 举例；RETURN_002 经 UNCTAD_001 引用的路透稿"),
@@ -544,7 +544,7 @@ def write_risk_checklist(cases, scored, registry):
     ws.append(["Caveat", "", "", "",
                "Operational Risk 记为 Optional，不计入 missing / false positive；"
                "本评测测的是证据链能否支撑风险识别，不是 LLM 生成风险的质量。"
-               "risk_dimension 的 Precision 低于基线主要是口径效应：39 次误报里 Regulatory 14 次、"
+               "risk_dimension 的 Precision 低于基线主要是口径效应：41 次误报里 Regulatory 14 次、"
                "Market Access 11 次，均可追溯到中国侧出口管制 / 公司披露与欧盟法规证据；"
                "逐条归因见 FP Attribution sheet"])
     style_header(ws, 5, "1F3864")

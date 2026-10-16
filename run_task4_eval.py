@@ -83,10 +83,11 @@ ALTERNATIVES: list[tuple[str, C, dict]] = [
 
 # The Task 3 baseline is re-measured every run; the guard below only exists to
 # catch accidental drift (e.g. corpus that was not rebuilt).  Values were
-# re-frozen on 2026-10-16 after the Task 1 v0.9.1 P2 metadata fix (真实
-# publication_date 取代旧的「持续更新 / 2026-08」占位值，头部文本随之变化，
-# 基线 P@5 0.777 -> 0.772、EA 0.933 -> 0.935)。
-BASELINE_FROZEN = {"Precision@5": 0.772, "Recall@10": 0.921, "Entity Accuracy": 0.935}
+# re-frozen on 2026-10-16 twice: first after the Task 1 v0.9.1 P2 metadata fix
+# (基线 P@5 0.777 -> 0.772、EA 0.933 -> 0.935)，再于 v0.9.2 加入 4 条商务部
+# 国别指南（越南/马来西亚/印度/泰国，53 篇语料）后重测，基线 P@5 0.772 -> 0.763、
+# R@10 0.921 -> 0.905（新增通用国别文档带来的语料噪声）。
+BASELINE_FROZEN = {"Precision@5": 0.763, "Recall@10": 0.905, "Entity Accuracy": 0.936}
 
 TASK_BOOK_AFTER = {"Precision@5": 0.80, "Recall@10": 0.80, "Entity Accuracy": 0.95}
 REBASE_AFTER = {"Precision@5": 0.95, "Recall@10": 0.95, "Entity Accuracy": 0.95}
@@ -242,7 +243,7 @@ def write_optimized_report(summaries: dict, questions: list) -> None:
         "",
         "**范围**：在 `run_task3_baseline.py` 的同一套口径下，接入 `RetrievalOptimizer`",
         "（4.1 metadata filtering + 4.2 query enhancement + 4.3 authority ranking）后重跑。",
-        "**数据**：43 个 benchmark 问题 × Top-10，语料 49 篇证据（Task 1 v0.9；Task 5 的 17 个案例为 held-out 答案键，不入语料）",
+        "**数据**：43 个 benchmark 问题 × Top-10，语料 53 篇证据（Task 1 v0.9.2；Task 5 的 17 个案例为 held-out 答案键，不入语料）",
         "**运行**：`run_task4_eval.py`（Top-K=10）",
         "",
         "## 1. Current RAG Performance（After）",
@@ -690,7 +691,7 @@ def main() -> None:
         "",
         "**Before**：`run_task3_baseline.py`（未接入优化层）",
         "**After**：同一评测集 + `RetrievalOptimizer`（4.1 元数据过滤 + 4.2 查询增强 + 4.3 权威性排序）",
-        "**数据**：43 个 benchmark 问题 × Top-10，语料 49 篇证据（Task 1 v0.9；Task 5 的 17 个案例为 held-out 答案键，不入语料），Top-K=10",
+        "**数据**：43 个 benchmark 问题 × Top-10，语料 53 篇证据（Task 1 v0.9.2；Task 5 的 17 个案例为 held-out 答案键，不入语料），Top-K=10",
         "**口径**：Before/After 由**同一个 Task 3 writer** 产出，指标定义不可能漂移；",
         "每个 variant 运行前清空实体缓存，避免跨 variant 污染。",
         "",

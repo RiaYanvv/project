@@ -2382,7 +2382,7 @@ class AgentService:
     def _dimension_provider(self) -> RetrievalProvider:
         """维度检索用**不带 Task 4 优化层**的裸混合检索。
 
-        Task 6 实测：优化层会让维度检索的 Risk Recall 从 0.946 掉到 0.877
+        Task 6 实测：优化层会让维度检索的 Risk Recall 从 1.000 掉到 0.877
         （`RETRIEVAL_OPTIMIZER=1` 时），因为它把预算压向高权威 / 强相关条目，
         正是风险维度需要的「弱信号但正相关」证据被挤掉。
         """

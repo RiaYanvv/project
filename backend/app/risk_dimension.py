@@ -3,14 +3,16 @@
 问题：单次「公司决策」式检索把 Top-K 交给公司披露 / 案例类文档，这些文档的
 `related_risk` 集中在 Supply Chain / Operational 两维；Trade、Political、
 Regulatory、Market Access 四个维度在单次检索里取不到。Task 6 实测 Risk Recall
-0.799，而「按维度逐条提问」的上界是 0.946 —— 差距出在检索策略，不在语料。
+0.887（v0.9.2 语料，53 篇），而「按维度逐条提问」的上界是 1.000 —— 差距出在检索
+策略，不在语料。
 
 做法：对六类风险各发一次检索（领域词 + 公司 + 东道国），再用 Task 1 schema 的
 `related_risk` 标签确认「这条证据确实支撑该维度」，最后取并集。标签确认是关键：
 没有它，六次检索合并后几乎每题都会宣称全部六类风险。
 
 实测（17 个 held-out 案例，`run_task67_eval.py`）：
-  Recall 0.799 -> 0.946，Precision 0.559 -> 0.535，Missing 12 -> 3。
+  Recall 0.887 -> 1.000，Precision 0.551 -> 0.539，Missing 7 -> 0。
+  （v0.9.2 补齐商务部东南亚/印度国别指南后，Political Risk 的 3 次 missing 归零。）
 
 阈值与裁剪都试过（相关性阈值、管辖域过滤、只取前 m 维、要求 >=2 条确认），
 没有一个能在召回上打过「全量并集」；见 `archive/task2_dev/` 之外的评测报告说明。
