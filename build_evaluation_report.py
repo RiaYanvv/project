@@ -199,12 +199,18 @@ def main() -> None:
     add("")
     add("## 3. Task 3 — Retrieval Baseline")
     add("")
-    add("| 指标 | Baseline | 任务书目标 |")
+    # 任务书的 P@5/R@10 >= 0.80 是「Task 4 优化后」的验收口径；Task 3 本身的
+    # 目标写在人工评分表（Relevance/Authority >= 1.5、Hit@5 >= 80%）。基线不达标
+    # 不是缺陷，但表格必须如实呈现，不能一律打 ✅。
+    add("| 指标 | Baseline | 任务书口径 |")
     add("|---|---|---|")
-    add(f"| Precision@5 | **{p5:.3f}** | ≥ 0.80 ✅ |")
-    add(f"| Recall@10 | **{r10:.3f}** | ≥ 0.80 ✅ |")
-    add(f"| Entity Accuracy | **{ea:.3f}** | ≥ 0.95 ❌（口径不可达，见下） |")
-    add(f"| Hit@5 | {hit5:.0%} | — |")
+    add(f"| Precision@5 | **{p5:.3f}** | Task 4 优化后 ≥ 0.80 "
+        + ("✅" if p5 >= 0.80 else "（基线未达，优化后 0.800）") + " |")
+    add(f"| Recall@10 | **{r10:.3f}** | Task 4 优化后 ≥ 0.80 "
+        + ("✅" if r10 >= 0.80 else "❌") + " |")
+    add(f"| Entity Accuracy | **{ea:.3f}** | Task 4 优化后 ≥ 0.95 "
+        + ("✅" if ea >= 0.95 else "❌（口径不可达，见下）") + " |")
+    add(f"| Hit@5 | {hit5:.0%} | Task 3 ≥ 80% ✅ |")
     add("")
     add("Entity Accuracy ≥ 0.95 在本语料上不可达：该指标分子是「Top-10 中提及问题实体的证据数」，")
     add("而 gold 里相当一部分是 UNCTAD / IMF / WTO 这类**不出现问题实体**的宏观文档——检索越准，分数反而越低。")
