@@ -719,6 +719,94 @@
       "regulation"
     ]
   },
+  "MOFCOM_003": {
+    "authority_level": "S",
+    "countries": [
+      "VN"
+    ],
+    "country_region": "VN",
+    "data_status": "verified",
+    "evidence_id": "MOFCOM_003",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "商务部对外投资和经济合作司、商务部国际贸易经济合作研究院、中国驻越南大使馆经济商务处",
+    "related_risk": [
+      "Political Risk",
+      "Regulatory Risk"
+    ],
+    "title": "对外投资合作国别（地区）指南：越南（2025年版）",
+    "topic_cn": "对外投资",
+    "topics": [
+      "investment_policy"
+    ]
+  },
+  "MOFCOM_004": {
+    "authority_level": "S",
+    "countries": [
+      "MY"
+    ],
+    "country_region": "MY",
+    "data_status": "verified",
+    "evidence_id": "MOFCOM_004",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "商务部对外投资和经济合作司、商务部国际贸易经济合作研究院、中国驻马来西亚大使馆经济商务处",
+    "related_risk": [
+      "Political Risk",
+      "Regulatory Risk"
+    ],
+    "title": "对外投资合作国别（地区）指南：马来西亚（2025年版）",
+    "topic_cn": "对外投资",
+    "topics": [
+      "investment_policy"
+    ]
+  },
+  "MOFCOM_005": {
+    "authority_level": "S",
+    "countries": [
+      "IN"
+    ],
+    "country_region": "IN",
+    "data_status": "verified",
+    "evidence_id": "MOFCOM_005",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "商务部对外投资和经济合作司、商务部国际贸易经济合作研究院、中国驻印度大使馆经济商务处",
+    "related_risk": [
+      "Political Risk",
+      "Regulatory Risk"
+    ],
+    "title": "对外投资合作国别（地区）指南：印度（2025年版）",
+    "topic_cn": "对外投资",
+    "topics": [
+      "investment_policy"
+    ]
+  },
+  "MOFCOM_006": {
+    "authority_level": "S",
+    "countries": [
+      "TH"
+    ],
+    "country_region": "TH",
+    "data_status": "verified",
+    "evidence_id": "MOFCOM_006",
+    "evidence_type": "Policy",
+    "industry": "EV_Battery",
+    "industry_scope": "general",
+    "publisher": "商务部对外投资和经济合作司、商务部国际贸易经济合作研究院、中国驻泰国大使馆经济商务处",
+    "related_risk": [
+      "Political Risk",
+      "Regulatory Risk"
+    ],
+    "title": "对外投资合作国别（地区）指南：泰国（2025年版）",
+    "topic_cn": "对外投资",
+    "topics": [
+      "investment_policy"
+    ]
+  },
   "NIO_001": {
     "authority_level": "S",
     "countries": [

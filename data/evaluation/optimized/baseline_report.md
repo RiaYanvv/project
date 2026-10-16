@@ -2,35 +2,35 @@
 
 **范围**：在 `run_task3_baseline.py` 的同一套口径下，接入 `RetrievalOptimizer`
 （4.1 metadata filtering + 4.2 query enhancement + 4.3 authority ranking）后重跑。
-**数据**：43 个 benchmark 问题 × Top-10，语料 49 篇证据（Task 1 v0.9；Task 5 的 17 个案例为 held-out 答案键，不入语料）
+**数据**：43 个 benchmark 问题 × Top-10，语料 53 篇证据（Task 1 v0.9.2；Task 5 的 17 个案例为 held-out 答案键，不入语料）
 **运行**：`run_task4_eval.py`（Top-K=10）
 
 ## 1. Current RAG Performance（After）
 
 | 指标 | Before | After | Delta |
 |---|---|---|---|
-| Precision@5 | 0.772 | 0.800 | +0.028 |
-| Recall@10 | 0.921 | 0.925 | +0.003 |
-| Entity Accuracy | 0.935 | 0.919 | -0.015 |
+| Precision@5 | 0.763 | 0.814 | +0.051 |
+| Recall@10 | 0.905 | 0.907 | +0.002 |
+| Entity Accuracy | 0.936 | 0.921 | -0.015 |
 | Entity Recall | 1.000 | 1.000 | +0.000 |
-| Entity Precision | 0.869 | 0.839 | -0.031 |
+| Entity Precision | 0.872 | 0.842 | -0.031 |
 | Hit@5 | 1.000 | 1.000 | +0.000 |
-| Mean Authority (Top-5) | 1.860 | 1.874 | +0.014 |
+| Mean Authority (Top-5) | 1.870 | 1.888 | +0.019 |
 
 分场景（After）：
 
 | scenario_category | n | P@5 | R@10 | Entity Acc |
 |---|---|---|---|---|
-| Company Intelligence | 8 | 0.825 | 0.833 | 0.892 |
-| Market Access | 8 | 0.8 | 0.948 | 0.943 |
-| Policy / Trade Risk | 14 | 0.786 | 0.964 | 0.929 |
-| Scenario Simulation Support | 6 | 0.833 | 0.895 | 0.94 |
-| Supply Chain Risk | 7 | 0.771 | 0.948 | 0.883 |
+| Company Intelligence | 8 | 0.85 | 0.833 | 0.875 |
+| Market Access | 8 | 0.75 | 0.923 | 0.943 |
+| Policy / Trade Risk | 14 | 0.843 | 0.964 | 0.938 |
+| Scenario Simulation Support | 6 | 0.8 | 0.829 | 0.94 |
+| Supply Chain Risk | 7 | 0.8 | 0.924 | 0.892 |
 
 ## 2. Main Problems（相对 baseline 的变化）
 
 * 宏观文档漂移（原 §2.4）已处理：无投资/宏观意图的问题不再召回 UNCTAD / IMF / WEF / McKinsey，
-  Recall@10 由 0.921 变为 0.925（+0.003）。
+  Recall@10 由 0.905 变为 0.907（+0.002）。
 * Entity Recall 仍为 1.000（1 题因查询增强替换证据而少覆盖 1 个实体）。
 * 企业案例召回：Q003 R@10 由 0.333 提升到 0.333。
 * v0.9.1 补了 `investment_policy` 词表缺口：题面写「外资安全审查 / 收购当地资产」时不触发投资意图，
