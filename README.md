@@ -8,9 +8,9 @@
 
 | 路径 | 内容 |
 |---|---|
-| `backend/app/` | 产品服务：FastAPI、检索层（混合检索 + metadata filter + query enhancement + authority ranking）、报告生成 |
+| `backend/app/` | 产品服务：FastAPI、检索层（混合检索 + metadata filter + query enhancement + authority ranking）、风险维度检索（Task 6 P0）、报告生成 |
 | `backend/scripts/` | 数据工程脚本：`ingest_dataset.py`（入库）、`build_case_corpus.py`（Task 5 案例语料）、`check_case_leakage.py`（案例泄漏审计） |
-| `backend/tests/` | pytest 回归测试 |
+| `backend/tests/` | pytest 回归测试（127 条） |
 | `run_task2_eval_v2.py` | Task 2/3 检索评估（唯一现行版本） |
 | `run_task3_baseline.py` | Task 3 基线报告（Precision@5 / Recall@10 / Entity Accuracy） |
 | `run_task4_eval.py` | Task 4 三项优化（metadata filtering / query enhancement / authority ranking） |
@@ -54,8 +54,20 @@
 | Precision@5 | 0.800（优化后） | ≥ 0.80 |
 | Recall@10 | 0.925（优化后） | ≥ 0.80 |
 | Entity Accuracy | 0.935 | ≥ 0.95（现行口径下不可达，见评估报告） |
-| Task 6 风险召回 | 0.799 | 待优化（需按风险维度多次检索） |
+| Task 6 风险召回 | 0.799 → **0.946**（P0 按风险维度检索） | ✅（Precision 0.559→0.535，见评估报告 §6） |
 | Task 7 引用可追溯率 | 100% | ✅ |
+
+## 检索层开关
+
+| 环境变量 | 默认 | 作用 |
+|---|---|---|
+| `RETRIEVAL_LENGTH_NORM` | `0.10` | 长文档长度归一化（调优值，勿改） |
+| `RETRIEVAL_PER_SOURCE_CANDIDATES` | `80` | 单文档候选配额（调优值，勿改） |
+| `RETRIEVAL_OPTIMIZER` | `0` | Task 4 优化层（metadata filter / query enhancement / authority ranking） |
+| `RISK_DIMENSION_RETRIEVAL` | `1` | Task 6 P0：按风险维度多次检索。设为 `0` 退回单次检索 |
+
+风险维度检索**不走** `RETRIEVAL_OPTIMIZER`（实测会让 Risk Recall 从 0.946 掉到 0.877），
+`AgentService._dimension_provider` 会显式绕开优化层。
 
 ## 说明
 

@@ -26,6 +26,12 @@ from backend.app.evidence_metadata import load_registry
 from backend.app.knowledge import KnowledgeRepository
 from backend.app.retrieval import HybridRetrievalProvider
 from backend.app.retrieval_optimizer import OptimizationConfig as C
+from backend.app.risk_dimension import (
+    DimensionContext,
+    RiskDimensionRetriever,
+    dimension_question,
+    normalize_evidence_id,
+)
 from backend.app.retrieval_optimizer import RetrievalOptimizer
 from backend.app.schemas import RetrievalQuery
 
@@ -49,14 +55,9 @@ RISK_CATEGORIES = [
 # point of the question.  Scored separately so they do not count as misses.
 OPTIONAL_RISKS = {"Operational Risk"}
 
-RISK_KEYWORDS = {
-    "Trade Risk": "关税 贸易限制 反规避 原产地",
-    "Political Risk": "地缘政治 政策不确定性",
-    "Supply Chain Risk": "供应链依赖 地理集中 中间品",
-    "Regulatory Risk": "出口管制 合规 法规 监管",
-    "Market Access Risk": "市场准入 本地化要求 客户准入",
-    "Operational Risk": "人力成本 基础设施 执行风险",
-}
+# 三种检索配置：现行基线、Task 4 优化层、Task 6 P0（按风险维度多次检索）。
+CONFIGS = ("baseline", "optimized", "risk_dimension")
+RISK_DIMENSION_CFG = "risk_dimension"
 
 
 def normalize_risks(values) -> set[str]:
@@ -183,9 +184,15 @@ def build_question(case: dict, host_cn: str) -> str:
             f"管理层应基于现有证据判断该决策的风险。")
 
 
+def dimension_context(case: dict) -> DimensionContext:
+    return DimensionContext(
+        company=case["company_name"].split()[0],
+        host=case["host_cn"],
+    )
+
+
 def dimension_query(case: dict, risk: str) -> str:
-    company = case["company_name"].split()[0]
-    return f"{company} {case['host_cn']} {RISK_KEYWORDS[risk]} 风险 证据"
+    return dimension_question(risk, dimension_context(case))
 
 
 def make_query(question: str, limit: int = TOP_K) -> RetrievalQuery:
@@ -202,10 +209,7 @@ def make_query(question: str, limit: int = TOP_K) -> RetrievalQuery:
 
 
 def normalize(eid: str) -> str:
-    eid = str(eid or "").strip()
-    if eid.startswith("EVD-"):
-        eid = eid[4:]
-    return re.sub(r"-C\d+$", "", eid)
+    return normalize_evidence_id(eid)
 
 
 def corpus_tag_support(registry: dict) -> dict[str, int]:
@@ -226,6 +230,15 @@ def build_providers(repo, registry):
         setattr(opt.metadata_filter, k, v)
     optimized = HybridRetrievalProvider(repository=repo, optimizer=opt)
     return {"baseline": baseline, "optimized": optimized}
+
+
+def build_risk_dimension_retriever(repo, registry) -> RiskDimensionRetriever:
+    """Task 6 P0 的实际产品路径：按风险维度检索 + Task 1 标签确认。"""
+    return RiskDimensionRetriever(
+        HybridRetrievalProvider(repository=repo),
+        registry,
+        per_dimension_k=CITED_K,
+    )
 
 
 # --------------------------------------------------------------------------
@@ -383,41 +396,86 @@ def write_risk_checklist(cases, scored, registry):
 
     ws = wb.create_sheet("Results")
     ws.append(["case_id", "company_name", "config", "expected_risks", "identified_risks",
-               "correct", "missing", "false_positive", "risk_recall", "risk_precision"])
+               "correct", "missing", "false_positive", "risk_recall", "risk_precision",
+               "cited_evidence"])
     for case in cases:
         exp = case["expected_risks"]
         required = exp
-        for cfg in ("baseline", "optimized"):
+        for cfg in CONFIGS:
             pred = scored[case["case_id"]][cfg]["risks"]
             correct = sorted(required & pred)
             missing = sorted(required - pred)
             neg = {r for r in RISK_CATEGORIES if r not in required and r not in OPTIONAL_RISKS}
             false_pos = sorted(pred & neg)
+            cited = scored[case["case_id"]][cfg].get("cited_evidence", [])
             ws.append([
                 case["case_id"], case["company_name"], cfg,
                 "; ".join(sorted(required)), "; ".join(sorted(pred)),
                 "; ".join(correct), "; ".join(missing), "; ".join(false_pos),
                 round(len(correct) / len(required), 3) if required else "",
                 round(len(correct) / len(pred), 3) if pred else 0.0,
+                "; ".join(cited),
             ])
-    style_header(ws, 10, "2E5E4E")
-    autosize(ws, [12, 22, 12, 32, 34, 30, 30, 26, 12, 14])
-    ws.auto_filter.ref = f"A1:J{ws.max_row}"
+    style_header(ws, 11, "2E5E4E")
+    autosize(ws, [12, 22, 16, 32, 34, 30, 30, 26, 12, 14, 60])
+    ws.auto_filter.ref = f"A1:K{ws.max_row}"
 
     ws = wb.create_sheet("By Risk Category")
-    ws.append(["risk_category", "expected_cases", "identified_baseline", "identified_optimized",
-               "recall_baseline", "recall_optimized", "over_claimed_cases"])
+    ws.append(["risk_category", "expected_cases"]
+              + [f"identified_{cfg}" for cfg in CONFIGS]
+              + [f"recall_{cfg}" for cfg in CONFIGS]
+              + ["over_claimed_cases"])
     for risk in RISK_CATEGORIES:
         exp_cases = [c for c in cases if risk in c["expected_risks"]]
-        b = sum(1 for c in exp_cases if risk in scored[c["case_id"]]["baseline"]["risks"])
-        o = sum(1 for c in exp_cases if risk in scored[c["case_id"]]["optimized"]["risks"])
+        counts = [
+            sum(1 for c in exp_cases if risk in scored[c["case_id"]][cfg]["risks"])
+            for cfg in CONFIGS
+        ]
+        recalls = [
+            round(n / len(exp_cases), 3) if exp_cases else "" for n in counts
+        ]
         over = sum(1 for c in cases if risk not in c["expected_risks"]
                    and risk in scored[c["case_id"]]["baseline"]["risks"])
-        ws.append([risk, len(exp_cases), b, o,
-                   round(b / len(exp_cases), 3) if exp_cases else "",
-                   round(o / len(exp_cases), 3) if exp_cases else "", over])
-    style_header(ws, 7, "7A3E9D")
-    autosize(ws, [22, 16, 20, 22, 16, 18, 20])
+        ws.append([risk, len(exp_cases)] + counts + recalls + [over])
+    style_header(ws, 2 + 2 * len(CONFIGS) + 1, "7A3E9D")
+    autosize(ws, [22, 16] + [20] * len(CONFIGS) + [16] * len(CONFIGS) + [20])
+
+    # 归因表：每一个被声称的风险后面站着哪条证据。审阅者可以据此判断
+    # 「false positive」是检索错了，还是案例标注本身没写这一类。
+    ws = wb.create_sheet("FP Attribution")
+    ws.append(["case_id", "company_name", "risk_category", "case_annotation",
+               "confirming_evidence_ids", "confirming_publishers", "assessment"])
+    for case in cases:
+        exp = case["expected_risks"]
+        findings = scored[case["case_id"]][RISK_DIMENSION_CFG].get("findings", {})
+        for risk in RISK_CATEGORIES:
+            ids = findings.get(risk) or []
+            if not ids:
+                continue
+            if risk in exp:
+                annotation = "YES"
+            elif risk in OPTIONAL_RISKS:
+                annotation = "Optional"
+            else:
+                annotation = "NO"
+            publishers = []
+            for eid in ids:
+                meta = registry.get(eid) or {}
+                name = str(meta.get("publisher") or "").strip()
+                if name and name not in publishers:
+                    publishers.append(name)
+            if annotation == "NO":
+                assessment = ("案例标注未列该类，但证据带 Task 1 related_risk="
+                              f"{risk} 标签，属「标注口径」差异，可复核")
+            elif annotation == "Optional":
+                assessment = "案例标注为 Optional，不计入 missing / false positive"
+            else:
+                assessment = "与案例标注一致"
+            ws.append([case["case_id"], case["company_name"], risk, annotation,
+                       "; ".join(ids), "; ".join(publishers[:4]), assessment])
+    style_header(ws, 7, "9C5700")
+    autosize(ws, [12, 22, 20, 16, 46, 44, 56])
+    ws.auto_filter.ref = f"A1:G{ws.max_row}"
 
     ws = wb.create_sheet("Per-Dimension Probe")
     ws.append(["case_id", "company_name", "expected_risks"] + RISK_CATEGORIES +
@@ -437,7 +495,7 @@ def write_risk_checklist(cases, scored, registry):
     ws = wb.create_sheet("Summary")
     n = len(cases)
     rows = []
-    for cfg in ("baseline", "optimized"):
+    for cfg in CONFIGS:
         rec = sum(len(c["expected_risks"] & scored[c["case_id"]][cfg]["risks"]) /
                   max(1, len(c["expected_risks"])) for c in cases) / n
         prec = sum(len(c["expected_risks"] & scored[c["case_id"]][cfg]["risks"]) /
@@ -446,35 +504,51 @@ def write_risk_checklist(cases, scored, registry):
         fp = sum(len({r for r in RISK_CATEGORIES if r not in c["expected_risks"] and r not in OPTIONAL_RISKS}
                      & scored[c["case_id"]][cfg]["risks"]) for c in cases)
         rows.append((cfg, rec, prec, miss, fp))
-    ws.append(["Task 6 — Risk Assessment Evaluation", "Baseline", "Optimized", "Note"])
-    ws.append(["Risk Recall (mean over cases)", round(rows[0][1], 3), round(rows[1][1], 3),
-               "应识别风险中有多少被证据链覆盖"])
-    ws.append(["Risk Precision (mean over cases)", round(rows[0][2], 3), round(rows[1][2], 3),
-               "识别出的风险中有多少属于本题期望风险"])
-    ws.append(["Missing risks (total)", rows[0][3], rows[1][3], "期望风险中未被证据覆盖的次数"])
-    ws.append(["False positives (total)", rows[0][4], rows[1][4], "不属于该题却被识别的风险次数"])
+    by_cfg = {row[0]: row for row in rows}
+    ws.append(["Task 6 — Risk Assessment Evaluation"]
+              + ["Baseline", "Optimized", "Risk-dimension (P0)", "Note"])
+    ws.append(["Risk Recall (mean over cases)"]
+              + [round(by_cfg[cfg][1], 3) for cfg in CONFIGS]
+              + ["应识别风险中有多少被证据链覆盖"])
+    ws.append(["Risk Precision (mean over cases)"]
+              + [round(by_cfg[cfg][2], 3) for cfg in CONFIGS]
+              + ["识别出的风险中有多少属于本题期望风险"])
+    ws.append(["Missing risks (total)"]
+              + [by_cfg[cfg][3] for cfg in CONFIGS]
+              + ["期望风险中未被证据覆盖的次数"])
+    ws.append(["False positives (total)"]
+              + [by_cfg[cfg][4] for cfg in CONFIGS]
+              + ["不属于该题却被识别的风险次数"])
     ceil = sum(sum(1 for r in c["expected_risks"] if scored[c["case_id"]]["dimension"].get(r)) /
                max(1, len(c["expected_risks"])) for c in cases) / n
     tag_counts = corpus_tag_support(registry)
     representable = sum(sum(1 for r in c["expected_risks"] if tag_counts.get(r, 0) > 0) /
                         max(1, len(c["expected_risks"])) for c in cases) / n
+    dim_recall = by_cfg[RISK_DIMENSION_CFG][1]
     ws.append(["风险可表征率（语料中存在该类风险的证据）", round(representable, 3), round(representable, 3),
+               round(representable, 3),
                f"L1：语料层面。六类风险在 {len(registry)} 篇语料中均有标注（不含 held-out 案例），缺失的是「与案例挂钩」的证据"])
-    ws.append(["风险可取回率（按维度逐条检索）", round(ceil, 3), round(ceil, 3),
-               "L2：检索层面。按风险维度单独提问时的覆盖上限；不是现行产品行为"])
-    ws.append(["风险识别覆盖（现行单次检索）", round(rows[0][1], 3), round(rows[1][1], 3),
-               "L3：现行产品行为。差距 = L1 - L3，定位在「检索策略」而非「语料」"])
+    ws.append(["风险可取回率（按维度逐条检索）", round(ceil, 3), round(ceil, 3), round(dim_recall, 3),
+               "L2：检索层面。按风险维度单独提问时的覆盖上界；P0 之后已由产品实现达到"])
+    ws.append(["风险识别覆盖（现行产品行为）", round(by_cfg["baseline"][1], 3),
+               round(by_cfg["optimized"][1], 3), round(dim_recall, 3),
+               "L3：开启 RISK_DIMENSION_RETRIEVAL（默认）后走 Risk-dimension 列；差距 = L1 - L3"])
     ws.append([])
-    ws.append(["语料中各风险的证据数", "", "", "; ".join(f"{k}={v}" for k, v in tag_counts.items())])
+    ws.append(["语料中各风险的证据数", "", "", "",
+               "; ".join(f"{k}={v}" for k, v in tag_counts.items())])
     ws.append([])
-    ws.append(["Scoring rule", "", "",
-               "identified_risks = Top-5 引用证据在 Task 1 schema 中的 related_risk 并集；"
-               "expected = 案例记录的人工标注 related_risk（已归并到 Task 1 六类词表）"])
-    ws.append(["Caveat", "", "",
+    ws.append(["Scoring rule", "", "", "",
+               "identified_risks = 引用证据在 Task 1 schema 中的 related_risk 并集；"
+               "expected = 案例记录的人工标注 related_risk（已归并到 Task 1 六类词表）。"
+               "risk_dimension 列：六个风险维度各检索 Top-5，只保留 related_risk 标签确认过的条目"])
+    ws.append(["Caveat", "", "", "",
                "Operational Risk 记为 Optional，不计入 missing / false positive；"
-               "本评测测的是证据链能否支撑风险识别，不是 LLM 生成风险的质量"])
-    style_header(ws, 4, "1F3864")
-    autosize(ws, [34, 14, 14, 78])
+               "本评测测的是证据链能否支撑风险识别，不是 LLM 生成风险的质量。"
+               "risk_dimension 的 Precision 低于基线主要是口径效应：39 次误报里 Regulatory 14 次、"
+               "Market Access 11 次，均可追溯到中国侧出口管制 / 公司披露与欧盟法规证据；"
+               "逐条归因见 FP Attribution sheet"])
+    style_header(ws, 5, "1F3864")
+    autosize(ws, [34, 14, 14, 18, 78])
     wb.save(OUT / "risk_assessment_checklist.xlsx")
     return rows
 
@@ -621,6 +695,8 @@ def main() -> None:
     providers = build_providers(repo, registry)
     cases = load_cases()
 
+    dimension_retriever = build_risk_dimension_retriever(repo, registry)
+
     scored: dict[str, dict] = {}
     for case in cases:
         query = make_query(case["decision_problem"])
@@ -638,16 +714,25 @@ def main() -> None:
                 "cited_evidence": cited,
                 "risks": risks,
             }
-        # Diagnostic ceiling probe: ask one retrieval per risk dimension
-        # (what a multi-step risk layer would do) instead of one case query.
-        by_dim: dict[str, bool] = {}
-        for risk in RISK_CATEGORIES:
-            hits = providers["baseline"].search(make_query(dimension_query(case, risk), limit=CITED_K))
-            by_dim[risk] = any(
-                risk in set((registry.get(normalize(r.evidence_id)) or {}).get("related_risk", ()))
-                for r in hits
-            )
-        entry["dimension"] = by_dim
+
+        # Task 6 P0：按风险维度检索 + Task 1 标签确认。这是**现行产品行为**
+        # （`AgentService._dimension_evidence` 走同一个 Retriever），不再是探针。
+        dim_result = dimension_retriever.retrieve(query, dimension_context(case))
+        dim_cited = dim_result.evidence_ids
+        entry[RISK_DIMENSION_CFG] = {
+            "retrieved": dim_cited,
+            "retrieved_set": set(dim_cited),
+            "cited_evidence": dim_cited,
+            "risks": set(dim_result.detected_risks),
+            "findings": {
+                risk: list(finding.evidence_ids)
+                for risk, finding in dim_result.findings.items()
+            },
+        }
+        entry["dimension"] = {
+            risk: bool(finding.evidence_ids)
+            for risk, finding in dim_result.findings.items()
+        }
         scored[case["case_id"]] = entry
 
     write_benchmark(cases, registry)

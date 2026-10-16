@@ -12,7 +12,7 @@ from pydantic import ValidationError
 
 from .company_research import CompanyResearchTool
 from .llm import EventCallback, LLMProvider
-from .retrieval import RetrievalProvider
+from .retrieval import HybridRetrievalProvider, RetrievalProvider
 from .schemas import (
     Assessment,
     BusinessProfile,
@@ -53,6 +53,11 @@ from .schemas import (
     utc_now,
 )
 from .report_composer import compose_report, merge_report_payload
+from .risk_dimension import (
+    DimensionContext,
+    RiskDimensionRetriever,
+    risk_retrieval_enabled,
+)
 
 
 class AgentService:
@@ -72,10 +77,15 @@ class AgentService:
         retrieval: RetrievalProvider,
         llm: LLMProvider,
         company_research: CompanyResearchTool | None = None,
+        risk_dimension: RiskDimensionRetriever | None = None,
     ):
         self.retrieval = retrieval
         self.llm = llm
         self.company_research = company_research
+        # Task 6 P0: 按风险维度补一轮检索。显式注入便于测试；默认惰性构造，
+        # 拿不到 Task 1 标签表时自动降级成「不启用」。
+        self.risk_dimension = risk_dimension
+        self._risk_dimension_disabled = False
 
     @classmethod
     def _risk_category_key(cls, name: str, category: str) -> str:
@@ -2053,6 +2063,8 @@ class AgentService:
     # Each evidence view gets its own budget in _retrieve (see the note there).
     COMPANY_EVIDENCE_BUDGET = 9
     POLICY_EVIDENCE_BUDGET = 6
+    # 六个风险维度各留一条最佳命中即可支撑风险层，避免维度证据挤掉公司披露。
+    DIMENSION_EVIDENCE_BUDGET = 6
     GAP_ORDER = ("critical", "important", "optional")
     SUPPLY_CHAIN_STAGES = (
         "raw_material",
@@ -2344,7 +2356,61 @@ class AgentService:
         # risk stage depends on. One store, two views — not two lists.
         add(company_evidence, self.COMPANY_EVIDENCE_BUDGET)
         add(policy_evidence, max(query.limit, self.POLICY_EVIDENCE_BUDGET))
+        # Task 6 P0: 单次「公司决策」式检索把预算交给公司/案例文档，Trade /
+        # Political / Regulatory / Market Access 四个维度取不到证据。这里按风险
+        # 维度补一轮，只收 Task 1 `related_risk` 标签确认过的条目。
+        add(self._dimension_evidence(query, company), self.DIMENSION_EVIDENCE_BUDGET)
         return combined
+
+    def _risk_dimension_retriever(self) -> RiskDimensionRetriever | None:
+        """惰性构造维度检索器；没有标签表就永久降级。"""
+        if self.risk_dimension is None and not self._risk_dimension_disabled:
+            try:
+                from .evidence_metadata import load_registry
+
+                registry = load_registry()
+            except Exception:  # pragma: no cover - 标签表缺失不应阻断分析
+                registry = {}
+            if registry:
+                self.risk_dimension = RiskDimensionRetriever(
+                    self._dimension_provider(), registry
+                )
+            else:
+                self._risk_dimension_disabled = True
+        return self.risk_dimension
+
+    def _dimension_provider(self) -> RetrievalProvider:
+        """维度检索用**不带 Task 4 优化层**的裸混合检索。
+
+        Task 6 实测：优化层会让维度检索的 Risk Recall 从 0.946 掉到 0.877
+        （`RETRIEVAL_OPTIMIZER=1` 时），因为它把预算压向高权威 / 强相关条目，
+        正是风险维度需要的「弱信号但正相关」证据被挤掉。
+        """
+        base = self.retrieval
+        if isinstance(base, HybridRetrievalProvider) and base.optimizer is not None:
+            return HybridRetrievalProvider(
+                repository=base.repository,
+                fallback=base.fallback,
+                web_search=None,
+            )
+        return base
+
+    def _dimension_evidence(
+        self,
+        query: RetrievalQuery,
+        company: CompanyInput,
+    ) -> list[RetrievedEvidence]:
+        if not risk_retrieval_enabled():
+            return []
+        retriever = self._risk_dimension_retriever()
+        if retriever is None:
+            return []
+        try:
+            result = retriever.retrieve(query, DimensionContext.from_company(company))
+        except Exception:  # pragma: no cover - 维度检索失败退回单次检索结果
+            return []
+        return list(result.items)
+
 
     @staticmethod
     def _evidence_keywords(category_key: str) -> set[str]:
@@ -2407,7 +2473,16 @@ class AgentService:
             )
             if not topic_hit:
                 continue
-            if item.relevance_score < 45 and item.evidence_scope != "company":
+            # 维度检索命中的条目，其相关性由 Task 1 `related_risk` 标签背书，
+            # 不再受词组相关性阈值约束（那会把低词面分但正相关的证据丢掉）。
+            confirmed_by_dimension = bool(
+                getattr(item, "risk_dimension_confirmed", ())
+            )
+            if (
+                not confirmed_by_dimension
+                and item.relevance_score < 45
+                and item.evidence_scope != "company"
+            ):
                 continue
             if item.verification_status == "outdated":
                 continue

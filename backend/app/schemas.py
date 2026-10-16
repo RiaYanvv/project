@@ -175,6 +175,10 @@ class RetrievedEvidence(StrictModel):
     # Which part of a long document this evidence came from (P0.5): one PDF is
     # represented by several section snippets, each with its page range.
     section: str = ""
+    # Task 6 P0: 这条证据是「按风险维度检索 + Task 1 related_risk 标签确认」得到的，
+    # 列出被确认的风险维度。有此标记的证据，其相关性由标签背书，不再受词组相关
+    # 性阈值（<45 丢弃）约束。默认空元组，保证历史 assessment 仍可反序列化。
+    risk_dimension_confirmed: tuple[str, ...] = ()
     page_start: int = Field(default=0, ge=0)
     page_end: int = Field(default=0, ge=0)
     language: Literal["ko", "zh", "en", "unknown"] = "unknown"
