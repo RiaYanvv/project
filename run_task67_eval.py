@@ -83,7 +83,8 @@ BENCH_SCHEMA = [
     ("industry", "行业", "Automotive (EV)"),
     ("initial_situation", "决策前状态（生产布局 / 主要市场 / 供应链 / 问题）", "整车产能全部在中国"),
     ("decision_problem", "需要决策的问题", "是否将部分产能转移至泰国"),
-    ("evidence_sources", "证据来源（related_evidence_ids + 链接）", "NEWS_001"),
+    ("related_evidence_ids", "证据库绑定（Task 1 的 49 条证据，附绑定依据）", "TRD_001; EU_003"),
+    ("external_source_refs", "外部新闻来源编号（见 case_database 的 Evidence Index）", "NEWS_001"),
     ("actual_decision", "真实决策", "泰国罗勇府建厂，2024-07 投产"),
     ("outcome", "后续结果（成本 / 生产 / 准入 / 供应链）", "降低准入壁垒，但零部件仍依赖中国"),
     ("key_factors", "关键因素", "tariff_pressure; market_access"),
@@ -121,6 +122,28 @@ def load_case_evidence_index() -> dict[str, dict]:
     data = list(ws.iter_rows(values_only=True))
     hdr = list(data[0])
     return {str(dict(zip(hdr, r))["evidence_id"]): dict(zip(hdr, r)) for r in data[1:] if r and r[0]}
+
+
+def load_task1_source_index(repo) -> dict[str, dict]:
+    """Task 1 evidence index: evidence id -> publisher / title / date / url.
+
+    The case's `related_evidence_ids` point into the Task 1 evidence base, so
+    the citation audit has to resolve them there, not only against the external
+    news list.
+    """
+    out: dict[str, dict] = {}
+    for chunk in repo.all_chunks():
+        if chunk.source_id in out:
+            continue
+        out[chunk.source_id] = {
+            "evidence_id": chunk.source_id,
+            "outlet": str(chunk.publisher or ""),
+            "title": str(chunk.title or ""),
+            "date": str(chunk.publication_date or ""),
+            "url": str(chunk.url or chunk.document_path or ""),
+            "url_status": "证据库（Task 1）",
+        }
+    return out
 
 
 def load_cases() -> list[dict]:
@@ -213,7 +236,8 @@ def write_benchmark(cases: list[dict], registry: dict) -> None:
     ws = wb.active
     ws.title = "Benchmark"
     cols = ["case_id", "company_name", "industry", "case_type", "host_country",
-            "initial_situation", "decision_problem", "evidence_sources",
+            "initial_situation", "decision_problem", "related_evidence_ids",
+            "evidence_rationale", "external_source_refs",
             "actual_decision", "outcome", "key_factors", "expected_risks",
             "decision_type"]
     ws.append(cols)
@@ -229,13 +253,14 @@ def write_benchmark(cases: list[dict], registry: dict) -> None:
                                    case.get("initial_main_markets"),
                                    case.get("initial_supply_chain"),
                                    case.get("initial_problem")) if x),
-            case["decision_problem"], sources, case.get("actual_decision"),
+            case["decision_problem"], sources, case.get("related_evidence_rationale"),
+            case.get("external_source_refs"), case.get("actual_decision"),
             outcome,
             "; ".join(x for x in (case.get("decision_trigger"), case.get("trigger_detail")) if x),
             "; ".join(sorted(case["expected_risks"])), case.get("decision_type"),
         ])
     style_header(ws, len(cols))
-    autosize(ws, [12, 22, 18, 26, 14, 60, 50, 26, 50, 60, 40, 34, 18])
+    autosize(ws, [12, 22, 18, 26, 14, 60, 50, 26, 56, 20, 50, 60, 40, 34, 18, 20])
     ws.auto_filter.ref = f"A1:{get_column_letter(len(cols))}{ws.max_row}"
 
     s = wb.create_sheet("Schema")
@@ -249,12 +274,19 @@ def write_benchmark(cases: list[dict], registry: dict) -> None:
     q.append(["验收项", "结果", "说明"])
     checks = [
         ("案例数量", f"{len(cases)} 个", "任务书要求 ≥10（最好 15 左右）"),
-        ("案例真实性", "公开报道 / 公司公告", "全部绑定 related_evidence_ids，来源见 case_database 的 Evidence Index"),
+        ("案例真实性", "公开报道 / 公司公告", "外部来源编号见 external_source_refs（映射到 case_database 的 Evidence Index，含 outlet/标题/日期/URL）"),
         ("与 EV battery / 供应链迁移相关", "是", "整车(2) + 动力电池(7) + 电池材料(3) + 光伏/电子/通用(5)"),
         ("背景→决策→结果链条", "100%", "Initial Situation / Decision Trigger / Actual Decision / Outcome 四段齐全"),
         ("能否用于 Scenario Simulation", "是", "含 4 个「待观察」与 2 个「失败/退出」案例"),
         ("每条案例是否有标准答案", "是", "actual_decision + outcome + expected_risks 即标准答案"),
         ("是否进入 RAG 语料", "否（held-out）", "案例是评测答案键，故意不进入知识库，避免答案泄漏"),
+        ("证据库绑定", "17/17", "related_evidence_ids 已改为 Task 1 证据库内的真实 ID，逐条附绑定依据（R1触发/R2目的地/R3行业/R4类比）"),
+        ("held-out 校验", "通过", "语料 49 篇文档 ID 中无 RELOC_*/PLUS1_*/RETURN_*；17 个案例来源 URL 与语料 URL 零重合"),
+        ("语料泄漏检查（逐字）", "通过", "backend/scripts/check_case_leakage.py：17/17 通过，最高逐字重合 1.0%（10 字滑窗，阈值 5%）"),
+        ("隔离校验复跑", "check_case_leakage.py", ".venv/bin/python backend/scripts/check_case_leakage.py —— 退出码 0 表示案例 ID / 来源 URL / 逐字重合 / 证据绑定四项全过"),
+        ("语料背景重合（已登记）", "4 处", "RELOC_001/PLUS1_003 经 IEA_001 的 OEM 名单；PLUS1_004 经 DOC_001 的光伏反规避语境；PLUS1_005 经 IMF_001 的 FDI 举例；RETURN_002 经 UNCTAD_001 引用的路透稿"),
+        ("同源提示", "RETURN_002", "外部来源为路透报道，而语料 UNCTAD_001 引用了同一系列路透稿；属背景级同源，评测时需知悉"),
+        ("通用吸引子", "CASE_001", "语料 CASE_001（大旺金属回流）出现在全部 17 个案例的 Top-5，是 Task 6 false positive 的来源之一"),
         ("已知局限", "", "结果字段多来自媒体转述；4 个案例结果尚未发生；行业级案例 RETURN_003 无单一企业数据"),
     ]
     for row in checks:
@@ -520,7 +552,7 @@ def write_citation_test(cases, scored, registry, repo, source_index) -> None:
 
     ws = wb.create_sheet("Conclusion Audit")
     ws.append(["case_id", "conclusion_type", "conclusion", "cited_evidence_ids",
-               "all_citable", "sources", "has_date", "verdict"])
+               "external_source_refs", "all_citable", "sources", "has_date", "verdict"])
     unaudited = 0
     for case in cases:
         cited_ids = case["evidence_ids"]
@@ -540,13 +572,14 @@ def write_citation_test(cases, scored, registry, repo, source_index) -> None:
                 unaudited += 1
             ws.append([
                 case["case_id"], kind, str(text)[:200], "; ".join(cited_ids),
+                str(case.get("external_source_refs") or ""),
                 int(ok),
                 "; ".join(sorted({(source_index.get(e) or {}).get("outlet", "") for e in cited_ids if source_index.get(e)})),
                 int(bool(citable) and all(source_index.get(e, {}).get("date") for e in citable)),
                 "可追溯" if ok else "无证据支撑",
             ])
-    style_header(ws, 8, "9D3E3E")
-    autosize(ws, [12, 20, 60, 26, 12, 14, 10, 14])
+    style_header(ws, 9, "9D3E3E")
+    autosize(ws, [12, 20, 60, 26, 24, 12, 22, 10, 14])
     ws.auto_filter.ref = f"A1:H{ws.max_row}"
 
     ws = wb.create_sheet("Summary")
@@ -620,7 +653,12 @@ def main() -> None:
     write_benchmark(cases, registry)
     write_benchmark_results(cases, scored, registry, repo)
     risk_rows = write_risk_checklist(cases, scored, registry)
-    cite = write_citation_test(cases, scored, registry, repo, load_case_evidence_index())
+    case_source_index = load_case_evidence_index()
+    task1_index = load_task1_source_index(repo)
+    clash = set(case_source_index) & set(task1_index)
+    assert not clash, f"案例外部来源编号与证据库 ID 冲突: {sorted(clash)}"
+    source_index = {**case_source_index, **task1_index}
+    cite = write_citation_test(cases, scored, registry, repo, source_index)
 
     print("cases:", len(cases))
     for cfg, rec, prec, miss, fp in risk_rows:

@@ -354,15 +354,21 @@ def main() -> int:
     audit = wb.create_sheet("case_index")
     audit.append(["case_id", "company", "industry", "case_type", "decision_type",
                   "trigger", "country_code", "authority_level", "verification_status",
-                  "source", "url"])
+                  "source", "url", "related_evidence_ids", "evidence_rationale",
+                  "external_source_refs"])
     for case in cases:
         row = build_metadata_row(case)
         audit.append([row["evidence_id"], clean(case["company_name"]), clean(case["industry"]),
                       clean(case["case_type"]), clean(case["decision_type"]),
                       clean(case["decision_trigger"]), row["country_code"],
                       row["authority_level"], row["verification_status"],
-                      row["publisher"], row["source_url"]])
-    style_header(audit, 11, "2E5E4E")
+                      row["publisher"], row["source_url"],
+                      clean(case.get("related_evidence_ids")),
+                      clean(case.get("related_evidence_rationale")),
+                      clean(case.get("external_source_refs"))])
+    style_header(audit, 14, "2E5E4E")
+    for i, w in enumerate([12, 26, 22, 30, 24, 20, 12, 12, 20, 34, 46, 30, 60, 24], 1):
+        audit.column_dimensions[get_column_letter(i)].width = w
 
     (bench_dir / "README.md").write_text(
         "# Task 5 — Historical Case Benchmark (evaluation only)\n\n"

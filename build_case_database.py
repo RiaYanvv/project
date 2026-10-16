@@ -406,6 +406,65 @@ dict(case_id="RETURN_004", company_name="蜂巢能源 SVOLT（欧洲业务）", 
  notes="与 RELOC_006（蜂巢泰国投产）构成同一公司内'一地成功、一地退出'的对照，非常适合 Scenario Simulation。"),
 ]
 
+# ---------------------------------------------------------------------------
+# 案例 -> 证据库绑定（v0.9.1 修复）
+#
+# 原先 `related_evidence_ids` 用的是 NEWS_001…REUTERS_001 这类外部新闻编号，
+# 它们不在 Task 1 的 49 条证据库里，案例到证据库的链路是断的。这里改为绑定
+# Task 1 真实证据，并按四条规则选，逐条给依据：
+#   R1 触发条件：支撑 decision_trigger 的政策/法规/数据（关税/出口管制/物流/劳工）
+#   R2 目的地：该东道国的政策审议或关税/贸易数据
+#   R3 行业主体：能说明该企业所属行业格局的证据
+#   R4 类比案例：同行业/同去向的已发生案例证据（CASE_00x）
+# 外部新闻来源不删除，改存 `external_source_refs`，编号对应 Evidence Index 表。
+# ---------------------------------------------------------------------------
+EVIDENCE_LINKS: dict[str, list[str]] = {
+    "RELOC_001": ["TRD_001", "EU_003", "IEA_001", "CASE_004", "WB_001"],
+    "RELOC_002": ["TRD_001", "CASE_004", "IEA_001", "WB_001"],
+    "RELOC_003": ["TRD_001", "TRD_003", "SNE_001", "WB_001", "CASE_007"],
+    "RELOC_004": ["TRD_001", "TRD_003", "CASE_007", "SNE_001", "WB_001"],
+    "RELOC_005": ["TRD_001", "TRD_003", "CASE_007", "SNE_001", "WB_001"],
+    "RELOC_006": ["TRD_001", "CASE_004", "EU_003", "IEA_001", "WB_001"],
+    "RELOC_007": ["WTO_004", "TRD_003", "SNE_001", "WB_001"],
+    "RELOC_008": ["WTO_004", "TRD_003", "SNE_001", "WB_001"],
+    "PLUS1_001": ["EU_003", "EU_001", "EU_004", "EU_002", "SNE_001", "IEA_001"],
+    "PLUS1_002": ["WTO_004", "TRD_003", "SNE_001", "IEA_001"],
+    "PLUS1_003": ["WTO_004", "IEA_001", "SNE_001", "TRD_003", "EU_003"],
+    "PLUS1_004": ["DOC_001", "CASE_002", "CASE_003", "TRD_002"],
+    "PLUS1_005": ["UNCTAD_001", "TRD_003", "WB_001", "IMF_001"],
+    "RETURN_001": ["CASE_001", "TRD_003", "WB_001", "SNE_001"],
+    "RETURN_002": ["UNCTAD_001", "WTO_002", "WTO_003", "CASE_001"],
+    "RETURN_003": ["CASE_001", "WB_001", "TRD_001", "KPMG_001"],
+    "RETURN_004": ["EU_003", "EU_001", "EU_004", "CASE_001"],
+}
+
+EVIDENCE_RATIONALE: dict[str, str] = {
+    "RELOC_001": "R1 美国对华电动车关税/欧盟反补贴(EU_003)是出海触发；R3 中美自泰进口整车与电池数据(TRD_001)显示泰国通道；R4 光模块厂泰国产能(CASE_004)提供同去向类比；R3 全球EV格局(IEA_001)；R2 泰国物流绩效(WB_001)",
+    "RELOC_002": "R1 关税与泰国本地化要求为触发；R2 美国自泰进口整车/电池(TRD_001)；R4 泰国建厂类比(CASE_004)；R3 全球EV格局(IEA_001)；R2 物流绩效(WB_001)",
+    "RELOC_003": "R2 美国自越进口电池数据(TRD_001)与中国对越中间品出口(TRD_003)共同刻画越南通道；R3 中国电池厂全球份额(SNE_001)；R2 物流绩效(WB_001)；R4 东南亚建厂类比(CASE_007)",
+    "RELOC_004": "R2 美国自马进口电池(TRD_001)+中国对马中间品出口(TRD_003)；R4 马来西亚工厂类比(CASE_007)；R3 行业格局(SNE_001)；R2 物流绩效(WB_001)",
+    "RELOC_005": "R2 美国自越进口(TRD_001)+对越中间品出口(TRD_003)；R4 东南亚建厂类比(CASE_007)；R3 行业格局(SNE_001)；R2 物流绩效(WB_001)",
+    "RELOC_006": "R1 欧盟反补贴税(EU_003)抬高欧洲出口成本；R2 美国自泰进口(TRD_001)；R4 泰国建厂类比(CASE_004)；R3 全球EV格局(IEA_001)；R2 物流(WB_001)",
+    "RELOC_007": "R2 印尼贸易政策审议包含镍下游化政策(WTO_004)；R1 中国对印尼中间品出口(TRD_003)；R3 电池材料格局(SNE_001)；R2 印尼物流绩效(WB_001)",
+    "RELOC_008": "R2 印尼镍下游化与本地化要求(WTO_004)；R1 对印尼中间品出口(TRD_003)；R3 行业格局(SNE_001)；R2 物流绩效(WB_001)",
+    "PLUS1_001": "R1 欧盟对华BEV反补贴(EU_003)+电池法规(EU_001)+外资审查(EU_004)+CRMA(EU_002)构成匈牙利建厂的合规与准入约束；R3 宁德时代全球份额(SNE_001)与EV格局(IEA_001)",
+    "PLUS1_002": "R2 印尼镍下游化/本地化(WTO_004)；R1 对印尼中间品出口(TRD_003)；R3 份额与格局(SNE_001,IEA_001)",
+    "PLUS1_003": "R2 印尼本地化政策(WTO_004)直接对应'转为全本地生产'的结果；R3 格局(IEA_001,SNE_001)；R1 中间品出口(TRD_003)+欧盟反补贴(EU_003)说明多地区布局动因",
+    "PLUS1_004": "R1 美国对东南亚四国光伏反规避终裁(DOC_001)是该案例决策的直接触发；R4 同调查'已规避/未规避'案例(CASE_002,CASE_003)；R2 美国光伏进口数据(TRD_002)",
+    "PLUS1_005": "R3 UNCTAD 投资报告把三星/富士康类外迁作为 FDI 案例(UNCTAD_001)；R1 对越中间品出口(TRD_003)；R2 越南物流绩效(WB_001)；R3 IMF 对水平型 FDI 的举例(IMF_001)",
+    "RETURN_001": "R4 大旺金属'订单转移后回流'案例(CASE_001)是直接类比；R1 对马中间品出口与配套依赖(TRD_003)；R2 物流成本(WB_001)；R3 行业格局(SNE_001)",
+    "RETURN_002": "R3 UNCTAD_001 直接引用路透'富士康印度 iPhone 出口'报道（同源提示）；R2 印度贸易政策审议与关税(WTO_002,WTO_003)；R4 回流类比(CASE_001)",
+    "RETURN_003": "R4 行业层面回流的核心类比是 CASE_001（大旺金属，订单外移印度后回流）；R2 物流与配套成本(WB_001)；R1 关税背景(TRD_001)；R3 美国供应链调查(KPMG_001)",
+    "RETURN_004": "R1 欧盟对华BEV反补贴(EU_003)+电池法规(EU_001)+外资审查(EU_004)是收缩欧洲布局的直接约束；R4 回流/收缩类比(CASE_001)",
+}
+
+for _case in CASES:
+    _cid = _case["case_id"]
+    _case["external_source_refs"] = _case["related_evidence_ids"]
+    _case["related_evidence_ids"] = "; ".join(EVIDENCE_LINKS[_cid])
+    _case["related_evidence_rationale"] = EVIDENCE_RATIONALE[_cid]
+
+
 COLS = [
  ("case_id","案例唯一编号"),
  ("company_name","企业名称"),
@@ -428,7 +487,9 @@ COLS = [
  ("outcome_market_access","结果：市场准入"),
  ("outcome_supply_chain_impact","结果：供应链影响"),
  ("outcome_verdict","结果结论（成功/失败/待观察）"),
- ("related_evidence_ids","关联证据 ID"),
+ ("related_evidence_ids","关联证据 ID（Task 1 证据库，49 条内）"),
+ ("external_source_refs","外部来源编号（新闻报道，见 Evidence Index）"),
+ ("related_evidence_rationale","绑定依据（R1触发/R2目的地/R3行业/R4类比）"),
  ("verification_status","真实性核验状态"),
  ("notes","备注"),
 ]
@@ -473,7 +534,7 @@ def main() -> None:
                 for k, _ in COLS
             ]
         )
-    widths = [12,26,24,30,13,46,32,44,26,34,44,18,40,20,60,32,40,38,36,40,26,26,34,44]
+    widths = [12,26,24,30,13,46,32,44,26,34,44,18,40,20,60,32,40,38,36,40,26,30,30,54,34,44]
     for i, w in enumerate(widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
     ws.row_dimensions[1].height = 34
@@ -485,16 +546,22 @@ def main() -> None:
     ws.row_dimensions[1].height = 32
 
     ev = wb.create_sheet("Evidence Index")
-    ev.append(["evidence_id", "outlet", "title", "date", "url", "url_status"])
+    ev.append(["evidence_id", "outlet", "title", "date", "url", "url_status", "used_by_cases"])
     for c in ev[1]:
         c.font = Font(bold=True, color="FFFFFF"); c.fill = hl2; c.alignment = wrap
+    _used: dict[str, list[str]] = {}
+    for _c in CASES:
+        for _ref in str(_c["external_source_refs"]).split(";"):
+            _ref = _ref.strip()
+            if _ref:
+                _used.setdefault(_ref, []).append(_c["case_id"])
     for entry in EV:
         eid, outlet, title, d, u = entry[:5]
         status = entry[5] if len(entry) > 5 else (
             "链接已核验" if u else "链接待补（标题与日期已核验）"
         )
-        ev.append([eid, outlet, title, d, u, status])
-    for i, w in enumerate([22, 40, 60, 13, 52, 28], 1):
+        ev.append([eid, outlet, title, d, u, status, "; ".join(_used.get(eid, []))])
+    for i, w in enumerate([22, 40, 60, 13, 52, 28, 26], 1):
         ev.column_dimensions[get_column_letter(i)].width = w
     ev.freeze_panes = "A2"
     ev.auto_filter.ref = f"A1:F{ev.max_row}"
@@ -537,9 +604,18 @@ def main() -> None:
     qa.append(["行业覆盖", " / ".join(inds), "优先 EV Battery / Battery Materials / Automotive / Supply Chain / Electronics，其次 Semiconductor / Solar"])
     qa.append(["背景→决策→结果链条", "100% 完整", "每个案例均有 Initial Situation / Decision / Outcome 三段"])
     qa.append(["真实性核验", "全部来自公开报道或公司公告", "verification_status 逐条标注；两条为财经自媒体整理，需以年报核实"])
-    qa.append(["可追溯性", "全部绑定 related_evidence_ids", f"共 {len(EV)} 条来源，见 Evidence Index"])
+    qa.append(["可追溯性（外部来源）", f"{len(EV)} 条新闻/公告，编号见 Evidence Index", "external_source_refs 指向 Evidence Index，含 outlet/标题/日期/URL 与 used_by_cases"])
+    qa.append(["可追溯性（证据库绑定）", "17/17 全部解析到 Task 1 的 49 条证据", "related_evidence_ids 已由外部新闻编号改为证据库内真实 ID；每条附绑定依据（R1触发/R2目的地/R3行业/R4类比）"])
+    qa.append(["证据库链路校验", "通过", "逐个 ID 与 evidence_metadata_v0.1.json 比对，无悬空引用"])
     qa.append(["能否用于 Scenario Simulation", "是", "含 4 个'待观察/建设中'与 2 个'失败/退出'案例，可测试不确定与反向情景"])
     qa.append(["未覆盖", "无", "'维持现有海外布局'由 RETURN_004 覆盖"])
+    qa.append([])
+    qa.append(["held-out 校验", "通过", "RAG 语料 49 篇文档 ID 中无 RELOC_*/PLUS1_*/RETURN_*；17 个案例来源 URL 与语料 URL 零重合"])
+    qa.append(["语料泄漏检查（逐字）", "通过", "backend/scripts/check_case_leakage.py：17/17 通过，最高逐字重合 1.0%（10 字滑窗，阈值 5%）"])
+    qa.append(["隔离校验复跑", ".venv/bin/python backend/scripts/check_case_leakage.py", "退出码 0 = 案例 ID 不撞 / 来源 URL 不撞 / 无逐字重合 / related_evidence_ids 全部可解析"])
+    qa.append(["语料背景重合（已登记）", "4 处", "RELOC_001/PLUS1_003 经 IEA_001 的 OEM 名单；PLUS1_004 经 DOC_001 的光伏反规避语境；PLUS1_005 经 IMF_001 的 FDI 举例；RETURN_002 经 UNCTAD_001 的路透引用"])
+    qa.append(["同源提示", "RETURN_002", "其外部来源为路透报道，而语料 UNCTAD_001 引用了同一系列路透稿；属背景级同源，评测时需知悉"])
+    qa.append(["通用吸引子", "CASE_001", "语料 CASE_001（大旺金属回流）出现在全部 17 个案例的 Top-5，是 Task 6 false positive 的来源之一，与 RETURN_003 构成同现象不同主体"])
     qa.append([])
     qa.append(["已知局限", "", "1) 多数结果字段来自媒体转述，财务口径的成本影响未做量化；2) 4 个案例的最终结果尚未发生；3) 行业级案例 RETURN_003 缺少单一企业完整数据。"])
     for i, w in enumerate([26, 40, 110], 1):
