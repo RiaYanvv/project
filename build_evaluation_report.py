@@ -85,13 +85,18 @@ def read_manual_scores() -> tuple[dict, dict]:
     return canon, {"canon": canon, "ext": ext, "all": both}
 
 
-def read_manual_coverage() -> float:
+def read_manual_coverage() -> tuple[float, float]:
+    """Mean human Coverage for the canonical 30 and for all 43 questions."""
     qs = load_workbook(Path("Task2_manual_scoring_v3.xlsx"), read_only=True, data_only=True)["Question Scoring"]
     rows = list(qs.iter_rows(values_only=True))
     hdr = [str(c).strip() if c is not None else "" for c in rows[0]]
     qi, ci = hdr.index("Question ID"), hdr.index("Coverage (0/1/2)")
-    sel = [r for r in rows[1:] if r[qi] and str(r[qi]) <= "Q030" and r[ci] is not None]
-    return sum(float(r[ci]) for r in sel) / max(1, len(sel))
+
+    def mean(lo: str, hi: str) -> float:
+        sel = [r for r in rows[1:] if r[qi] and lo <= str(r[qi]) <= hi and r[ci] is not None]
+        return sum(float(r[ci]) for r in sel) / max(1, len(sel))
+
+    return mean("Q001", "Q030"), mean("Q001", "Q043")
 
 
 def main() -> None:
@@ -119,7 +124,7 @@ def main() -> None:
     chunks = con.execute("select count(*) from knowledge_chunks").fetchone()[0]
 
     manual, m_ext = read_manual_scores()
-    manual_cov = read_manual_coverage()
+    manual_cov, manual_cov_all = read_manual_coverage()
 
     L: list[str] = []
     add = L.append
@@ -184,7 +189,7 @@ def main() -> None:
     add(f"| Avg Relevance (Top-5) | ≥ 1.5 | **{manual['rel']:.3f}** |")
     add(f"| Avg Authority (Top-5) | ≥ 1.5 | **{manual['auth']:.3f}** |")
     add(f"| Hit@5（≥1 条正确 Evidence） | ≥ 80% | **{manual['hit']:.0%}** |")
-    add(f"| Avg Coverage (0-2，Q001–Q030) | 参考 | {manual_cov:.3f} |")
+    add(f"| Avg Coverage (0-2) | 参考 | {manual_cov:.3f}（Q001–Q030）/ {manual_cov_all:.3f}（全 43 题） |")
     add("")
     add(f"v0.9 扩展集（Q031–Q043，65 条判定）：Relevance {m_ext['ext']['rel']:.3f} / Authority {m_ext['ext']['auth']:.3f} / Hit@5 {m_ext['ext']['hit']:.0%}；"
         f"合并 43 题：Relevance {m_ext['all']['rel']:.3f} / Authority {m_ext['all']['auth']:.3f} / Hit@5 {m_ext['all']['hit']:.0%}。"
@@ -311,8 +316,8 @@ def main() -> None:
     add("|---|---|")
     add(f"| P0 | **按风险维度多次检索**：现行单次检索 Risk Recall {risk_map['Risk Recall (mean over cases)']['Baseline']:.3f}，"
         f"按维度逐条检索的上界 {risk_map['风险可取回率（按维度逐条检索）']['Baseline']:.3f}，缺口在检索策略 |")
-    add("| P1 | 风险层改为**按风险维度多次检索**，而不是一次检索出一组证据 |")
-    add("| P1 | 人工 Coverage 评分目前只覆盖 Q001–Q030（30 题），Q031–Q043 的覆盖度尚无人工判定 |")
+    add("| P1 | 风险层改为**按风险维度多次检索**，而不是一次检索出一组证据；Task 6 的缺口高度集中：17 个案例里 **10 个漏了 Political Risk**，而误报集中在 Regulatory Risk(11) / Market Access Risk(10) |")
+    add("| P1 | 优化层在 5 道题上不如基线（Q002/Q032 的 R@10 由 1.000 降到 0.667，Q018/Q038/Q041 的 P@5 下降），优化是整体换分而不是逐题单调改进 |")
     add("| P2 | Task 5 案例库仍只有一线 OEM 与大型材料厂；印度/印尼/物流/labor 侧目前只有政策证据，没有案例 |")
     add("| P2 | Entity Accuracy 换口径（gold 覆盖率 + 相关性加权精度），才能作为可用指标 |")
     add("| P2 | 引用内容正确性校验（LLM 判定），把 Task 7 从结构校验升级为语义校验 |")
