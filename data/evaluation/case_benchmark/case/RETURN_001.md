@@ -36,7 +36,7 @@
 来源：恩捷股份公告（经东方财富网 / 央广网报道）
 原始链接：https://finance.eastmoney.com/a/202605223746866215.html
 核验状态：高（上市公司公告，多家财经媒体一致）
-关联证据编号：COMPANY_FILING_001; NEWS_018
+关联证据编号：CASE_001; TRD_003; WB_001; SNE_001
 
 ## 七、备注
 完整的'规划→终止'闭环案例，最能体现 Return/Reconsideration 类型。

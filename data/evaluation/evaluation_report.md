@@ -106,8 +106,11 @@ Entity Accuracy ≥ 0.95 在本语料上不可达：该指标分子是「Top-10 
 | 案例类型 | China → Southeast Asia relocation 8 / China + 1 5 / Reconsideration·Return 4 |
 | 决策触发 | 6/6 全覆盖（tariff / geopolitical / cost / supplier / market_access / regulation） |
 | 背景→决策→结果 | 4 段齐全，100% |
-| 真实性 | 全部来自公开报道或公司公告，逐条绑定 `related_evidence_ids` |
+| 真实性 | 全部来自公开报道或公司公告；外部来源编号存 `external_source_refs`（映射到 `case_database` 的 Evidence Index，含 outlet / 标题 / 日期 / URL） |
+| 证据库绑定 | 17/17 的 `related_evidence_ids` 解析到 Task 1 的 49 条证据（v0.9.1 修复：此前是 NEWS_001 一类外部编号，不在证据库内，链路是断的），并逐条写明绑定依据 |
 | 是否进入 RAG 语料 | **否**（17/17 held-out） |
+| 隔离校验（可复跑） | `backend/scripts/check_case_leakage.py` 通过：案例 ID 不与语料相撞、17 条来源 URL 与语料零重合、最高逐字重合 1.0%（10 字滑窗，阈值 5%） |
+| 已登记的背景重合 | 4 处（`RELOC_001`/`PLUS1_003` 经 `IEA_001` 的 OEM 名单、`PLUS1_004` 经 `DOC_001` 的光伏反规避语境、`PLUS1_005` 经 `IMF_001` 的 FDI 举例、`RETURN_002` 经 `UNCTAD_001` 引用的路透稿）；`RETURN_002` 属同源提示 |
 | 语料规模（复核） | 49 篇，全部为 Task 1 证据 |
 | 案例风险召回（基线 / 优化） | 0.779 / 0.681（详见 Task 6） |
 
@@ -183,13 +186,14 @@ Entity Accuracy ≥ 0.95 在本语料上不可达：该指标分子是「Top-10 
 ## 10. 复现
 
 ```bash
-.venv/bin/python backend/scripts/build_case_corpus.py            # Task 5 案例 -> held-out 基准（不入语料）
 .venv/bin/python backend/scripts/ingest_dataset.py \
     --data-root ../project-data/data --excel metadata/evidence_battery_EV_screened_v0.9.xlsx
 .venv/bin/python run_task2_eval_v2.py                           # Task 2
 .venv/bin/python run_task3_baseline.py && .venv/bin/python build_task3_report.py   # Task 3
 .venv/bin/python run_task4_eval.py                              # Task 4
 .venv/bin/python build_case_database.py                          # Task 5
+.venv/bin/python backend/scripts/build_case_corpus.py            # Task 5 案例渲染（held-out，勿 ingest）
+.venv/bin/python backend/scripts/check_case_leakage.py           # Task 5 隔离校验（退出码 0 = 通过）
 .venv/bin/python run_task67_eval.py                             # Task 6 / 7
 .venv/bin/python build_evaluation_report.py                      # 本报告
 ```

@@ -36,7 +36,7 @@
 来源：新浪财经
 原始链接：https://finance.sina.com.cn/stock/relnews/cn/2024-04-12/doc-inarqawt9056004.shtml
 核验状态：高（公司公告 + 主流财经媒体）
-关联证据编号：NEWS_009
+关联证据编号：WTO_004; TRD_003; SNE_001; WB_001
 
 ## 七、备注
 典型的'资源端外移而非制造端外移'案例。
