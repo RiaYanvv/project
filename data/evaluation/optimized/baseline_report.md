@@ -9,11 +9,11 @@
 
 | 指标 | Before | After | Delta |
 |---|---|---|---|
-| Precision@5 | 0.777 | 0.800 | +0.023 |
+| Precision@5 | 0.772 | 0.800 | +0.028 |
 | Recall@10 | 0.921 | 0.925 | +0.003 |
-| Entity Accuracy | 0.933 | 0.921 | -0.013 |
+| Entity Accuracy | 0.935 | 0.919 | -0.015 |
 | Entity Recall | 1.000 | 1.000 | +0.000 |
-| Entity Precision | 0.867 | 0.842 | -0.025 |
+| Entity Precision | 0.869 | 0.839 | -0.031 |
 | Hit@5 | 1.000 | 1.000 | +0.000 |
 | Mean Authority (Top-5) | 1.860 | 1.874 | +0.014 |
 
@@ -21,11 +21,11 @@
 
 | scenario_category | n | P@5 | R@10 | Entity Acc |
 |---|---|---|---|---|
-| Company Intelligence | 8 | 0.85 | 0.833 | 0.892 |
+| Company Intelligence | 8 | 0.825 | 0.833 | 0.892 |
 | Market Access | 8 | 0.8 | 0.948 | 0.943 |
-| Policy / Trade Risk | 14 | 0.786 | 0.964 | 0.933 |
+| Policy / Trade Risk | 14 | 0.786 | 0.964 | 0.929 |
 | Scenario Simulation Support | 6 | 0.833 | 0.895 | 0.94 |
-| Supply Chain Risk | 7 | 0.743 | 0.948 | 0.883 |
+| Supply Chain Risk | 7 | 0.771 | 0.948 | 0.883 |
 
 ## 2. Main Problems（相对 baseline 的变化）
 

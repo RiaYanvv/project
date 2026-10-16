@@ -10,16 +10,16 @@
 
 | 指标 | Baseline | 说明 |
 |---|---|---|
-| **Precision@5** | **0.777** | Top-5 中 relevance ≥ 1 的比例，按题平均 |
+| **Precision@5** | **0.772** | Top-5 中 relevance ≥ 1 的比例，按题平均 |
 | **Recall@10** | **0.921** | Top-10 中召回的 gold 证据 / 该题 gold 总数，按题平均 |
-| **Entity Accuracy** | **0.933** | (实体召回 + 实体精度) / 2，36 个含实体问题 |
+| **Entity Accuracy** | **0.935** | (实体召回 + 实体精度) / 2，36 个含实体问题 |
 
 支撑指标：
 
 | 指标 | Baseline |
 |---|---|
 | Entity Recall | 1.000（问题中的实体在 Top-10 中的覆盖） |
-| Entity Precision | 0.867（Top-10 中 13.3% 的证据与问题实体无关） |
+| Entity Precision | 0.869（Top-10 中 13.1% 的证据与问题实体无关） |
 | Hit@5 / Hit@10 | 100% / 100%（每题至少 1 条 gold） |
 | Mean Authority (Top-5) | 1.86（S/A+/A=2，B+=1） |
 
@@ -29,13 +29,13 @@
 |---|---|---|---|---|
 | Company Intelligence (8) | 8 | 0.825 | 0.917 | 0.942 |
 | Market Access (8) | 8 | 0.800 | 0.948 | 0.957 |
-| Policy / Trade Risk (14) | 14 | 0.757 | 0.936 | 0.929 |
+| Policy / Trade Risk (14) | 14 | 0.757 | 0.936 | 0.933 |
 | Scenario Simulation Support (6) | 6 | 0.800 | 0.829 | 0.940 |
-| Supply Chain Risk (7) | 7 | 0.714 | 0.948 | 0.900 |
+| Supply Chain Risk (7) | 7 | 0.686 | 0.948 | 0.900 |
 
 **一句话结论**：Top-5 的"能不能捞到正确证据"没有明显问题（Hit@5 = 100%），
 Recall@10 = 0.921 的主要拖累来自**企业案例题**与**案例证据对政策/宏观题的过召回**；
-Entity Accuracy (0.933) 受指标口径限制，主要反映 Entity Precision (0.867)。
+Entity Accuracy (0.935) 受指标口径限制，主要反映 Entity Precision (0.869)。
 
 ---
 
@@ -64,10 +64,10 @@ Entity Accuracy (0.933) 受指标口径限制，主要反映 Entity Precision (0
 
 | authority | 条数 | 平均排名 | 进 Top-3 |
 |---|---|---|---|
-| S | 78 | 2.64 | 77% |
-| A+ | 29 | 2.62 | 76% |
-| A | 10 | 4.40 | 30% |
-| B+ | 20 | 4.30 | 45% |
+| S | 78 | 2.62 | 77% |
+| A+ | 29 | 2.66 | 76% |
+| A | 10 | 4.30 | 30% |
+| B+ | 20 | 4.45 | 45% |
 
 ### 2.4 宏观文档漂移（较上一版明显减轻）
 
@@ -100,9 +100,9 @@ Entity Accuracy (0.933) 受指标口径限制，主要反映 Entity Precision (0
 
 | 指标 | 任务书假设 Before | 实测 Baseline | 任务书 After 目标 |
 |---|---|---|---|
-| Precision@5 | 65% | **77.7%** | ≥ 80% |
+| Precision@5 | 65% | **77.2%** | ≥ 80% |
 | Recall@10 | 70% | **92.1%** | ≥ 80% |
-| Entity Accuracy | 85% | **93.3%** | ≥ 95% |
+| Entity Accuracy | 85% | **93.5%** | ≥ 95% |
 
 **说明**：实测 baseline 高于任务书的假设值；且 Entity Accuracy ≥ 0.95 在本语料上不可达
 （gold 中包含大量不出现问题实体的宏观文档，检索越准该指标反而越低，见 `task4/baseline_vs_improved.md` §6）。
@@ -124,7 +124,7 @@ relevance 判定：2 = 在该题 `expected_evidence_ids` 内；1 = 不在 gold �
 2. 通用实体（China / United States / tariff）在多数文档中都出现，会**抬高** Entity Precision。
 3. 实体识别基于规则词典，未用 NER 模型。
 4. 本题集 Entity Recall 恒为 1.000：语料实体高度共现，召回端已饱和；
-   Entity Accuracy 的区分度全部来自 Entity Precision（0.867）。
+   Entity Accuracy 的区分度全部来自 Entity Precision（0.869）。
 5. `retrieval_results.xlsx` 中的 relevance / authority 为自动判定；人工评分见 Task 2 的 `Task2_manual_scoring_v3.xlsx`。
 
 ---
@@ -139,7 +139,7 @@ relevance 判定：2 = 在该题 `expected_evidence_ids` 内；1 = 不在 gold �
 | Q029 | Scenario Simulation Support | 0.6 | 0.6 | n/a |
 | Q010 | Policy / Trade Risk | 0.8 | 0.6 | 0.9 |
 | Q022 | Market Access | 0.6 | 0.75 | 0.95 |
-| Q018 | Supply Chain Risk | 0.8 | 0.8 | 0.85 |
+| Q018 | Supply Chain Risk | 0.6 | 0.8 | 0.85 |
 | Q026 | Scenario Simulation Support | 0.8 | 0.8 | 1 |
 
 ---
