@@ -18,11 +18,11 @@
 | 3 | 检索基线 | `data/evaluation/retrieval_questions.xlsx` / `retrieval_results.xlsx` / `entity_accuracy.xlsx` + `baseline_report.md` | P@5 0.772、R@10 0.921、EA 0.935 | ✅ / ⚠️EA |
 | 4 | 检索优化 | `task4/*.xlsx` + `baseline_vs_improved.md` + `optimized/*` | P@5 0.800、R@10 0.925 | ✅ |
 | 5 | 历史案例基准（held-out） | `historical_case_benchmark.xlsx` + `benchmark_results.xlsx` | 17 个真实案例、17/17 已摘出语料 | ✅ |
-| 6 | 风险识别 | `risk_assessment_checklist.xlsx` | Recall 0.799 / Precision 0.559 | ⚠️ |
+| 6 | 风险识别 | `risk_assessment_checklist.xlsx` | Recall 0.799 → **0.946**（P0 维度检索）/ Precision 0.559 → 0.535 | ✅ / ⚠️precision |
 | 7 | 引用可靠性 | `evidence_quality_test.xlsx` | 引用可追溯率 100%、语料元数据完整率 100% | ✅ |
 
 **一句话**：检索层已经可用（基线 P@5 0.772 / R@10 0.921，优化后 0.800 / 0.925，均超任务书 80% 目标）；
-**风险识别层仍是短板**——把 Task 5 的 17 个案例从语料摘出（改为 held-out 答案键）后，Risk Recall 由 0.461 升到 0.799，剩余缺口在「按风险维度检索」的策略，而非语料覆盖。
+**风险识别层已补上 P0**——按风险维度多次检索后 Risk Recall 0.799 → **0.946**（Missing 12 → 3 次），代价是 Precision 0.559 → 0.535，下降部分主要来自案例标注口径（见 §6 与 `FP Attribution` sheet）。
 
 ---
 
@@ -120,12 +120,17 @@ Entity Accuracy ≥ 0.95 在本语料上不可达：该指标分子是「Top-10 
 
 ## 6. Task 6 — Risk Assessment Evaluation
 
-| 指标 | Baseline | 说明 |
-|---|---|---|
-| Risk Recall | **0.799** | 期望风险中被证据链覆盖的比例 |
-| Risk Precision | **0.559** | 识别出的风险中属于期望风险的比例 |
-| Missing risks | 12 次 | 期望风险未被覆盖 |
-| False positives | 30 次 | 非该题风险却被识别 |
+| 指标 | Baseline（单次检索） | Optimized（Task 4 层） | **Risk-dimension（P0）** |
+|---|---|---|---|
+| Risk Recall (mean over cases) | **0.799** | **0.681** | **0.946** |
+| Risk Precision (mean over cases) | **0.559** | **0.610** | **0.535** |
+| Missing risks (total) | 12 | 18 | 3 |
+| False positives (total) | 30 | 20 | 39 |
+
+> `Risk-dimension` 是 **P0 之后的现行产品行为**（`RISK_DIMENSION_RETRIEVAL` 默认开启）：
+> 对六类风险各发一次检索，只保留被 Task 1 `related_risk` 标签确认过的条目，最后取并集。
+> 产品入口见 `backend/app/risk_dimension.py` + `AgentService._dimension_evidence`；
+> 评测与产品共用同一份 `RISK_DIMENSIONS` 与查询构造，探针即产品行为。
 
 三级诊断（定位差距在哪一层）：
 
@@ -133,12 +138,21 @@ Entity Accuracy ≥ 0.95 在本语料上不可达：该指标分子是「Top-10 
 |---|---|---|
 | L1 语料可表征 | 语料里有标注该类风险的证据 | 1.000 |
 | L2 检索可取回 | 按风险维度逐条检索时的覆盖 | 0.946 |
-| L3 现行流程 | 单次检索（现行产品行为） | 0.799 |
+| L3 P0 前（单次检索） | 现行产品行为 | 0.799 |
+| L3 P0 后（维度检索） | 现行产品行为 | 0.946 |
 
-**根因**：现行单次检索在「公司决策」类问题上把 Top-5 交给公司/案例类文档，
-而这些文档的 `related_risk` 集中在 Supply Chain / Operational；Trade / Market Access / Regulatory / Political
-四个维度要按维度单独提问才取得到（L2 0.946 vs L3 0.799，见 `By Risk Category` sheet）。
-把 benchmark 案例从语料摘出后 L3 由 0.461 升到 0.799；v0.9 语料扩到 49 篇（企业披露 + 贸易/物流/劳工政策）后 Risk Recall 为 0.799。
+**P0 结论**：把「一次检索出一组证据」改成「按风险维度多次检索」，Risk Recall 0.799 → **0.946**，Missing 12 → 3 次，已触及 L2 上界（0.946）；Precision 0.559 → 0.535（−0.024）。这是一次**召回换精度**的取舍，理由：漏掉一类必需风险会让下游风险评级直接缺项，多列一类真实存在的风险只是让 LLM 多一条可驳回的候选。
+
+**残余缺口**：3 次 missing 全部集中在 **Political Risk**（`PLUS1_004` / `RETURN_002` / `RETURN_003`）。这三个案例的预期风险里含地缘政治，但语料中 9 篇带 Political Risk 标签的证据在该维度检索下都没进 Top-5 —— 属于**语料侧**（政治风险证据多绑定中美/台海语境，缺与东南亚布局挂钩的政治风险材料），不是检索策略问题。
+
+**精度口径说明**：Precision 的下降主要是**标注口径**而非检索错误。误报里 Regulatory Risk 14 次、Market Access Risk 11 次，均可追溯到中国侧出口管制 / 公司年报披露与欧盟法规证据——对一家中国电池企业的东南亚布局，这两类风险客观存在，只是案例标注当初没有列。`risk_assessment_checklist.xlsx` 新增 **`FP Attribution` sheet**，逐条给出「被声称的风险 → 确认它的 evidence_id → 发布机构」，可直接复核。
+
+**优化层的相互作用**：把维度检索架在 Task 4 优化层之上，Risk Recall 反而从 0.946 掉到 0.877（Optimized 列的单次检索是 0.681）。优化层把预算压向高权威 / 强相关条目，挤掉的正是风险维度需要的「弱信号但正相关」证据。因此产品侧 `AgentService._dimension_provider` 显式绕开优化层，维度检索只走裸混合检索。
+
+**试过但没采用的方案**（阈值 / 裁剪都会把召回打回基线以下）：相关性阈值（best≥45 → Recall 0.691）、按 best score 取前 2–5 维（0.456–0.784）、要求 ≥2 条确认（0.466）、管辖域过滤 country∈{CN, 东道国}（0.574）、东道国或全球口径（0.520）。因此本模块选择「全量并集」。
+
+**根因（P0 前）**：单次「公司决策」式检索把 Top-5 交给公司/案例类文档，这些文档的 `related_risk` 集中在 Supply Chain / Operational；Trade / Market Access / Regulatory / Political
+四个维度要按维度单独提问才取得到。把 benchmark 案例从语料摘出后 L3 由 0.461 升到 0.799，v0.9 语料扩到 49 篇后为 0.799；P0 进一步升到 0.946。
 
 ---
 
@@ -174,8 +188,9 @@ Entity Accuracy ≥ 0.95 在本语料上不可达：该指标分子是「Top-10 
 
 | 优先级 | 事项 |
 |---|---|
-| P0 | **按风险维度多次检索**：现行单次检索 Risk Recall 0.799，按维度逐条检索的上界 0.946，缺口在检索策略 |
-| P1 | 风险层改为**按风险维度多次检索**，而不是一次检索出一组证据；Task 6 的缺口高度集中：17 个案例里 **10 个漏了 Political Risk**，而误报集中在 Regulatory Risk(11) / Market Access Risk(10) |
+| P0（已关闭） | ~~按风险维度多次检索~~ —— 已实现为 `backend/app/risk_dimension.py` + `AgentService._dimension_evidence`，Risk Recall 0.799 → 0.946 |
+| P0-余 | 残余 3 次 missing 全是 **Political Risk**（PLUS1_004 / RETURN_002 / RETURN_003）：语料里 9 篇 Political Risk 证据都绑在中美 / 台海语境，缺与东南亚布局挂钩的政治风险材料，属**补语料**而非改检索 |
+| P1 | 案例标注口径复核：`FP Attribution` sheet 里被标 NO 的 39 条，逐条判断是「标注漏了」还是「检索错了」；若是前者，应回填 `case_database_v0.1.xlsx` 的 `related_risk` 后重跑 Task 6 |
 | P1 | 优化层在 5 道题上不如基线（Q002/Q032 的 R@10 由 1.000 降到 0.667，Q018/Q038/Q041 的 P@5 下降），优化是整体换分而不是逐题单调改进 |
 | P2 | Task 5 案例库仍只有一线 OEM 与大型材料厂；印度/印尼/物流/labor 侧目前只有政策证据，没有案例 |
 | P2 | Entity Accuracy 换口径（gold 覆盖率 + 相关性加权精度），才能作为可用指标 |
