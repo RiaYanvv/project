@@ -457,8 +457,6 @@ Assessment data  →  LLM long-form report content  →  citation validation  �
 | `backend/app/prompts/`（或 `llm_prompts.py`） | 把 6 个 prompt 从 `llm.py` 抽出，便于评审与版本化 |
 | `backend/tests/test_live_llm.py` | 有 key 才跑的端到端真实调用测试 |
 | `backend/tests/test_evidence_binding.py` | 断言"无证据不得自动挂前两条" |
-| `backend/scripts/eval_retrieval.py` | 用 `data/evaluation/` 做小规模相关性评测 |
-
 **保持不动（明确不要碰）**
 
 `repository.py` 的存储形态、`main.py` 的路由契约、`RetrievalProvider` 接口、`pdf_report.py` 的排版骨架、全部 Pydantic 既有字段名、前端页面结构与请求格式。

@@ -8,13 +8,8 @@ __pycache__
 **/__pycache__
 *.pyc
 *.db
-data
 backend/test_data/app.db
-frontend
 node_modules
 md
 docs
-archive
-Task2_交付物
-Task3_交付物
-Task4_交付物
+presentation

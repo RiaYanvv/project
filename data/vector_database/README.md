@@ -36,6 +36,4 @@ backend/test_data/app.db          # 由 DATABASE_PATH 覆盖，默认即此路�
 
 ## 注意
 
-- Task 5 的 17 个案例（`RELOC_*` / `PLUS1_*` / `RETURN_*`）是 **held-out 答案键**，
-  仓库存放在 `data/evaluation/case_benchmark/`，**绝不可 ingest 进语料**，否则评测失效。
-- 重建后核对 `knowledge_documents` 计数应为 49，若多于 49 说明误把案例灌进去了。
+- 重建后核对 `knowledge_documents` 计数应为 53。

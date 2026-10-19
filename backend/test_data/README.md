@@ -11,12 +11,6 @@ Do not put any of the following here:
 - Runtime databases.
 - Personal assessment records.
 
-The runtime SQLite database is `app.db` and is excluded from Git.
-
-If the team decides that no data files should be published, keep this README and
-regenerate the ingestion index locally with:
-
-```powershell
-.\.venv\Scripts\python.exe backend\scripts\ingest_sources.py
-```
+The runtime SQLite database is `app.db` and is excluded from Git. Rebuild the
+index from `data/` with `backend/scripts/ingest_dataset.py`.
 

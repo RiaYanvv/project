@@ -15,7 +15,7 @@ Regulatory、Market Access 四个维度在单次检索里取不到。Task 6 实�
   （v0.9.2 补齐商务部东南亚/印度国别指南后，Political Risk 的 3 次 missing 归零。）
 
 阈值与裁剪都试过（相关性阈值、管辖域过滤、只取前 m 维、要求 >=2 条确认），
-没有一个能在召回上打过「全量并集」；见 `archive/task2_dev/` 之外的评测报告说明。
+没有一个能在召回上打过「全量并集」。
 因此本模块采用召回优先：漏掉一类必需风险，比多列一类真实存在的风险更贵。
 """
 from __future__ import annotations

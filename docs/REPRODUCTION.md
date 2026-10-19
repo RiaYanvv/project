@@ -25,8 +25,6 @@ contain a live API key.
 | `docs/workflow.md` | End-to-end phases, output contracts, rubric, confidence rules, and report structure |
 | `docs/agent.md` | Agent-stage summary and runtime responsibilities |
 | `docs/schema.md` | Shared IDs, null conventions, units, and API field naming |
-| `docs/PRD.md` | Product scope, users, requirements, and success criteria |
-| `docs/UI.md` | Page-level behavior and interaction specification |
 | `docs/profile list.md` | Company-profile intake fields and decision context |
 
 ## 3. Prompt locations
@@ -56,7 +54,6 @@ must be treated as the executable prompt definition when the two differ.
 | `data/raw/reports/` | Industry and multilateral reports |
 | `data/raw/trade/` | Trade data |
 | `data/raw/cases/`, `data/raw/news/` | Historical context and public news sources |
-| `data/evaluation/case_benchmark/` | Held-out historical cases; never ingest into retrieval |
 
 Rebuild the SQLite index from the repository root:
 
@@ -66,7 +63,7 @@ Rebuild the SQLite index from the repository root:
   --excel metadata/evidence_battery_EV_screened_v0.9.xlsx
 ```
 
-## 5. Tests and evaluation
+## 5. Tests
 
 Backend regression tests:
 
@@ -75,19 +72,6 @@ $env:LLM_PROVIDER = "mock"
 $env:LLM_REQUIRED = "false"
 .\.venv\Scripts\python.exe -m pytest backend\tests -q
 ```
-
-Evaluation runners:
-
-| Script | Purpose |
-| --- | --- |
-| `run_task2_eval_v2.py` | Retrieval evaluation |
-| `run_task3_baseline.py` | Precision, recall, and entity accuracy |
-| `run_task4_eval.py` | Metadata filter, query enhancement, and authority ranking |
-| `run_task67_eval.py` | Risk identification and citation traceability |
-| `build_evaluation_report.py` | Consolidated evaluation report |
-
-Packaged result files are under `Task2_交付物/`, `Task3_交付物/`,
-`Task4_交付物/`, and `data/evaluation/`.
 
 ## 6. Reproduce a local assessment
 

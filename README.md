@@ -123,18 +123,14 @@ FastAPI backend
 |-- data/
 |   |-- metadata/             证据元数据
 |   |-- raw/                  公开来源原文
-|   |-- processed/            处理后数据
-|   `-- evaluation/           检索与风险评估产物
+|   `-- vector_database/      索引重建说明
 |-- docs/
-|   |-- PRD.md                产品需求
-|   |-- UI.md                 页面与交互规格
 |   |-- workflow.md           Agent 工作流与评分规则
 |   |-- schema.md             共享数据契约
 |   |-- agent.md              Agent 阶段说明
+|   |-- profile list.md       企业画像字段说明
+|   |-- examples/             示例输入与输出
 |   `-- REPRODUCTION.md       复现材料索引
-|-- Task2_交付物/             检索评估交付物
-|-- Task3_交付物/             实体识别评估交付物
-|-- Task4_交付物/             检索优化评估交付物
 |-- Dockerfile
 |-- render.yaml
 |-- .env.example
@@ -300,10 +296,8 @@ $env:LLM_REQUIRED = "false"
 - 工作流与阶段规则：[`docs/workflow.md`](docs/workflow.md)
 - Agent 阶段说明：[`docs/agent.md`](docs/agent.md)
 - 数据契约：[`docs/schema.md`](docs/schema.md)
-- 产品需求：[`docs/PRD.md`](docs/PRD.md)
-- 页面规格：[`docs/UI.md`](docs/UI.md)
+- 企业画像字段：[`docs/profile list.md`](docs/profile list.md)
 - 提示词与配置文件索引：[`docs/REPRODUCTION.md`](docs/REPRODUCTION.md)
-- 测试与评估产物：`Task2_交付物/`、`Task3_交付物/`、`Task4_交付物/`、`data/evaluation/`
 
 提示词直接保存在后端源码中，工作流和评分档位在 `docs/workflow.md` 中有完整说明。项目不需要外部 Skill 才能运行。
 
