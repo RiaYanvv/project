@@ -1,0 +1,65 @@
+{
+  "company": {
+    "company_name": "Xiaopeng Motors",
+    "industry": "battery_ev",
+    "products": [
+      "Intelligent electric vehicles and battery packs"
+    ],
+    "home_country": "CN",
+    "production_locations": [
+      {
+        "country": "CN",
+        "production_share": 70,
+        "capacity_note": "Existing vehicle and PACK manufacturing base"
+      },
+      {
+        "country": "VN",
+        "production_share": 30,
+        "capacity_note": "Existing overseas footprint; plant-level capacity not disclosed"
+      }
+    ],
+    "target_markets": [
+      "US",
+      "EU",
+      "CN"
+    ],
+    "decision_question": "Should the company move part of PACK and vehicle assembly from China to Southeast Asia to reduce tariff and geopolitical exposure?",
+    "time_horizon": "6_18_months",
+    "priorities": [
+      {
+        "dimension": "supply_chain_resilience",
+        "weight": 5
+      },
+      {
+        "dimension": "market_access",
+        "weight": 4
+      },
+      {
+        "dimension": "compliance",
+        "weight": 3
+      },
+      {
+        "dimension": "cost_reduction",
+        "weight": 2
+      },
+      {
+        "dimension": "political_stability",
+        "weight": 1
+      }
+    ],
+    "priorities_declared": true,
+    "restrictions": [
+      "tariff_pressure",
+      "supplier_dependency",
+      "geopolitical_uncertainty"
+    ],
+    "hs_codes": [],
+    "investment_budget_usd": 75000000,
+    "key_supplier_count": 3,
+    "largest_supplier_share": 79,
+    "has_verified_bom": false,
+    "notes": "China production is approximately 70% and overseas production approximately 30%. Battery cells are purchased externally while PACK integration is performed in-house."
+  },
+  "llm_model": "deepseek-flash",
+  "language": "zh"
+}

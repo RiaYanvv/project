@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.db
+
+# Editors
+.vscode/
+.idea/
+
+# Node
+node_modules/
+
+# Office / Excel lock files
+.~*
+
+# Local backups, dev checkpoints and DB snapshots
+*.bak_*
+*.before_*
+*.checkpoint
+*.task2_backup
+*.db.before_*

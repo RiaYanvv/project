@@ -1,0 +1,870 @@
+from __future__ import annotations
+
+import asyncio
+import html
+import json
+import mimetypes
+import os
+from collections import OrderedDict
+from pathlib import Path
+from threading import Lock
+
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    StreamingResponse,
+)
+from fastapi.staticfiles import StaticFiles
+
+from .agent import AgentService
+from .company_research import CompanyResearchTool
+from .config import DEFAULT_CORS_ORIGIN_REGEX, PROJECT_ROOT, Settings
+from .knowledge import KnowledgeRepository
+from .llm import DeepSeekLLM, MockLLM
+from .pdf_report import build_assessment_pdf
+from .repository import AssessmentRepository
+from .retrieval import HybridRetrievalProvider
+from .runtime_guard import SlidingWindowLimiter
+from .retrieval_optimizer import build_optimizer_from_env
+from .schemas import (
+    Assessment,
+    AssessmentRequest,
+    ChatRequest,
+    ChatOpeningRequest,
+    ChatOpeningResponse,
+    CompanyInput,
+    RetrievalQuery,
+    ScenarioVersionSnapshot,
+    ScenarioUpdateRequest,
+)
+from .web_search import WebSearchTool
+
+
+settings = Settings.from_env()
+repository = AssessmentRepository(settings.database_path)
+knowledge_repository = KnowledgeRepository(settings.database_path)
+# Task 4 optimisation layer (metadata filtering / query enhancement /
+# authority ranking).  Off by default; enable with RETRIEVAL_OPTIMIZER=1
+# once the product-side review signs off on the Task 4 evaluation.
+retrieval = HybridRetrievalProvider(
+    repository=knowledge_repository,
+    web_search=WebSearchTool(enabled=settings.web_search_enabled),
+    optimizer=build_optimizer_from_env(),
+)
+
+if settings.llm_provider == "deepseek":
+    if not settings.deepseek_api_key:
+        raise RuntimeError(
+            "LLM_PROVIDER=deepseek but DEEPSEEK_API_KEY is missing. "
+            "Configure backend/.env or set LLM_PROVIDER=mock explicitly."
+        )
+    llm = DeepSeekLLM(
+        api_key=settings.deepseek_api_key,
+        base_url=settings.deepseek_base_url,
+        model=settings.deepseek_model,
+    )
+elif settings.llm_provider == "mock":
+    if settings.llm_required:
+        raise RuntimeError(
+            "LLM_REQUIRED=true but LLM_PROVIDER=mock. "
+            "Configure DeepSeek or set LLM_REQUIRED=false explicitly."
+        )
+    llm = MockLLM()
+else:
+    raise RuntimeError(
+        f"Unsupported LLM_PROVIDER={settings.llm_provider!r}. "
+        "Use 'deepseek' or 'mock'."
+    )
+
+agent = AgentService(
+    retrieval=retrieval,
+    llm=llm,
+    company_research=CompanyResearchTool(),
+)
+_report_cache: OrderedDict[tuple[str, str], bytes] = OrderedDict()
+_report_cache_lock = Lock()
+frontend_dir = PROJECT_ROOT / "frontend"
+
+app = FastAPI(
+    title="Geopolitical Supply Chain Decision Agent",
+    version="0.1.0",
+    description="Evidence-based China+1 relocation assessment MVP.",
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=list(settings.cors_origins),
+    allow_origin_regex=settings.cors_origin_regex,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+_request_limiter = SlidingWindowLimiter()
+_assessment_limiter = SlidingWindowLimiter()
+
+
+@app.middleware("http")
+async def public_demo_rate_limit(request, call_next):
+    """Protect the public LLM budget without exposing credentials to clients."""
+    if request.method == "OPTIONS" or not request.url.path.startswith("/api/"):
+        return await call_next(request)
+    forwarded = request.headers.get("x-forwarded-for", "")
+    client_key = (
+        forwarded.split(",", 1)[0].strip()
+        or (request.client.host if request.client else "unknown")
+    )
+    per_minute = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
+    assessments_per_hour = int(
+        os.getenv("ASSESSMENT_RATE_LIMIT_PER_HOUR", "20")
+    )
+    if not _request_limiter.allow(client_key, per_minute, 60):
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Too many requests; please retry later."},
+        )
+    if (
+        request.method == "POST"
+        and request.url.path == "/api/v1/assessments"
+        and not _assessment_limiter.allow(
+            client_key,
+            assessments_per_hour,
+            3600,
+        )
+    ):
+        return JSONResponse(
+            status_code=429,
+            content={
+                "detail": "Assessment limit reached; please retry later."
+            },
+        )
+    return await call_next(request)
+# The frontend lives on its own branch, so the backend must also run without it.
+if frontend_dir.is_dir():
+    app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
+
+
+@app.get("/", include_in_schema=False, response_model=None)
+def index() -> FileResponse | JSONResponse:
+    index_file = frontend_dir / "index.html"
+    if index_file.is_file():
+        return FileResponse(index_file)
+    return JSONResponse(
+        {
+            "service": "Geopolitical Supply Chain Decision Agent",
+            "frontend": "not bundled on this branch",
+            "docs": "/docs",
+            "health": "/health",
+        }
+    )
+
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {
+        "status": "ok",
+        "llm_provider": llm.mode,
+        "model": getattr(llm, "model", "mock"),
+    }
+
+
+@app.get("/api/v1/meta")
+def meta() -> dict[str, object]:
+    knowledge_stats = knowledge_repository.stats()
+    return {
+        "app_env": settings.app_env,
+        "llm_provider": llm.mode,
+        "retrieval_provider": (
+            "hybrid+web" if settings.web_search_enabled else "hybrid"
+        )
+        if knowledge_stats["ready"]
+        else "mock",
+        "data_mode": "hybrid" if knowledge_stats["ready"] else "mock",
+        "knowledge": knowledge_stats,
+        "available_models": [
+            {
+                "id": "deepseek-flash",
+                "name": "DeepSeek Flash",
+                "description": "速度更快，适合常规分析和快速迭代。",
+            },
+            {
+                "id": "deepseek-v4-pro",
+                "name": "DeepSeek V4 Pro",
+                "description": "深度思考更强，会展示更多推理过程。",
+            },
+        ],
+        "contract_version": "1.0",
+        "deepseek_configured": bool(settings.deepseek_api_key),
+        "llm_configured": llm.mode == "deepseek" and bool(settings.deepseek_api_key),
+        "llm_required": settings.llm_required,
+        "supported_languages": ["en", "zh"],
+        "cors_origins": list(settings.cors_origins),
+        "cors_origin_regex": settings.cors_origin_regex,
+        # The backend-owned key is sufficient. The browser key is only optional
+        # when no server key is configured.
+        "api_key_required": not bool(settings.deepseek_api_key),
+    }
+
+
+@app.get("/api/v1/evidence")
+def evidence_lookup(
+    query: str = Query(min_length=2, max_length=500),
+    industry: str = "battery_ev",
+    country: str = "CN",
+    market: str = "US",
+    limit: int = Query(default=10, ge=1, le=50),
+):
+    retrieval_query = RetrievalQuery(
+        industry=industry,
+        products=[query],
+        home_country=country,
+        production_countries=["VN"],
+        target_markets=[market],
+        decision_question=query,
+        restrictions=[],
+        limit=limit,
+    )
+    return {"items": retrieval.search(retrieval_query)}
+
+
+@app.get("/api/v1/knowledge/stats")
+def knowledge_stats() -> dict[str, int | bool]:
+    return knowledge_repository.stats()
+
+
+@app.get("/api/v1/scenario/rubric")
+def scenario_scoring_rubric() -> dict[str, object]:
+    return {
+        "version": "scenario-rubric-v1",
+        "principle": (
+            "The LLM selects a qualitative band with reasons and evidence. "
+            "The backend maps bands to fixed scores and computes the weighted total."
+        ),
+        "bands": {
+            band: {
+                "score": score,
+                "meaning": meaning,
+            }
+            for band, score, meaning in (
+                (
+                    "very_favourable",
+                    85,
+                    "Evidence clearly supports the scenario with no major uncertainty.",
+                ),
+                (
+                    "favourable",
+                    70,
+                    "Evidence supports the scenario with manageable uncertainty.",
+                ),
+                (
+                    "neutral",
+                    55,
+                    "Evidence is insufficient to distinguish this dimension.",
+                ),
+                (
+                    "unfavourable",
+                    35,
+                    "Evidence points to clear cost, risk or implementation pressure.",
+                ),
+                (
+                    "very_unfavourable",
+                    20,
+                    "Evidence indicates the route is materially exposed or infeasible.",
+                ),
+            )
+        },
+        "dimensions": {
+            "cost_score": {
+                "input_band": "cost",
+                "priority": "cost_reduction",
+                "weight_factor": 1.0,
+            },
+            "resilience_score": {
+                "input_band": "resilience",
+                "priority": "supply_chain_resilience",
+                "weight_factor": 1.0,
+            },
+            "geopolitical_risk_score": {
+                "input_band": "geopolitical_risk",
+                "priority": "political_stability",
+                "weight_factor": 1.0,
+            },
+            "market_access_score": {
+                "input_band": "market_access",
+                "priority": "market_access",
+                "weight_factor": 1.0,
+            },
+            "implementation_score": {
+                "input_band": "implementation",
+                "priority": "compliance",
+                "weight_factor": 0.5,
+            },
+        },
+        "formula": (
+            "weighted_score = sum(dimension_score * effective_priority_weight "
+            "* weight_factor) / sum(effective_priority_weight * weight_factor)"
+        ),
+        "evidence_gate": (
+            "A dimension without qualifying evidence is forced to neutral (55) "
+            "and marked as inference."
+        ),
+    }
+
+
+def _resolve_document_path(document_path: str | None) -> Path | None:
+    """Resolve a stored document path to a file on disk (data branch layout)."""
+    if not document_path:
+        return None
+    candidates = []
+    raw = Path(document_path)
+    candidates.append(raw if raw.is_absolute() else PROJECT_ROOT / raw)
+    candidates.append(settings.data_root / raw.name)
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    # Fall back to a filename search under the data root.
+    if settings.data_root.is_dir() and raw.name:
+        for found in settings.data_root.rglob(raw.name):
+            if found.is_file():
+                return found
+    return None
+
+
+@app.get("/api/v1/evidence/{evidence_id}/document")
+def evidence_document(evidence_id: str):
+    """Serve the original document behind one evidence item.
+
+    Local files (data branch) are streamed; web-only evidence redirects to the
+    source URL so the frontend can always open something.
+    """
+    source_id = ""
+    if evidence_id.startswith("EVD-"):
+        chunk_id = evidence_id[4:]
+        source_id = chunk_id.split("-C")[0] if "-C" in chunk_id else chunk_id
+
+    source = knowledge_repository.document_source(source_id) if source_id else None
+
+    if source is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "No stored document for this evidence item. Web-search evidence is "
+                "served from its original URL in the evidence `url` field."
+            ),
+        )
+
+    local_file = _resolve_document_path(source.get("document_path"))
+    if local_file:
+        media_type = mimetypes.guess_type(str(local_file))[0] or "application/octet-stream"
+        return FileResponse(local_file, media_type=media_type, filename=local_file.name)
+
+    url = source.get("url")
+    if url:
+        return RedirectResponse(url, status_code=307)
+
+    raise HTTPException(
+        status_code=404,
+        detail="This evidence item has no local document and no source URL.",
+    )
+
+
+@app.post("/api/v1/assessments/{assessment_id}/scenarios", response_model=Assessment)
+def update_scenarios(
+    assessment_id: str, request: ScenarioUpdateRequest
+) -> Assessment:
+    """Re-run the scenario stage with constraints gathered during consultation."""
+    assessment = repository.get(assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="assessment not found")
+    try:
+        updated = agent.resimulate(
+            assessment,
+            additional_constraints=request.additional_constraints,
+            update_ids=request.update_ids,
+            base_version=request.base_version,
+            api_key=request.api_key,
+            model_name=request.llm_model,
+            language=request.language,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    repository.save(updated)
+    return updated
+
+
+@app.post("/api/v1/assessments/restore", response_model=Assessment)
+def restore_assessment(assessment: Assessment) -> Assessment:
+    """Restore an assessment saved in a browser project into the live store.
+
+    Render's free web instance has an ephemeral filesystem. Projects keep the
+    original assessment payload in localStorage, so reopening a historical
+    project can repopulate the current container before chat/report calls.
+    """
+    if not assessment.assessment_id:
+        raise HTTPException(status_code=400, detail="assessment_id is required")
+    repository.save(assessment)
+    return assessment
+
+
+@app.delete(
+    "/api/v1/assessments/{assessment_id}/context-updates/{update_id}",
+    response_model=Assessment,
+)
+def delete_context_update(
+    assessment_id: str,
+    update_id: str,
+) -> Assessment:
+    assessment = repository.get(assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="assessment not found")
+    remaining = [
+        item
+        for item in assessment.context_updates
+        if item.update_id != update_id
+    ]
+    if len(remaining) == len(assessment.context_updates):
+        raise HTTPException(status_code=404, detail="context update not found")
+    updated = assessment.model_copy(update={"context_updates": remaining})
+    repository.save(updated)
+    return updated
+
+
+@app.post("/api/v1/assessments", response_model=Assessment)
+def create_assessment(request: AssessmentRequest) -> Assessment:
+    try:
+        assessment = agent.run(
+            request.company,
+            api_key=request.api_key,
+            model_name=request.llm_model,
+            language=request.language,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    repository.save(assessment)
+    return assessment
+
+
+@app.post("/api/v1/assessments/stream")
+async def create_assessment_stream(request: AssessmentRequest) -> StreamingResponse:
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue[dict] = asyncio.Queue()
+
+    def event_callback(event: dict) -> None:
+        loop.call_soon_threadsafe(queue.put_nowait, event)
+
+    async def run_job() -> None:
+        try:
+            assessment = await asyncio.to_thread(
+                agent.run,
+                request.company,
+                request.api_key,
+                request.llm_model,
+                event_callback,
+                request.language,
+            )
+            repository.save(assessment)
+            await queue.put(
+                {
+                    "type": "assessment",
+                    "assessment": assessment.model_dump(mode="json"),
+                }
+            )
+        except Exception as exc:  # noqa: BLE001
+            await queue.put(
+                {
+                    "type": "error",
+                    "message": f"{type(exc).__name__}: {exc}",
+                }
+            )
+        finally:
+            await queue.put({"type": "done"})
+
+    async def event_stream():
+        task = asyncio.create_task(run_job())
+        try:
+            while True:
+                event = await queue.get()
+                yield json.dumps(event, ensure_ascii=False) + "\n"
+                if event["type"] == "done":
+                    break
+        finally:
+            if not task.done():
+                task.cancel()
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="application/x-ndjson",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.get("/api/v1/assessments/{assessment_id}", response_model=Assessment)
+def get_assessment(assessment_id: str) -> Assessment:
+    assessment = repository.get(assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="assessment not found")
+    return assessment
+
+
+def _scenario_version_snapshots(
+    assessment: Assessment,
+) -> list[ScenarioVersionSnapshot]:
+    """Return an append-only history, backfilling legacy assessments.
+
+    Assessments created before scenario snapshots existed were stored with
+    scenarios but an empty history. Returning [] made the history drawer look
+    broken and made "restore from history" impossible. The current scenario
+    becomes v1 for those records without mutating the assessment on read.
+    """
+    history = list(assessment.scenario_history)
+    if not history and assessment.scenarios:
+        history = [
+            ScenarioVersionSnapshot(
+                version=max(1, assessment.scenario_version),
+                created_at=assessment.updated_at,
+                label=(
+                    "初始分析"
+                    if assessment.language == "zh"
+                    else "Initial analysis"
+                ),
+                scenarios=assessment.scenarios,
+                recommendation=assessment.recommendation,
+                is_latest=True,
+            )
+        ]
+    if not history:
+        return []
+    latest_version = max(item.version for item in history)
+    return [
+        item.model_copy(
+            update={"is_latest": item.version == latest_version}
+        )
+        for item in sorted(history, key=lambda item: item.version)
+    ]
+
+
+@app.get(
+    "/api/v1/assessments/{assessment_id}/scenario-versions",
+    response_model=list[ScenarioVersionSnapshot],
+)
+def get_scenario_versions(
+    assessment_id: str,
+) -> list[ScenarioVersionSnapshot]:
+    assessment = repository.get(assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="assessment not found")
+    return _scenario_version_snapshots(assessment)
+
+
+@app.get(
+    "/api/v1/assessments/{assessment_id}/scenario-versions/{version}",
+    response_model=ScenarioVersionSnapshot,
+)
+def get_scenario_version(
+    assessment_id: str,
+    version: int,
+) -> ScenarioVersionSnapshot:
+    assessment = repository.get(assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="assessment not found")
+    snapshot = next(
+        (
+            item
+            for item in _scenario_version_snapshots(assessment)
+            if item.version == version
+        ),
+        None,
+    )
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail="scenario version not found")
+    return snapshot
+
+
+@app.post(
+    "/api/v1/assessments/{assessment_id}/chat/opening",
+    response_model=ChatOpeningResponse,
+)
+def chat_opening(
+    assessment_id: str,
+    request: ChatOpeningRequest,
+) -> ChatOpeningResponse:
+    assessment = repository.get(assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="assessment not found")
+    return agent.chat_opening(assessment, request.language)
+
+
+@app.post("/api/v1/assessments/{assessment_id}/chat", response_model=Assessment)
+def chat(assessment_id: str, request: ChatRequest) -> Assessment:
+    assessment = repository.get(assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="assessment not found")
+    try:
+        updated = agent.chat(assessment, request)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    repository.save(updated)
+    return updated
+
+
+@app.post("/api/v1/assessments/{assessment_id}/chat/stream")
+async def chat_stream(
+    assessment_id: str,
+    request: ChatRequest,
+) -> StreamingResponse:
+    """Stream consultation progress as NDJSON.
+
+    The frontend can use the stage events to keep its progress indicator tied to
+    real backend work instead of a fixed timer. The final event carries the same
+    Assessment payload as the synchronous chat endpoint.
+    """
+    assessment = repository.get(assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="assessment not found")
+
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue[dict] = asyncio.Queue()
+
+    def event_callback(event: dict) -> None:
+        loop.call_soon_threadsafe(queue.put_nowait, event)
+
+    async def run_job() -> None:
+        try:
+            updated = await asyncio.to_thread(
+                agent.chat,
+                assessment,
+                request,
+                event_callback,
+            )
+            repository.save(updated)
+            await queue.put(
+                {
+                    "type": "assessment",
+                    "assessment": updated.model_dump(mode="json"),
+                }
+            )
+        except Exception as exc:  # noqa: BLE001
+            await queue.put(
+                {
+                    "type": "error",
+                    "message": f"{type(exc).__name__}: {exc}",
+                }
+            )
+        finally:
+            await queue.put({"type": "done"})
+
+    async def event_stream():
+        task = asyncio.create_task(run_job())
+        try:
+            while True:
+                event = await queue.get()
+                yield json.dumps(event, ensure_ascii=False) + "\n"
+                if event["type"] == "done":
+                    break
+        finally:
+            if not task.done():
+                task.cancel()
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="application/x-ndjson",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+    )
+
+
+def _cached_report_pdf(
+    assessment: Assessment,
+) -> tuple[bytes, Assessment]:
+    key = (assessment.assessment_id, assessment.updated_at)
+    with _report_cache_lock:
+        cached = _report_cache.get(key)
+        if cached is not None:
+            _report_cache.move_to_end(key)
+            return cached, assessment
+
+    report_content = assessment.report_content
+    if report_content is None:
+        report_content = agent.generate_report(assessment)
+        assessment = assessment.model_copy(
+            update={"report_content": report_content}
+        )
+        repository.save(assessment)
+    pdf_bytes = build_assessment_pdf(assessment)
+    with _report_cache_lock:
+        _report_cache[key] = pdf_bytes
+        _report_cache.move_to_end(key)
+        while len(_report_cache) > 8:
+            _report_cache.popitem(last=False)
+    return pdf_bytes, assessment
+
+
+@app.get("/api/v1/assessments/{assessment_id}/report")
+def report(
+    assessment_id: str,
+    download: bool = Query(False),
+) -> StreamingResponse:
+    assessment = repository.get(assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="assessment not found")
+    pdf_bytes, assessment = _cached_report_pdf(assessment)
+    filename = f"{assessment.assessment_id}-decision-report.pdf"
+    disposition = "attachment" if download else "inline"
+    etag = f'W/"{assessment.assessment_id}-{assessment.updated_at}"'
+    return StreamingResponse(
+        iter([pdf_bytes]),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'{disposition}; filename="{filename}"',
+            "Cache-Control": "private, max-age=300",
+            "ETag": etag,
+        },
+    )
+
+
+@app.get(
+    "/api/v1/assessments/{assessment_id}/report/html",
+    response_class=HTMLResponse,
+)
+def report_html(assessment_id: str) -> HTMLResponse:
+    assessment = repository.get(assessment_id)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="assessment not found")
+    return HTMLResponse(_render_report(assessment))
+
+
+@app.get("/api/v1/schema/assessment")
+def assessment_schema() -> dict:
+    return Assessment.model_json_schema()
+
+
+def _render_intelligence(assessment: Assessment) -> str:
+    """Company Intelligence part of the HTML report.
+
+    Renders the structured company model (footprint, supply chain, gaps) instead
+    of repeating the user's form input. Returns "" for assessments created before
+    the schema existed.
+    """
+    intelligence = getattr(assessment, "company_intelligence", None)
+    if intelligence is None:
+        return ""
+    blocks: list[str] = []
+    if intelligence.manufacturing_footprint:
+        rows = "".join(
+            "<tr>"
+            f"<td>{html.escape(str(site.country))}</td>"
+            f"<td>{html.escape(str(site.facility or '—'))}</td>"
+            f"<td>{html.escape(str(site.role or '—'))}</td>"
+            f"<td>{site.production_share if site.production_share is not None else '未知'}</td>"
+            f"<td>{html.escape(str(site.capacity))}</td>"
+            f"<td>{html.escape(str(site.status))}</td>"
+            "</tr>"
+            for site in intelligence.manufacturing_footprint
+        )
+        blocks.append(
+            "<h2>全球生产布局</h2><table><thead><tr>"
+            "<th>国家</th><th>设施</th><th>角色</th><th>占比</th>"
+            "<th>产能</th><th>状态</th></tr></thead>"
+            f"<tbody>{rows}</tbody></table>"
+        )
+    if intelligence.supply_chain_structure:
+        rows = "".join(
+            "<tr>"
+            f"<td>{html.escape(stage.stage)}</td>"
+            f"<td>{html.escape(str(stage.region))}</td>"
+            f"<td>{html.escape(str(stage.company_role))}</td>"
+            f"<td>{html.escape(str(stage.share))}</td>"
+            "</tr>"
+            for stage in intelligence.supply_chain_structure
+        )
+        blocks.append(
+            "<h2>供应链结构</h2><table><thead><tr>"
+            "<th>环节</th><th>地区</th><th>该公司角色</th><th>占比</th>"
+            "</tr></thead>"
+            f"<tbody>{rows}</tbody></table>"
+        )
+    gaps = [
+        gap for gap in intelligence.information_gaps if not isinstance(gap, str)
+    ]
+    if gaps:
+        rows = "".join(
+            "<tr>"
+            f"<td>{html.escape(gap.priority)}</td>"
+            f"<td>{html.escape(gap.item)}</td>"
+            f"<td>{html.escape(gap.why_it_matters)}</td>"
+            f"<td>{html.escape(gap.recommended_action)}</td>"
+            "</tr>"
+            for gap in gaps
+        )
+        blocks.append(
+            "<h2>信息缺口</h2><table><thead><tr>"
+            "<th>优先级</th><th>缺失信息</th><th>为什么重要</th><th>建议动作</th>"
+            "</tr></thead>"
+            f"<tbody>{rows}</tbody></table>"
+        )
+    return "".join(blocks)
+
+
+def _render_report(assessment: Assessment) -> str:
+    risks = "".join(
+        f"<li><strong>{html.escape(item.name)}</strong>："
+        f"{html.escape(item.business_impact)} "
+        f"<small>({item.severity}, {item.probability}%)</small></li>"
+        for item in assessment.risks
+    )
+    scenarios = "".join(
+        f"<tr><td>{html.escape(item.name)}</td><td>{item.weighted_score}</td>"
+        f"<td>{html.escape(item.description)}</td></tr>"
+        for item in assessment.scenarios
+    )
+    evidence = "".join(
+        f"<li>[{html.escape(item.evidence_id)}] {html.escape(item.title)} - "
+        f"{html.escape(item.publisher)}"
+        f"{' (MOCK)' if item.is_mock else ''}</li>"
+        for item in assessment.evidence
+    )
+    limitations = "".join(
+        f"<li>{html.escape(item)}</li>" for item in assessment.limitations
+    )
+    company_name = html.escape(assessment.company_profile.company_name)
+    company_summary = html.escape(assessment.company_profile.summary)
+    recommendation_headline = html.escape(assessment.recommendation.headline)
+    recommendation_rationale = html.escape(assessment.recommendation.rationale)
+    intelligence = _render_intelligence(assessment)
+    return f"""<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>{company_name} - 决策报告</title>
+<style>
+body {{ font-family: Arial, "Microsoft YaHei", sans-serif; max-width: 900px;
+margin: 40px auto; color: #17212b; line-height: 1.65; }}
+h1, h2 {{ color: #102a43; }}
+table {{ width: 100%; border-collapse: collapse; margin: 18px 0; }}
+th, td {{ border: 1px solid #d9e2ec; padding: 10px; text-align: left; }}
+th {{ background: #eef4f8; }}
+small {{ color: #52606d; }}
+.print {{ margin-top: 24px; }}
+@media print {{ .print {{ display: none; }} body {{ margin: 0; }} }}
+</style>
+</head>
+<body>
+<h1>供应链迁移决策初步报告</h1>
+<p>{company_summary}</p>
+{intelligence}
+<h2>主要风险</h2>
+<ul>{risks}</ul>
+<h2>情景比较</h2>
+<table><thead><tr><th>方案</th><th>综合分</th><th>说明</th></tr></thead>
+<tbody>{scenarios}</tbody></table>
+<h2>初步建议</h2>
+<p><strong>{recommendation_headline}</strong></p>
+<p>{recommendation_rationale}</p>
+<h2>证据</h2>
+<ul>{evidence}</ul>
+<h2>边界与不确定性</h2>
+<ul>{limitations}</ul>
+<button class="print" onclick="window.print()">打印或导出 PDF</button>
+</body>
+</html>"""

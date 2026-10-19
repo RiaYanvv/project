@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: georisk-agent
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: LLM_PROVIDER
+        value: deepseek
+      - key: LLM_REQUIRED
+        value: "true"
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: DEEPSEEK_BASE_URL
+        value: https://api.deepseek.com
+      - key: DEEPSEEK_MODEL
+        value: deepseek-flash
+      - key: DATABASE_PATH
+        value: /app/backend/test_data/app.db
+      - key: EVIDENCE_PATH
+        value: /app/backend/test_data/mock_evidence.json
+      - key: WEB_SEARCH_ENABLED
+        value: "false"
+      - key: RETRIEVAL_OPTIMIZER
+        value: "0"
+      - key: RISK_DIMENSION_RETRIEVAL
+        value: "1"
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "40"
+      - key: ASSESSMENT_RATE_LIMIT_PER_HOUR
+        value: "12"
+      - key: CORS_ORIGINS
+        value: https://georisk-locus.netlify.app

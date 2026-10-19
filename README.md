@@ -1,181 +1,327 @@
-# Locus — AI Supply Chain Relocation Decision Agent
+# Locus
 
-Locus is an evidence-based decision-support assistant for manufacturing companies that are
-re-balancing production between China and other regions under geopolitical uncertainty. It helps a
-supply-chain or strategy team compare relocation options — keep the current footprint, increase
-China capacity, move production elsewhere, or diversify — and returns an explainable,
-source-backed recommendation.
+Locus 是面向制造业供应链负责人的地缘政治供应链决策 Agent。系统将企业画像、政策与行业证据、风险判断、情景推演、咨询对话和最终决策报告串成一条可追溯的工作流，用于比较维持现有布局、提高中国生产占比、区域迁移和多国混合布局等方案。
 
-The first target industry is the **EV / battery supply chain**.
+当前聚焦 EV / 电池供应链，重点解决三个问题：
 
----
+- 将分散在政策、贸易数据、公司披露和行业报告中的证据整理成可引用的事实。
+- 将成本、供应链韧性、地缘政治风险、市场准入和落地可行性放在同一评分框架下比较。
+- 保留假设、不确定性、信息来源和版本记录，让决策者能够复核结论。
 
-## Why this exists
+Locus 是决策支持工具，不替代法律、海关或投资尽调结论。
 
-Many companies moved production to Vietnam, India, Thailand or Indonesia to reduce tariff exposure.
-A large share then found that leaving China does not automatically lower total cost: the mature
-supplier ecosystem, engineering talent, logistics density and energy stability are hard to
-replicate. Re-evaluating that decision is slow because the relevant information is fragmented
-across policy documents, trade data, news and country-level risk reports.
+## 在线系统
 
-Locus turns that fragmented material into a structured decision: build a company profile, retrieve
-evidence, assess risks, simulate scenarios and report the recommendation together with its sources
-and its uncertainty.
+- 产品页面：<https://georisk-locus.netlify.app>
+- 后端健康检查：<https://georisk-agent.onrender.com/health>
+- API 文档：<https://georisk-agent.onrender.com/docs>
 
----
+Render 免费实例会在闲置后休眠。第一次访问可能需要约 30 至 60 秒唤醒后端。在线页面不需要用户填写 API Key，模型凭证只配置在服务端环境变量中。
 
-## How it works
+## 产品流程
 
-```
-User input
-   |
-   v
-Company profile
-   |
-   v
-Evidence retrieval (knowledge base + optional web search)
-   |
-   v
-Risk assessment (trade, political, supply chain, regulatory, market access, operational)
-   |
-   v
-Scenario simulation (maintain, increase China production, relocate, hybrid)
-   |
-   v
-AI consultation (add constraints, upload documents, update scenarios)
-   |
-   v
-Final decision report (PDF) and saved decision project
+```text
+企业画像与决策问题
+        |
+        v
+RAG 检索与证据校验
+        |
+        v
+六类供应链风险判断
+        |
+        v
+多情景推演与五维评分
+        |
+        v
+咨询对话、信息补充与版本更新
+        |
+        v
+五段式最终决策报告（PDF）
 ```
 
-The backend agent runs six stages — profile, research, risk, scenario, advisor and verification.
-Every stage is written into a trace, LLM output is validated against a strict schema, and a
-rule-based fallback keeps the pipeline running when a model response fails validation.
+后端按 Profile、Research、Risk、Scenario、Advisor、Verification 六个 Agent 阶段运行。前端以流式事件显示阶段进度，并保存决策项目、情景版本、咨询记录和报告状态。
 
----
+## 核心能力
 
-## Product surface
+### 企业画像
 
-* **Home** — product entry point with the consultation call to action.
-* **Decision form** — quick assessment plus an optional deeper assessment (site details, supplier
-  dependency, investment constraints, decision priorities).
-* **Initial assessment** — agent summary, qualitative risk radar, risk detail with linked evidence,
-  decision rationale and an explicit uncertainty panel.
-* **Scenario simulation** — simulation transition, scenario comparison (overall score, five
-  dimensions, confidence), expandable scenario analysis and a preliminary strategic report.
-* **AI consultation workspace** — persistent decision-context panel, chat with evidence-grounded
-  answers, add information (documents and structured constraints), scenario update, report
-  generation.
-* **Final decision report** — generation transition, embedded PDF preview returned by the backend,
-  download, back to consultation (which marks the report outdated if the analysis changes), and
-  end consultation & save decision.
-* **My Decisions** — decision projects with two states: *In progress* (resumes at the stage you left
-  off) and *Completed* (read-only decision record, plus re-assess and delete).
-* **English / 中文** interface switch.
+记录公司名称、产品、母国、生产地点与占比、目标市场、决策问题、预算、时间范围、优先级和约束条件。系统接受用户输入作为当前推演基线，同时显式列出缺失信息和待核验项。
 
-The frontend is plain HTML/CSS/JS with no build step.
+### 证据检索
 
----
+- SQLite FTS5 全文检索与向量列组合。
+- metadata filtering、query enhancement 和 authority ranking。
+- 按风险维度进行补充检索。
+- 证据保留 ID、发布机构、日期、权威等级、来源类型和原文链接。
+- 支持公司披露、政策文件、贸易数据、行业报告和历史案例等来源。
 
-## Repository layout
+### 风险判断
 
-Work happens on role branches; this branch (`main`) holds the README.
+风险覆盖贸易政策、政治与地缘、供应链、监管合规、市场准入和运营实施六类。高严重度或未核验结论会标记为需要人工复核。
 
-| Branch | Contents |
+### 情景推演
+
+每个情景包含：
+
+- 综合分与置信度。
+- 成本影响、供应链韧性、地缘政治风险、市场准入和落地可行性五个维度。
+- `Very favourable` 至 `Very unfavourable` 五档 Band。
+- 每档对应的理由和证据引用。
+- 与上一版本相比的整数分数变化。
+- 无充分证据时的置信度上限和人工复核提示。
+
+### 咨询与版本
+
+用户可以补充供应商、产能、预算、合同和认证信息。系统将新信息结构化后保存，支持重新推演情景，并保留历史版本快照。
+
+### 决策报告
+
+报告按管理层阅读顺序生成：
+
+1. Executive Decision Brief
+2. Decision Context
+3. Strategic Options
+4. Execution Plan & Decision Gates
+5. Appendix
+
+原始证据清单、详细风险表和打分明细放在附录，避免工作日志式输出。
+
+## 技术架构
+
+```text
+Browser
+  |
+  | static HTML/CSS/JS
+  v
+FastAPI backend
+  |-- Agent orchestration
+  |-- SQLite RAG index
+  |-- DeepSeek API or mock provider
+  |-- Report composer
+  `-- PDF renderer
+```
+
+| 层 | 技术 |
 | --- | --- |
-| `main` | README and project-level notes |
-| `docs` | `PRD.md`, `UI.md`, `schema.md`, `backend changes.md`, `profile list.md`, `agent.md`, `schedule.md` |
-| `frontend` | The web app: `index.html`, `styles.css`, `refinements.css`, `app.js`, `i18n.js` |
-| `backend` | FastAPI service: agent pipeline, retrieval, report generation, streaming API |
-| `data` | Source documents (`data/raw/...`) and evidence metadata (`data/metadata/...`) |
+| 前端 | 原生 HTML、CSS、JavaScript，无构建步骤 |
+| 后端 | Python 3.12、FastAPI、Pydantic、Uvicorn |
+| 检索 | SQLite FTS5、向量列、metadata filter、authority ranking |
+| 模型 | DeepSeek API；未配置时可使用 mock provider |
+| 文档 | ReportLab PDF |
+| 部署 | Render Docker 后端、Netlify 静态前端 |
 
-`docs/schema.md` defines the shared field naming, ID prefixes, units and null conventions that both
-sides of the API follow, and `docs/backend changes.md` tracks everything the frontend still needs
-from the backend.
+## 仓库结构
 
----
+```text
+.
+|-- backend/
+|   |-- app/                  FastAPI、Agent、检索、评分和 PDF
+|   |-- scripts/              数据入库与检索检查脚本
+|   |-- tests/                后端回归测试
+|   `-- test_data/            测试用证据和入库说明
+|-- frontend/                 产品页面，无构建步骤
+|-- data/
+|   |-- metadata/             证据元数据
+|   |-- raw/                  公开来源原文
+|   |-- processed/            处理后数据
+|   `-- evaluation/           检索与风险评估产物
+|-- docs/
+|   |-- PRD.md                产品需求
+|   |-- UI.md                 页面与交互规格
+|   |-- workflow.md           Agent 工作流与评分规则
+|   |-- schema.md             共享数据契约
+|   |-- agent.md              Agent 阶段说明
+|   `-- REPRODUCTION.md       复现材料索引
+|-- Task2_交付物/             检索评估交付物
+|-- Task3_交付物/             实体识别评估交付物
+|-- Task4_交付物/             检索优化评估交付物
+|-- Dockerfile
+|-- render.yaml
+|-- .env.example
+`-- README.md
+```
 
-## Getting started
+## 本地运行
 
-### Frontend only (preview mode)
+### 环境要求
+
+- Python 3.12
+- Windows PowerShell、macOS 或 Linux shell
+- 可选：DeepSeek API Key。没有 Key 时仍可用 `mock` provider 运行完整流程。
+
+前端是静态文件，后端会直接托管 `frontend/`，不需要单独安装 Node.js。
+
+### 1. 安装依赖
+
+Windows PowerShell：
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
+Copy-Item .env.example .env
+```
+
+macOS / Linux：
 
 ```bash
-cd frontend
-python3 -m http.server 8123
+python3 -m venv .venv
+.venv/bin/python -m pip install -r backend/requirements.txt
+cp .env.example .env
 ```
 
-Then open <http://127.0.0.1:8123/>. Without a backend the app runs a local, clearly-labelled preview
-assessment so the whole flow can be demonstrated.
+### 2. 配置环境变量
 
-### Backend
+编辑根目录 `.env`。无 API Key 的本地演示配置：
+
+```ini
+APP_ENV=development
+LLM_PROVIDER=mock
+LLM_REQUIRED=false
+DEEPSEEK_API_KEY=
+WEB_SEARCH_ENABLED=false
+```
+
+连接 DeepSeek 时：
+
+```ini
+APP_ENV=development
+LLM_PROVIDER=deepseek
+LLM_REQUIRED=true
+DEEPSEEK_API_KEY=<your-deepseek-api-key>
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-flash
+WEB_SEARCH_ENABLED=false
+```
+
+`.env` 已被 `.gitignore` 排除。不要将真实 Key 写入源码、前端、README、截图或提交记录。
+
+### 3. 构建 RAG 索引
+
+在仓库根目录执行：
+
+```powershell
+.\.venv\Scripts\python.exe backend\scripts\ingest_dataset.py `
+  --data-root data `
+  --excel metadata/evidence_battery_EV_screened_v0.9.xlsx
+```
+
+macOS / Linux：
+
+```bash
+.venv/bin/python backend/scripts/ingest_dataset.py \
+  --data-root data \
+  --excel metadata/evidence_battery_EV_screened_v0.9.xlsx
+```
+
+默认索引输出到 `backend/test_data/app.db`。该文件被 `.gitignore` 排除，必须在本地重新生成。
+
+### 4. 启动后端与前端
+
+Windows PowerShell：
+
+```powershell
+Set-Location backend
+..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+macOS / Linux：
 
 ```bash
 cd backend
-python -m venv .venv
-.venv/bin/pip install -r requirements.txt
-.venv/bin/uvicorn app.main:app --reload
+../.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-The API runs on <http://127.0.0.1:8000> and the same server also serves the frontend at `/`.
-Optional settings are read from a `.env` file at the repository root:
+打开：
 
-```ini
-DEEPSEEK_API_KEY=...        # enables live model calls
-LLM_PROVIDER=deepseek       # or "mock" for the rule-based pipeline
-WEB_SEARCH_ENABLED=true
+- 产品页面：<http://127.0.0.1:8000>
+- API 文档：<http://127.0.0.1:8000/docs>
+- 健康检查：<http://127.0.0.1:8000/health>
+
+### 5. 仅运行前端预览
+
+不启动后端时，可以在 `frontend/` 下运行静态服务器。页面会明确标记为本地示意结果。
+
+```bash
+cd frontend
+python -m http.server 8123
 ```
 
-### Connecting the frontend to the agent
+打开 <http://127.0.0.1:8123>。
 
-Define the integration globals before `app.js` loads:
+## 运行模式
 
-```html
-<script>
-  window.LOCUS_API_BASE = "http://127.0.0.1:8000";
-  window.LOCUS_API_KEY  = "your DeepSeek API key";
-  window.LOCUS_MODEL    = "deepseek-flash";
-</script>
-```
-
----
-
-## API surface (v1)
-
-| Method | Path | Purpose |
+| 模式 | 配置 | 行为 |
 | --- | --- | --- |
-| `GET` | `/health` | Liveness check |
-| `GET` | `/api/v1/meta` | Model, retrieval and knowledge-base status |
-| `GET` | `/api/v1/evidence` | Evidence lookup by query |
-| `POST` | `/api/v1/assessments` | Run the full agent pipeline |
-| `POST` | `/api/v1/assessments/stream` | Same pipeline with NDJSON stage events |
-| `GET` | `/api/v1/assessments/{id}` | Retrieve a saved assessment |
-| `POST` | `/api/v1/assessments/{id}/chat` | Consult on an assessment |
-| `GET` | `/api/v1/assessments/{id}/report` | Decision report as PDF |
-| `GET` | `/api/v1/assessments/{id}/report/html` | Decision report as HTML |
-| `GET` | `/api/v1/schema/assessment` | JSON schema of the assessment contract |
+| Mock | `LLM_PROVIDER=mock`、`LLM_REQUIRED=false` | 使用规则与本地样例完成端到端演示，不调用外部模型 |
+| DeepSeek | `LLM_PROVIDER=deepseek`、`LLM_REQUIRED=true` | 调用服务端配置的 DeepSeek API |
 
----
+前端不会要求用户输入 DeepSeek Key。前端请求只发送 `api_key: "server-managed"` 作为兼容字段，真实 Key 由后端从环境变量读取。
 
-## Design principles
+## 主要 API
 
-* **Evidence-based** — important conclusions carry sources; the evidence library records publisher,
-  date, authority level and topic.
-* **Explainable** — the interface shows the factors, evidence, assumptions and uncertainty behind an
-  assessment. It never exposes model chain-of-thought.
-* **Human in the loop** — outputs are decision support, not autonomous decisions; high-severity or
-  unverified findings are flagged for human review.
-* **No false precision** — risk is expressed as qualitative levels, and scenario scores are labelled
-  as AI-generated estimates rather than predictions.
+| Method | Path | 用途 |
+| --- | --- | --- |
+| `GET` | `/health` | 服务与模型状态 |
+| `GET` | `/api/v1/meta` | 检索和知识库状态 |
+| `GET` | `/api/v1/evidence` | 证据检索 |
+| `POST` | `/api/v1/assessments` | 完整评估 |
+| `POST` | `/api/v1/assessments/stream` | NDJSON 流式评估 |
+| `GET` | `/api/v1/assessments/{id}` | 读取评估 |
+| `POST` | `/api/v1/assessments/{id}/chat` | 咨询对话 |
+| `GET` | `/api/v1/assessments/{id}/report` | 下载 PDF 报告 |
+| `GET` | `/api/v1/schema/assessment` | 评估 JSON Schema |
 
----
+示例请求见 [`docs/examples/sample-input.json`](docs/examples/sample-input.json)，示例输出说明见 [`docs/examples/sample-output.md`](docs/examples/sample-output.md)。
 
-## Current status
+## 测试
 
-* The full workflow runs end to end in preview mode: form, assessment, scenario simulation,
-  consultation, final report, saved decision project.
-* The live Agent path is implemented (FastAPI + DeepSeek, NDJSON streaming, PDF report) and needs the
-  backend running with an API key.
-* Remaining backend work is tracked in `docs/backend changes.md` — among others: configurable CORS,
-  serving raw evidence documents, a scenario re-run endpoint, a structured chat response, document
-  upload, report versioning, and the final report content specification.
-* Personas, evaluation plan and roadmap are in `docs/PRD.md`.
+在仓库根目录执行：
+
+```powershell
+$env:LLM_PROVIDER = "mock"
+$env:LLM_REQUIRED = "false"
+.\.venv\Scripts\python.exe -m pytest backend\tests -q
+```
+
+后端测试覆盖画像解析、风险维度、情景评分、置信度降级、咨询闭环、PDF 渲染回归和历史评估恢复。
+
+## 部署说明
+
+仓库提供：
+
+- `Dockerfile`：构建 FastAPI 镜像并生成 SQLite 索引。
+- `render.yaml`：Render 服务、健康检查和环境变量模板。
+- `DEPLOYMENT.md`：Netlify 与 Render 的部署步骤。
+
+生产环境必须在 Render 环境变量中配置 `DEEPSEEK_API_KEY`。`render.yaml` 只保存变量名，不保存真实值。
+
+## 复现材料
+
+- 工作流与阶段规则：[`docs/workflow.md`](docs/workflow.md)
+- Agent 阶段说明：[`docs/agent.md`](docs/agent.md)
+- 数据契约：[`docs/schema.md`](docs/schema.md)
+- 产品需求：[`docs/PRD.md`](docs/PRD.md)
+- 页面规格：[`docs/UI.md`](docs/UI.md)
+- 提示词与配置文件索引：[`docs/REPRODUCTION.md`](docs/REPRODUCTION.md)
+- 测试与评估产物：`Task2_交付物/`、`Task3_交付物/`、`Task4_交付物/`、`data/evaluation/`
+
+提示词直接保存在后端源码中，工作流和评分档位在 `docs/workflow.md` 中有完整说明。项目不需要外部 Skill 才能运行。
+
+## 敏感信息
+
+交付内容遵循以下规则：
+
+- 不提交 `.env`、SQLite 运行库、用户上传文件或个人评估记录。
+- `.env.example` 只包含空值和示例配置。
+- 前端只保留 `server-managed` 占位符。
+- 部署凭证放在 Render 环境变量中。
+
+提交前应执行敏感信息扫描，并确认旧提交历史中没有可用的真实凭证。
+
+## 已知限制
+
+- 公开证据不一定包含企业级 BOM、合同和客户认证信息。
+- 情景分值是决策支持估算，不是预测或法律结论。
+- 生产地点产能、分厂利用率和市场销量需要用户补充。
+- Render 免费实例存在冷启动等待。
+- PDF 和长对话请求需要更长的网络等待时间。

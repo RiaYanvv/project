@@ -1,0 +1,78 @@
+TASK 2 — RETRIEVAL BASELINE
+===========================
+
+Evaluation mode
+---------------
+Questions: 30
+Retrieval: local-only
+Web search: disabled
+Top-K: 5
+
+Primary metrics
+---------------
+Hit@1:  90.00%
+Hit@3: 100.00%
+Hit@5: 100.00%
+MRR:    0.9500
+
+Coverage metrics
+----------------
+Mean Recall@5:          81.73%
+Normalized Coverage@5: 82.11%
+Perfect Coverage:       18/30
+Coverage < 0.50:         5/30
+
+First relevant evidence rank
+----------------------------
+Rank 1: 27/30
+Rank 2:  3/30
+Rank 3+: 0/30
+
+Low-coverage diagnostic
+-----------------------
+Q010:
+  CASE_002 #1
+  CASE_003 >20
+  DOC_001  >20
+
+Q012:
+  WEF_001    #1
+  IMF_001    >20
+  UNCTAD_001 >20
+
+Q014:
+  ITA_001 #1
+  BIS_001 >20
+  BIS_002 >20
+
+Q018:
+  TRD_003  #1
+  CASE_002 #12
+  CASE_003 >20
+
+Q030:
+  WH_002   #1
+  CASE_010 #5
+  CASE_007 #6
+  CASE_004 #12
+  CASE_006 #18
+  CASE_005 >20
+  TRD_001  >20
+
+Decision
+--------
+Freeze this retrieval baseline.
+
+Reason:
+The system achieves 100% Hit@3 and Hit@5 with MRR 0.95.
+The remaining low-coverage cases are primarily candidate-retrieval /
+multi-intent coverage issues rather than small Top-5 ranking errors.
+Changing global ranking weights solely to recover these benchmark gold
+documents risks overfitting and regression in the already strong
+first-relevant-document ranking.
+
+Artifacts
+---------
+task2_baseline_results.csv
+task2_baseline_results.json
+task2_baseline_summary.txt

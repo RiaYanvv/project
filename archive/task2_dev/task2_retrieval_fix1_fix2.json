@@ -1,0 +1,2429 @@
+{
+  "summary": {
+    "benchmark_file": "task2_retrieval_evaluation_v0.7.xlsx",
+    "retrieval_mode": "hybrid_local_only",
+    "web_search": false,
+    "top_k": 5,
+    "industry": "battery_ev",
+    "home_country": "CN",
+    "production_countries": [],
+    "target_markets": [],
+    "question_count": 30,
+    "hit_count": 25,
+    "miss_count": 5,
+    "hit_at_5": 0.8333333333333334,
+    "target_hit_at_5": 0.8,
+    "target_passed": true
+  },
+  "results": [
+    {
+      "question_id": "Q001",
+      "question": "我们正在评估把部分产能转移到泰国。现有企业案例显示，哪些中国制造企业已经在泰国建设或扩充产能？这些案例能为海外建厂节奏提供什么参考？",
+      "scenario_category": "Company Intelligence",
+      "expected_topic": "supply_chain",
+      "expected_evidence_ids": [
+        "CASE_004",
+        "CASE_005",
+        "CASE_006"
+      ],
+      "difficulty": "Easy",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-TRD_001-C0000",
+          "evidence_id": "TRD_001",
+          "relevance_score_raw": 53,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 - Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–20...",
+          "content": "Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: US / Federal Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。 Content summary: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-CASE_001-C0000",
+          "evidence_id": "CASE_001",
+          "relevance_score_raw": 32,
+          "authority_level": "B+",
+          "publisher": "路透社（Reuters）",
+          "topic": "供应链布局",
+          "title": "Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 - Evidence ID: CASE_001 Title: Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 Publishe...",
+          "content": "Evidence ID: CASE_001 Title: Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 Publisher: 路透社（Reuters） Country/Jurisdiction: CN / National Publication date: 2026-09-14 Status: CURRENT Topic: 供应链布局 Applicability scope: GENERAL Related industries: 金属铸造 Key finding: 路透原文《Companies left China to dodge tariffs. Now some are heading back》。丹东铸造企业，美国客户转单印度后回流；企业评估外迁后放弃。可作“China+1执行难度”的反向案例。 Content summary: 路透原文《Companies left China to dodge tariffs. Now some are heading back》。丹东铸造企业，美国客户转单印度后回流；企业评估外迁后放弃。可作“China+1执行难度”的反向案例。"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-CASE_006-C0615",
+          "evidence_id": "CASE_006",
+          "relevance_score_raw": 29,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "天孚通信：泰国一期投产、二期2025年投入使用 - nfo-count\"><span class=\"read-percent\">部分试看</span><a href=\"https://news.q...",
+          "content": "nfo-count\"><span class=\"read-percent\">部分试看</span><a href=\"https://news.qq.com/omn/author/8QMd33hY6IYUvz7a\" target=\"_blank\" rel=\"noopener\">一财有看投</a><span>09-09</span></div></div></div><div class=\"qqcom-article-cell-info-media\" style=\"margin-left: 45px;\"><img class=\"qqcom-article-cell-info-image\" src=\"./CASE_006_files/0(11)\" alt=\"\"></div></div></div><div class=\"qqcom-article-cell recommend-article-cell\"><div class=\"qqcom-article-cell-common\"><div class=\"qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" title=\"粤芯半导体产能利用率96.38%趋于饱和，资本开支居高不下，中期表现看什么？\">粤芯半导体产能利用率96.38%趋于饱和，资本开支居高不下，中期表现看什么？</div><div class=\"qqcom-article-cell-info-bottom\"><div class=\"qqcom-article-cell-info-count\"><a href=\"https://news.qq.com/omn/author/8QMc339c6IIbujjb7wZz\" target=\"_blank\" rel=\"noopener\">市场度刻面</a><span>17小时前</span></div></div></div><div class=\"qqcom-article-cell-info-media\" style=\"margin-left: 45px;\"><img class=\"qqcom-article-cell-info-imag"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-CASE_004-C0621",
+          "evidence_id": "CASE_004",
+          "relevance_score_raw": 28,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "中际旭创：泰国工厂产能与国内基本齐平 - /div><div class=\"qqcom-article-cell recommend-article-cell\"><div class=\"...",
+          "content": "/div><div class=\"qqcom-article-cell recommend-article-cell\"><div class=\"qqcom-article-cell-common\"><div class=\"qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" title=\"6英寸晶圆代工产能持续偏紧，这家公司晶圆厂产能预计今年四季度有明显释放丨机构调研\">6英寸晶圆代工产能持续偏紧，这家公司晶圆厂产能预计今年四季度有明显释放丨机构调研</div><div class=\"qqcom-article-cell-info-bottom\"><div class=\"qqcom-article-cell-info-count\"><span class=\"read-percent\">部分试看</span><a href=\"https://news.qq.com/omn/author/8QMc1nxf7YwUvjY%3D\" target=\"_blank\" rel=\"noopener\">21世纪经济报道</a><span>09-04</span></div></div></div><div class=\"qqcom-article-cell-info-media\" style=\"margin-left: 45px;\"><img class=\"qqcom-article-cell-info-image\" src=\"./CASE_004_files/0(8)\" alt=\"\"></div></div></div><div class=\"qqcom-article-cell recommend-article-cell\"><div class=\"qqcom-article-cell-common\"><div class=\"qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" title=\"粤芯半导体产能利用率96.38%趋于饱和，资本开支居高不下，中期表现看什么？\">粤芯半导体产能利用率96.38%趋于饱和，资本开支"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-CASE_008-C0083",
+          "evidence_id": "CASE_008",
+          "relevance_score_raw": 22,
+          "authority_level": "B+",
+          "publisher": "中国基金报",
+          "topic": "供应链布局",
+          "title": "光模块厂商选择东南亚建厂以规避与欧美客户合作风险（中际旭创互动平台回复等） - 元器件，它主要负责完成信号的光电转换和电光转换。</p><p style=\"letter-spacing: 0.578px;text-wrap:...",
+          "content": "元器件，它主要负责完成信号的光电转换和电光转换。</p><p style=\"letter-spacing: 0.578px;text-wrap: wrap;\">2023年以来，Open AI的ChatGPT引爆全球对于生成式AI的投资热潮，以微软、谷歌为代表的大型云计算公司大力投入AI数据中心的建设。</p><p style=\"letter-spacing: 0.578px;text-wrap: wrap;\">而包括“易中天”（新易盛、中际旭创、天孚通信）在内国内光模块头部玩家，主要销售市场为海外市场。以中际旭创为例，其2023年海外销售占比达到84.65%，新易盛这一比例也达到83.75%。<o:page></o:page></p><p style=\"letter-spacing: 0.578px;text-wrap: wrap;\">因此，这些厂商不约而同将产能扩张的地点选择了东南亚。在业内看来，选择在东南亚建厂的主要目的是在扩大产能的基础上，规避与欧美客户合作的风险。</p><p style=\"letter-spacing: 0.578px;text-wrap: wrap;\">中际旭创7月14日互动平台上透露，公司泰国工厂一二期产能建设早已达成，能够稳定量产高端光模块产品，满足海外客户的需求，后续新产能建设也正在稳步推进中。</p><p style=\"letter-spacing: 0.578px;text-wrap: wrap;\">新易盛近日也公开表示，其泰国工厂一期已于2023年上半年正式运营，产能持续提升，泰国工厂二期正在建设中。</p><p style=\"letter-spacing: 0.578px;text-wrap: wrap;\">而天孚通信同样表示，公司泰国工厂部分车间6月进入样品阶段，前期需要经过样品认证通过后才能逐步提升产能。华工科技也透露，泰国海外工厂正在加紧建设中，具体产能会根据客户预测和建设情况进行增加和调整。</p><p style=\"letter-spacing: 0.578px;text-wrap: wrap;text-align: center;\"><span style=\"color: rgb(2, 30, 170);\"><st"
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "TRD_001",
+        "CASE_001",
+        "CASE_006",
+        "CASE_004",
+        "CASE_008"
+      ],
+      "matched_evidence_ids": [
+        "CASE_004",
+        "CASE_006"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q002",
+      "question": "如果管理层想了解中国企业在马来西亚布局以降低地缘风险的公开案例，现有证据库里有哪些直接案例可参考？",
+      "scenario_category": "Company Intelligence",
+      "expected_topic": "supply_chain",
+      "expected_evidence_ids": [
+        "CASE_007"
+      ],
+      "difficulty": "Easy",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-TRD_001-C0000",
+          "evidence_id": "TRD_001",
+          "relevance_score_raw": 48,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 - Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–20...",
+          "content": "Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: US / Federal Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。 Content summary: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-CASE_010-C0000",
+          "evidence_id": "CASE_010",
+          "relevance_score_raw": 33,
+          "authority_level": "S",
+          "publisher": "美国白宫（经律所解读）",
+          "topic": "原产地与转运",
+          "title": "白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 - Evidence ID: CASE_010 Title: 白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 Publisher: 美国白宫...",
+          "content": "Evidence ID: CASE_010 Title: 白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 Publisher: 美国白宫（经律所解读） Country/Jurisdiction: US / Federal Publication date: 2026-08-13 Status: CURRENT Topic: 原产地与转运 Applicability scope: GENERAL Related industries: 通用 Key finding: 由WH_001与WH_002组成。对已在越南/泰国/马来西亚布局的企业，原产地举证压力上升。 Content summary: 由WH_001与WH_002组成。对已在越南/泰国/马来西亚布局的企业，原产地举证压力上升。"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-CASE_007-C0000",
+          "evidence_id": "CASE_007",
+          "relevance_score_raw": 31,
+          "authority_level": "B+",
+          "publisher": "C114通信网",
+          "topic": "供应链布局",
+          "title": "华工正源：马来西亚工厂，公开表述为规避地缘风险 - Evidence ID: CASE_007 Title: 华工正源：马来西亚工厂，公开表述为规避地缘风险 Publisher: C114通信网 ...",
+          "content": "Evidence ID: CASE_007 Title: 华工正源：马来西亚工厂，公开表述为规避地缘风险 Publisher: C114通信网 Country/Jurisdiction: CN / National Publication date: 2026-03-25 Status: CURRENT Topic: 供应链布局 Applicability scope: GENERAL Related industries: 光模块 Key finding: “规避地缘风险”为行业媒体表述，须核对华工科技公告或互动易原话。 Content summary: “规避地缘风险”为行业媒体表述，须核对华工科技公告或互动易原话。"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-TRD_003-C0000",
+          "evidence_id": "TRD_003",
+          "relevance_score_raw": 31,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 - Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年...",
+          "content": "Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: CN / National Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。 Content summary: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-ITA_001-C22417",
+          "evidence_id": "ITA_001",
+          "relevance_score_raw": 21,
+          "authority_level": "S",
+          "publisher": "美国国际贸易管理局（ITA）",
+          "topic": "出口管制",
+          "title": "Consolidated Screening List API（美国合并筛查清单） - VELOPMENT LIMITED\", \"BEIJING EXCELLENT GLOBAL TECHNOLOGY DEVELOPMENT COM...",
+          "content": "VELOPMENT LIMITED\", \"BEIJING EXCELLENT GLOBAL TECHNOLOGY DEVELOPMENT COMPANY\"] programs: [\"IFSR\", \"NPWMD\"] remarks: (Linked To: PARSAJAM, Mohsen) source: Specially Designated Nationals (SDN) - Treasury Department source_information_url: https://home.treasury.gov/policy-issues/financial-sanctions/specially-designated-nationals-and-blocked-persons-list-sdn-human-readable-lists source_list_url: https://sanctionslist.ofac.treas.gov/Home/SdnList ids: [{\"type\": \"Unified Social Credit Code (USCC)\", \"number\": \"91110105059259703U\", \"country\": \"CN\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Additional Sanctions Information -\", \"number\": \"Subject to Secondary Sanctions\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Organization Established Date\", \"number\": \"24 Jan 2013\", \"issue_date\": null, \"expiration_date\": null}] --- RECORD --- name: INNOVIA ELECTRONIC TECHNOLOGY CO LIMITED type: Entity entity_number: 55407 programs: [\""
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "TRD_001",
+        "CASE_010",
+        "CASE_007",
+        "TRD_003",
+        "ITA_001"
+      ],
+      "matched_evidence_ids": [
+        "CASE_007"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q003",
+      "question": "我们想判断企业是否会因为关税规避型海外迁移效果不佳而回流中国。现有案例中有没有订单先转移海外、随后回流并放弃海外建厂的实例？",
+      "scenario_category": "Company Intelligence",
+      "expected_topic": "supply_chain",
+      "expected_evidence_ids": [
+        "CASE_001"
+      ],
+      "difficulty": "Medium",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-CASE_001-C0000",
+          "evidence_id": "CASE_001",
+          "relevance_score_raw": 31,
+          "authority_level": "B+",
+          "publisher": "路透社（Reuters）",
+          "topic": "供应链布局",
+          "title": "Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 - Evidence ID: CASE_001 Title: Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 Publishe...",
+          "content": "Evidence ID: CASE_001 Title: Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 Publisher: 路透社（Reuters） Country/Jurisdiction: CN / National Publication date: 2026-09-14 Status: CURRENT Topic: 供应链布局 Applicability scope: GENERAL Related industries: 金属铸造 Key finding: 路透原文《Companies left China to dodge tariffs. Now some are heading back》。丹东铸造企业，美国客户转单印度后回流；企业评估外迁后放弃。可作“China+1执行难度”的反向案例。 Content summary: 路透原文《Companies left China to dodge tariffs. Now some are heading back》。丹东铸造企业，美国客户转单印度后回流；企业评估外迁后放弃。可作“China+1执行难度”的反向案例。"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-ITA_001-C22416",
+          "evidence_id": "ITA_001",
+          "relevance_score_raw": 22,
+          "authority_level": "S",
+          "publisher": "美国国际贸易管理局（ITA）",
+          "topic": "出口管制",
+          "title": "Consolidated Screening List API（美国合并筛查清单） - ITED) source: Specially Designated Nationals (SDN) - Treasury Department...",
+          "content": "ITED) source: Specially Designated Nationals (SDN) - Treasury Department source_information_url: https://home.treasury.gov/policy-issues/financial-sanctions/specially-designated-nationals-and-blocked-persons-list-sdn-human-readable-lists source_list_url: https://sanctionslist.ofac.treas.gov/Home/SdnList ids: [{\"type\": \"National ID No.\", \"number\": \"320722198611070815\", \"country\": \"CN\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Additional Sanctions Information -\", \"number\": \"Subject to Secondary Sanctions\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Gender\", \"number\": \"Male\", \"issue_date\": null, \"expiration_date\": null}] --- RECORD --- name: EXCELLENT BEIJING TECHNOLOGY DEVELOPMENT COMPANY LIMITED type: Entity entity_number: 55406 alt_names: [\"EXCELLENT BEIJING TECHNOLOGY DEVELOPMENT LIMITED\", \"BEIJING EXCELLENT GLOBAL TECHNOLOGY DEVELOPMENT COMPANY\"] programs: [\"IFSR\", \"NPWMD\"] remarks: (Linked To: PARSAJAM, Mo"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-MOFCOM_002-C0020",
+          "evidence_id": "MOFCOM_002",
+          "relevance_score_raw": 12,
+          "authority_level": "S",
+          "publisher": "商务部",
+          "topic": "出口管制",
+          "title": "商务部公告2025年第72号（暂停实施2024年第46号公告第二款，涉及对美两用物项出口管制） - /a> <a href=\"http://www.cipainvest.org.cn/\" target=\"_blank\" class=\"ediAs...",
+          "content": "/a> <a href=\"http://www.cipainvest.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">投资促进事务局</a> <a href=\"http://www.aieco.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">国际经济合作事务局</a> <a href=\"http://xkzj.mofcom.gov.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">配额许可证事务局</a> <a href=\"http://www.caitec.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">国际贸易经济合作研究院</a> <a href=\"http://www.cicete.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">中国国际经济技术交流中心</a> <a href=\"http://www.comnews.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">国际商报社</a> <a href=\"https://www.china-aibo.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">国际商务官员研修学院</a> <a href=\"http://www.cftc.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">中国对外贸易中心</a> <a href=\"https://ciecc.ec.com.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">中国国际电子商务中心</a> <a href=\"http://www.ltcjzx.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">流通产业促进中心</a> <a href=\"http://www.coi.org.cn/\" target"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-MOFCOM_001-C0000",
+          "evidence_id": "MOFCOM_001",
+          "relevance_score_raw": 11,
+          "authority_level": "S",
+          "publisher": "商务部、海关总署",
+          "topic": "出口管制",
+          "title": "2026年度《两用物项和技术进出口许可证管理目录》 - Evidence ID: MOFCOM_001 Title: 2026年度《两用物项和技术进出口许可证管理目录》 Publisher: 商务部、...",
+          "content": "Evidence ID: MOFCOM_001 Title: 2026年度《两用物项和技术进出口许可证管理目录》 Publisher: 商务部、海关总署 Country/Jurisdiction: CN / National Publication date: 2025-12-31 Status: CURRENT Topic: 出口管制 Applicability scope: GENERAL Related industries: ◆随产业 Key finding: 2026-01-01起实施，同时废止2024年第67号公告。用于判断产品是否属于中国侧两用物项。 Content summary: 2026-01-01起实施，同时废止2024年第67号公告。用于判断产品是否属于中国侧两用物项。 -1 - 两用物项和技术进出口许可证管理目录 说明： 一、本目录分为《两用物项和技术进口许可证管理目录》 与《两用物项和技术出口许可证管理目录》。 二、本目录所列物项和技术是指依据《中华人民共和国 出口管制法》《中华人民共和国密码法》等相关法律、行政 法规和规章实施管制或管理的物项和技术。 三、进出口本目录的物项和技术，不论该物项和技术是 否在本目录中列明海关商品编号，均应依法办理两用物项 和技术进出口许可证。 四、本目录所列物项和技术及其商品名称和描述与相 关法律、行政法规、规章、《中华人民共和国两用物项出 口管制清单》及相关公告不一致时，以相关法律、行政法 规、规章、《中华人民共和国两用物项出口管制清单》及 相关公告为准。"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-CNGOV_001-C0004",
+          "evidence_id": "CNGOV_001",
+          "relevance_score_raw": 11,
+          "authority_level": "S",
+          "publisher": "中华人民共和国国务院",
+          "topic": "对外投资",
+          "title": "国务院关于对外投资的规定（国务院令第837号） - 2026/9/22 18:15 中华⼈民共和国国务院令（第 837 号） 国务院关于对外投资的规定 __2026 年第 16 号国务院公报 _ ...",
+          "content": "2026/9/22 18:15 中华⼈民共和国国务院令（第 837 号） 国务院关于对外投资的规定 __2026 年第 16 号国务院公报 _ 中国政府⽹ https://www.gov.cn/gongbao/2026/issue_12786/202606/content_7071618.html 2/5 第⼗五条第⼗五条 国家健全境外投资安全审查制度，国务院投资主管部⻔、商务主管部⻔会同国务院其他有关部⻔对影响或者可能影响国家安全的境外投资及相关资产、权益等的转让、处分进⾏安全审查。有关组织、个⼈应当予以协助、配合，不得拒绝、阻碍，并应当遵守境外投资安全审查决定。第⼗六条第⼗六条 投资者及其在其他国家（地区）投资的企业应当完善治理结构，建⽴健全合规经营、内部控制、安全⽣产、突发事件处置等制度，加强⻛险识别和防范处置，投⼊必要的⼈员、资⾦、设备等资源，保障其员⼯和资产安全。第⼗七条第⼗七条 投资者应当规范投资经营⾏为，不得损害其他投资者的商业信誉、商品声誉，侵犯他⼈商业秘密，没有正当理由低价倾销商品，通过贿赂、欺诈等⼿段牟取不正当利益，扰乱对外投资市场秩序。第⼗⼋条第⼗⼋条 国务院有关部⻔加强对外投资监测预警和⻛险评估，及时发布有关国家（地区）安全状况，提示投资⻛险，指导和帮助投资者做好安全⻛险防范，维护国家海外利益和投资者合法权益。第⼗九条第⼗九条 中华⼈⺠共和国根据缔结或者参加的国际条约、协定，或者按照平等互惠原则，与其他国家（地区）、国际组织等开展执法领域合作与交流，保护在其他国家（地区）的投资者及其投资的企业、项⽬所属员⼯和资产等的安全以及有关组织、个⼈的正当权益。国家积极商签多双边贸易投资协定等国际经贸协定，提⾼对外投资保护⽔平，促进投资⾃由化便利化。第⼆⼗条第⼆⼗条 国家依法为在其他国家（地区）投资的中国公⺠、组织及其在该国家（地区）投资的企业、项⽬所属中国籍员⼯提供领事保护与协助，维护其正当权益。投资⽬的国家（地区）发⽣战争、武装冲突、暴乱、严重⾃然灾害、重⼤事故灾难、重⼤传染病疫情、恐怖袭击等重⼤突发事件，在该国家（地区）的投资者及其投资的企业、项⽬所属中国籍员⼯因⼈身财产安全受到威胁需要帮助的，驻外外交机构应当及时核实情况，敦促有关国家（地区）采取有"
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "CASE_001",
+        "ITA_001",
+        "MOFCOM_002",
+        "MOFCOM_001",
+        "CNGOV_001"
+      ],
+      "matched_evidence_ids": [
+        "CASE_001"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q004",
+      "question": "对于计划在东南亚扩产、服务欧美客户的制造企业，现有企业案例如何说明海外工厂布局与客户合作/地缘风险之间的关系？",
+      "scenario_category": "Company Intelligence",
+      "expected_topic": "supply_chain",
+      "expected_evidence_ids": [
+        "CASE_008",
+        "CASE_004",
+        "CASE_005",
+        "CASE_007"
+      ],
+      "difficulty": "Medium",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-CASE_008-C0083",
+          "evidence_id": "CASE_008",
+          "relevance_score_raw": 33,
+          "authority_level": "B+",
+          "publisher": "中国基金报",
+          "topic": "供应链布局",
+          "title": "光模块厂商选择东南亚建厂以规避与欧美客户合作风险（中际旭创互动平台回复等） - 元器件，它主要负责完成信号的光电转换和电光转换。</p><p style=\"letter-spacing: 0.578px;text-wrap:...",
+          "content": "元器件，它主要负责完成信号的光电转换和电光转换。</p><p style=\"letter-spacing: 0.578px;text-wrap: wrap;\">2023年以来，Open AI的ChatGPT引爆全球对于生成式AI的投资热潮，以微软、谷歌为代表的大型云计算公司大力投入AI数据中心的建设。</p><p style=\"letter-spacing: 0.578px;text-wrap: wrap;\">而包括“易中天”（新易盛、中际旭创、天孚通信）在内国内光模块头部玩家，主要销售市场为海外市场。以中际旭创为例，其2023年海外销售占比达到84.65%，新易盛这一比例也达到83.75%。<o:page></o:page></p><p style=\"letter-spacing: 0.578px;text-wrap: wrap;\">因此，这些厂商不约而同将产能扩张的地点选择了东南亚。在业内看来，选择在东南亚建厂的主要目的是在扩大产能的基础上，规避与欧美客户合作的风险。</p><p style=\"letter-spacing: 0.578px;text-wrap: wrap;\">中际旭创7月14日互动平台上透露，公司泰国工厂一二期产能建设早已达成，能够稳定量产高端光模块产品，满足海外客户的需求，后续新产能建设也正在稳步推进中。</p><p style=\"letter-spacing: 0.578px;text-wrap: wrap;\">新易盛近日也公开表示，其泰国工厂一期已于2023年上半年正式运营，产能持续提升，泰国工厂二期正在建设中。</p><p style=\"letter-spacing: 0.578px;text-wrap: wrap;\">而天孚通信同样表示，公司泰国工厂部分车间6月进入样品阶段，前期需要经过样品认证通过后才能逐步提升产能。华工科技也透露，泰国海外工厂正在加紧建设中，具体产能会根据客户预测和建设情况进行增加和调整。</p><p style=\"letter-spacing: 0.578px;text-wrap: wrap;text-align: center;\"><span style=\"color: rgb(2, 30, 170);\"><st"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-CASE_010-C0000",
+          "evidence_id": "CASE_010",
+          "relevance_score_raw": 22,
+          "authority_level": "S",
+          "publisher": "美国白宫（经律所解读）",
+          "topic": "原产地与转运",
+          "title": "白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 - Evidence ID: CASE_010 Title: 白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 Publisher: 美国白宫...",
+          "content": "Evidence ID: CASE_010 Title: 白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 Publisher: 美国白宫（经律所解读） Country/Jurisdiction: US / Federal Publication date: 2026-08-13 Status: CURRENT Topic: 原产地与转运 Applicability scope: GENERAL Related industries: 通用 Key finding: 由WH_001与WH_002组成。对已在越南/泰国/马来西亚布局的企业，原产地举证压力上升。 Content summary: 由WH_001与WH_002组成。对已在越南/泰国/马来西亚布局的企业，原产地举证压力上升。"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-TRD_003-C0000",
+          "evidence_id": "TRD_003",
+          "relevance_score_raw": 19,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 - Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年...",
+          "content": "Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: CN / National Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。 Content summary: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-CASE_006-C0607",
+          "evidence_id": "CASE_006",
+          "relevance_score_raw": 18,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "天孚通信：泰国一期投产、二期2025年投入使用 - mmend-title\">相关推荐</div><ul class=\"recommend-list\"><div class=\"qqcom-arti...",
+          "content": "mmend-title\">相关推荐</div><ul class=\"recommend-list\"><div class=\"qqcom-article-cell recommend-article-cell\"><div class=\"qqcom-article-cell-common\"><div class=\"qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" title=\"半导体材料+半导体设备，这家公司受益国内扩产、半导体设备国产替代\">半导体材料+半导体设备，这家公司受益国内扩产、半导体设备国产替代</div><div class=\"qqcom-article-cell-info-bottom\"><div class=\"qqcom-article-cell-info-count\"><span class=\"read-percent\">部分试看</span><a href=\"https://news.qq.com/omn/author/8QMd2H9a5YYdsTvc\" target=\"_blank\" rel=\"noopener\">巨丰投顾</a><span>昨天</span></div></div></div><div class=\"qqcom-article-cell-info-media\" style=\"margin-left: 45px;\"><img class=\"qqcom-article-cell-info-image\" src=\"./CASE_006_files/0(5)\" alt=\"\"></div></div></div><div class=\"qqcom-article-cell recommend-article-cell\"><div class=\"qqcom-article-cell-common\"><div class=\"qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" title=\"在手订单与预收款持续增长！这家半导体设备龙头业务实现多点突破，碳化硅衬底已规模化供应丨机构"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-CASE_004-C0616",
+          "evidence_id": "CASE_004",
+          "relevance_score_raw": 18,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "中际旭创：泰国工厂产能与国内基本齐平 - -title\">相关推荐</div><ul class=\"recommend-list\"><div class=\"qqcom-article-c...",
+          "content": "-title\">相关推荐</div><ul class=\"recommend-list\"><div class=\"qqcom-article-cell recommend-article-cell\"><div class=\"qqcom-article-cell-common\"><div class=\"qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" title=\"半导体材料+半导体设备，这家公司受益国内扩产、半导体设备国产替代\">半导体材料+半导体设备，这家公司受益国内扩产、半导体设备国产替代</div><div class=\"qqcom-article-cell-info-bottom\"><div class=\"qqcom-article-cell-info-count\"><span class=\"read-percent\">部分试看</span><a href=\"https://news.qq.com/omn/author/8QMd2H9a5YYdsTvc\" target=\"_blank\" rel=\"noopener\">巨丰投顾</a><span>前天</span></div></div></div><div class=\"qqcom-article-cell-info-media\" style=\"margin-left: 45px;\"><img class=\"qqcom-article-cell-info-image\" src=\"./CASE_004_files/0(5)\" alt=\"\"></div></div></div><div class=\"qqcom-article-cell recommend-article-cell\"><div class=\"qqcom-article-cell-common\"><div class=\"qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" title=\"在手订单与预收款持续增长！这家半导体设备龙头业务实现多点突破，碳化硅衬底已规模化供应丨机构调研\">在"
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "CASE_008",
+        "CASE_010",
+        "TRD_003",
+        "CASE_006",
+        "CASE_004"
+      ],
+      "matched_evidence_ids": [
+        "CASE_008",
+        "CASE_004"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q005",
+      "question": "同样在东南亚生产，为什么有的企业可能被认定为规避、有的却没有？请用现有对照案例说明供应链结构和工序布局对结果的影响。",
+      "scenario_category": "Company Intelligence",
+      "expected_topic": "trade_policy",
+      "expected_evidence_ids": [
+        "CASE_002",
+        "CASE_003",
+        "DOC_001"
+      ],
+      "difficulty": "Hard",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-CASE_006-C0615",
+          "evidence_id": "CASE_006",
+          "relevance_score_raw": 18,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "天孚通信：泰国一期投产、二期2025年投入使用 - nfo-count\"><span class=\"read-percent\">部分试看</span><a href=\"https://news.q...",
+          "content": "nfo-count\"><span class=\"read-percent\">部分试看</span><a href=\"https://news.qq.com/omn/author/8QMd33hY6IYUvz7a\" target=\"_blank\" rel=\"noopener\">一财有看投</a><span>09-09</span></div></div></div><div class=\"qqcom-article-cell-info-media\" style=\"margin-left: 45px;\"><img class=\"qqcom-article-cell-info-image\" src=\"./CASE_006_files/0(11)\" alt=\"\"></div></div></div><div class=\"qqcom-article-cell recommend-article-cell\"><div class=\"qqcom-article-cell-common\"><div class=\"qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" title=\"粤芯半导体产能利用率96.38%趋于饱和，资本开支居高不下，中期表现看什么？\">粤芯半导体产能利用率96.38%趋于饱和，资本开支居高不下，中期表现看什么？</div><div class=\"qqcom-article-cell-info-bottom\"><div class=\"qqcom-article-cell-info-count\"><a href=\"https://news.qq.com/omn/author/8QMc339c6IIbujjb7wZz\" target=\"_blank\" rel=\"noopener\">市场度刻面</a><span>17小时前</span></div></div></div><div class=\"qqcom-article-cell-info-media\" style=\"margin-left: 45px;\"><img class=\"qqcom-article-cell-info-imag"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-CASE_004-C0622",
+          "evidence_id": "CASE_004",
+          "relevance_score_raw": 18,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "中际旭创：泰国工厂产能与国内基本齐平 - qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" titl...",
+          "content": "qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" title=\"粤芯半导体产能利用率96.38%趋于饱和，资本开支居高不下，中期表现看什么？\">粤芯半导体产能利用率96.38%趋于饱和，资本开支居高不下，中期表现看什么？</div><div class=\"qqcom-article-cell-info-bottom\"><div class=\"qqcom-article-cell-info-count\"><a href=\"https://news.qq.com/omn/author/8QMc339c6IIbujjb7wZz\" target=\"_blank\" rel=\"noopener\">市场度刻面</a><span>昨天</span></div></div></div><div class=\"qqcom-article-cell-info-media\" style=\"margin-left: 45px;\"><img class=\"qqcom-article-cell-info-image\" src=\"./CASE_004_files/0(9)\" alt=\"\"></div></div></div><div class=\"qqcom-article-cell recommend-article-cell\"><div class=\"qqcom-article-cell-common\"><div class=\"qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" title=\"半导体设备中报总结：业绩高增，订单护航\">半导体设备中报总结：业绩高增，订单护航</div><div class=\"qqcom-article-cell-info-bottom\"><div class=\"qqcom-article-cell-info-count\"><span class=\"read-percent\">部分试看</span><a href=\"https://news.qq.com/omn/author/8QMd33hY6IY"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-CNGOV_001-C0004",
+          "evidence_id": "CNGOV_001",
+          "relevance_score_raw": 16,
+          "authority_level": "S",
+          "publisher": "中华人民共和国国务院",
+          "topic": "对外投资",
+          "title": "国务院关于对外投资的规定（国务院令第837号） - 2026/9/22 18:15 中华⼈民共和国国务院令（第 837 号） 国务院关于对外投资的规定 __2026 年第 16 号国务院公报 _ ...",
+          "content": "2026/9/22 18:15 中华⼈民共和国国务院令（第 837 号） 国务院关于对外投资的规定 __2026 年第 16 号国务院公报 _ 中国政府⽹ https://www.gov.cn/gongbao/2026/issue_12786/202606/content_7071618.html 2/5 第⼗五条第⼗五条 国家健全境外投资安全审查制度，国务院投资主管部⻔、商务主管部⻔会同国务院其他有关部⻔对影响或者可能影响国家安全的境外投资及相关资产、权益等的转让、处分进⾏安全审查。有关组织、个⼈应当予以协助、配合，不得拒绝、阻碍，并应当遵守境外投资安全审查决定。第⼗六条第⼗六条 投资者及其在其他国家（地区）投资的企业应当完善治理结构，建⽴健全合规经营、内部控制、安全⽣产、突发事件处置等制度，加强⻛险识别和防范处置，投⼊必要的⼈员、资⾦、设备等资源，保障其员⼯和资产安全。第⼗七条第⼗七条 投资者应当规范投资经营⾏为，不得损害其他投资者的商业信誉、商品声誉，侵犯他⼈商业秘密，没有正当理由低价倾销商品，通过贿赂、欺诈等⼿段牟取不正当利益，扰乱对外投资市场秩序。第⼗⼋条第⼗⼋条 国务院有关部⻔加强对外投资监测预警和⻛险评估，及时发布有关国家（地区）安全状况，提示投资⻛险，指导和帮助投资者做好安全⻛险防范，维护国家海外利益和投资者合法权益。第⼗九条第⼗九条 中华⼈⺠共和国根据缔结或者参加的国际条约、协定，或者按照平等互惠原则，与其他国家（地区）、国际组织等开展执法领域合作与交流，保护在其他国家（地区）的投资者及其投资的企业、项⽬所属员⼯和资产等的安全以及有关组织、个⼈的正当权益。国家积极商签多双边贸易投资协定等国际经贸协定，提⾼对外投资保护⽔平，促进投资⾃由化便利化。第⼆⼗条第⼆⼗条 国家依法为在其他国家（地区）投资的中国公⺠、组织及其在该国家（地区）投资的企业、项⽬所属中国籍员⼯提供领事保护与协助，维护其正当权益。投资⽬的国家（地区）发⽣战争、武装冲突、暴乱、严重⾃然灾害、重⼤事故灾难、重⼤传染病疫情、恐怖袭击等重⼤突发事件，在该国家（地区）的投资者及其投资的企业、项⽬所属中国籍员⼯因⼈身财产安全受到威胁需要帮助的，驻外外交机构应当及时核实情况，敦促有关国家（地区）采取有"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-CASE_010-C0000",
+          "evidence_id": "CASE_010",
+          "relevance_score_raw": 15,
+          "authority_level": "S",
+          "publisher": "美国白宫（经律所解读）",
+          "topic": "原产地与转运",
+          "title": "白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 - Evidence ID: CASE_010 Title: 白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 Publisher: 美国白宫...",
+          "content": "Evidence ID: CASE_010 Title: 白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 Publisher: 美国白宫（经律所解读） Country/Jurisdiction: US / Federal Publication date: 2026-08-13 Status: CURRENT Topic: 原产地与转运 Applicability scope: GENERAL Related industries: 通用 Key finding: 由WH_001与WH_002组成。对已在越南/泰国/马来西亚布局的企业，原产地举证压力上升。 Content summary: 由WH_001与WH_002组成。对已在越南/泰国/马来西亚布局的企业，原产地举证压力上升。"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-CASE_008-C0000",
+          "evidence_id": "CASE_008",
+          "relevance_score_raw": 12,
+          "authority_level": "B+",
+          "publisher": "中国基金报",
+          "topic": "供应链布局",
+          "title": "光模块厂商选择东南亚建厂以规避与欧美客户合作风险（中际旭创互动平台回复等） - Evidence ID: CASE_008 Title: 光模块厂商选择东南亚建厂以规避与欧美客户合作风险（中际旭创互动平台回复等） Publi...",
+          "content": "Evidence ID: CASE_008 Title: 光模块厂商选择东南亚建厂以规避与欧美客户合作风险（中际旭创互动平台回复等） Publisher: 中国基金报 Country/Jurisdiction: CN / National Publication date: 2024-07-14 Status: CURRENT Topic: 供应链布局 Applicability scope: GENERAL Related industries: 光模块 Key finding: 文中引用中际旭创互动平台回复，可据此到互动易查原始问答，升级为一手证据。 Content summary: 文中引用中际旭创互动平台回复，可据此到互动易查原始问答，升级为一手证据。"
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "CASE_006",
+        "CASE_004",
+        "CNGOV_001",
+        "CASE_010",
+        "CASE_008"
+      ],
+      "matched_evidence_ids": [],
+      "hit_at_5": 0
+    },
+    {
+      "question_id": "Q006",
+      "question": "一家中国电池材料企业向美国客户出口含石墨、镓或锗相关物项时，2026年应重点核查哪些中国出口管制目录和暂停措施？",
+      "scenario_category": "Policy / Trade Risk",
+      "expected_topic": "export_control",
+      "expected_evidence_ids": [
+        "MOFCOM_001",
+        "MOFCOM_002"
+      ],
+      "difficulty": "Medium",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-TRD_001-C0000",
+          "evidence_id": "TRD_001",
+          "relevance_score_raw": 41,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 - Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–20...",
+          "content": "Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: US / Federal Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。 Content summary: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-MOFCOM_001-C0000",
+          "evidence_id": "MOFCOM_001",
+          "relevance_score_raw": 39,
+          "authority_level": "S",
+          "publisher": "商务部、海关总署",
+          "topic": "出口管制",
+          "title": "2026年度《两用物项和技术进出口许可证管理目录》 - Evidence ID: MOFCOM_001 Title: 2026年度《两用物项和技术进出口许可证管理目录》 Publisher: 商务部、...",
+          "content": "Evidence ID: MOFCOM_001 Title: 2026年度《两用物项和技术进出口许可证管理目录》 Publisher: 商务部、海关总署 Country/Jurisdiction: CN / National Publication date: 2025-12-31 Status: CURRENT Topic: 出口管制 Applicability scope: GENERAL Related industries: ◆随产业 Key finding: 2026-01-01起实施，同时废止2024年第67号公告。用于判断产品是否属于中国侧两用物项。 Content summary: 2026-01-01起实施，同时废止2024年第67号公告。用于判断产品是否属于中国侧两用物项。 -1 - 两用物项和技术进出口许可证管理目录 说明： 一、本目录分为《两用物项和技术进口许可证管理目录》 与《两用物项和技术出口许可证管理目录》。 二、本目录所列物项和技术是指依据《中华人民共和国 出口管制法》《中华人民共和国密码法》等相关法律、行政 法规和规章实施管制或管理的物项和技术。 三、进出口本目录的物项和技术，不论该物项和技术是 否在本目录中列明海关商品编号，均应依法办理两用物项 和技术进出口许可证。 四、本目录所列物项和技术及其商品名称和描述与相 关法律、行政法规、规章、《中华人民共和国两用物项出 口管制清单》及相关公告不一致时，以相关法律、行政法 规、规章、《中华人民共和国两用物项出口管制清单》及 相关公告为准。"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-MOFCOM_002-C0000",
+          "evidence_id": "MOFCOM_002",
+          "relevance_score_raw": 31,
+          "authority_level": "S",
+          "publisher": "商务部",
+          "topic": "出口管制",
+          "title": "商务部公告2025年第72号（暂停实施2024年第46号公告第二款，涉及对美两用物项出口管制） - Evidence ID: MOFCOM_002 Title: 商务部公告2025年第72号（暂停实施2024年第46号公告第二款，涉及对美两用物...",
+          "content": "Evidence ID: MOFCOM_002 Title: 商务部公告2025年第72号（暂停实施2024年第46号公告第二款，涉及对美两用物项出口管制） Publisher: 商务部 Country/Jurisdiction: CN / National Publication date: 2025-11-09 Status: CURRENT Topic: 出口管制 Applicability scope: GENERAL Related industries: ◆随产业 Key finding: 目前仅见第三方转述：暂停期至2026-11-27，涉及镓、锗、超硬材料、石墨等。入库前须以商务部原文为准。 Content summary: 目前仅见第三方转述：暂停期至2026-11-27，涉及镓、锗、超硬材料、石墨等。入库前须以商务部原文为准。"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-BIS_002-C0000",
+          "evidence_id": "BIS_002",
+          "relevance_score_raw": 29,
+          "authority_level": "S",
+          "publisher": "美国商务部工业与安全局（BIS）",
+          "topic": "出口管制",
+          "title": "One Year Suspension of Expansion of End-User Controls for Affiliates of Certain Listed Entities（关联企业规则暂停一年） - Evidence ID: BIS_002 Title: One Year Suspension of Expansion of End-User...",
+          "content": "Evidence ID: BIS_002 Title: One Year Suspension of Expansion of End-User Controls for Affiliates of Certain Listed Entities（关联企业规则暂停一年） Publisher: 美国商务部工业与安全局（BIS） Country/Jurisdiction: US / Federal Publication date: 2025-11-12 Status: CURRENT Topic: 出口管制 Applicability scope: GENERAL Related industries: 通用 Key finding: 暂停期2025-11-10至2026-11-09；与BIS_001配套使用，构成时间线。 Content summary: 暂停期2025-11-10至2026-11-09；与BIS_001配套使用，构成时间线。 This section of the FEDERAL REGISTER contains regulatory documents having general applicability and legal effect, most of which are keyed to and codified in the Code of Federal Regulations, which is published under 50 titles pursuant to 44 U.S.C. 1510. The Code of Federal Regulations is sold by the Superintendent of Documents. Rules and Regulations Federal Register 50857 Vol. 90, No."
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-CASE_001-C0000",
+          "evidence_id": "CASE_001",
+          "relevance_score_raw": 22,
+          "authority_level": "B+",
+          "publisher": "路透社（Reuters）",
+          "topic": "供应链布局",
+          "title": "Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 - Evidence ID: CASE_001 Title: Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 Publishe...",
+          "content": "Evidence ID: CASE_001 Title: Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 Publisher: 路透社（Reuters） Country/Jurisdiction: CN / National Publication date: 2026-09-14 Status: CURRENT Topic: 供应链布局 Applicability scope: GENERAL Related industries: 金属铸造 Key finding: 路透原文《Companies left China to dodge tariffs. Now some are heading back》。丹东铸造企业，美国客户转单印度后回流；企业评估外迁后放弃。可作“China+1执行难度”的反向案例。 Content summary: 路透原文《Companies left China to dodge tariffs. Now some are heading back》。丹东铸造企业，美国客户转单印度后回流；企业评估外迁后放弃。可作“China+1执行难度”的反向案例。"
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "TRD_001",
+        "MOFCOM_001",
+        "MOFCOM_002",
+        "BIS_002",
+        "CASE_001"
+      ],
+      "matched_evidence_ids": [
+        "MOFCOM_001",
+        "MOFCOM_002"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q007",
+      "question": "美国客户的母公司或关联公司被列入Entity List或MEU List时，我们应如何判断50%持股穿透规则是否会影响交易？当前暂停期又如何改变时间判断？",
+      "scenario_category": "Policy / Trade Risk",
+      "expected_topic": "export_control",
+      "expected_evidence_ids": [
+        "BIS_001",
+        "BIS_002",
+        "CASE_009"
+      ],
+      "difficulty": "Hard",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-CASE_009-C0000",
+          "evidence_id": "CASE_009",
+          "relevance_score_raw": 41,
+          "authority_level": "S",
+          "publisher": "美国商务部工业与安全局（BIS）",
+          "topic": "出口管制",
+          "title": "BIS 50%穿透规则：发布→暂停→2026-11-10恢复的完整时间线 - Evidence ID: CASE_009 Title: BIS 50%穿透规则：发布→暂停→2026-11-10恢复的完整时间线 Publis...",
+          "content": "Evidence ID: CASE_009 Title: BIS 50%穿透规则：发布→暂停→2026-11-10恢复的完整时间线 Publisher: 美国商务部工业与安全局（BIS） Country/Jurisdiction: US / Federal Publication date: 2025-09-30 Status: CURRENT Topic: 出口管制 Applicability scope: GENERAL Related industries: 通用 Key finding: 政策事件型案例，由BIS_001和BIS_002组成。可用于演示“规则变化→客户是否落入边界”。 Content summary: 政策事件型案例，由BIS_001和BIS_002组成。可用于演示“规则变化→客户是否落入边界”。 This section of the FEDERAL REGISTER contains regulatory documents having general applicability and legal effect, most of which are keyed to and codified in the Code of Federal Regulations, which is published under 50 titles pursuant to 44 U.S.C. 1510. The Code of Federal Regulations is sold by the Superintendent of Documents. Rules and Regulations Federal Register 50857 Vol. 90, No. 216 Wednesday, November 12, 2025 DEPARTMENT OF COMMERCE Bureau of Industry and Security 15 CFR Parts 732, 734, 736, 744, and 748 [Docket No."
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-TRD_001-C0047",
+          "evidence_id": "TRD_001",
+          "relevance_score_raw": 37,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 - 98 | primaryValue: 17.498 | legacyEstimationFlag: 4 | isReported: false ...",
+          "content": "98 | primaryValue: 17.498 | legacyEstimationFlag: 4 | isReported: false | isAggregate: true typeCode: C | freqCode: A | refPeriodId: 20210101 | refYear: 2021 | refMonth: 52 | period: 2021 | reporterCode: 764 | reporterISO: THA | reporterDesc: Thailand | flowCode: X | flowDesc: Export | partnerCode: 842 | partnerISO: USA | partnerDesc: USA | partner2Code: 579 | partner2ISO: NOR | partner2Desc: Norway | classificationCode: H5 | classificationSearchCode: HS | isOriginalClassification: true | cmdCode: 850760 | cmdDesc: Electric accumulators; lithium-ion, including separators, whether or not rectangular (including square) | aggrLevel: 6 | isLeaf: true | customsCode: C00 | customsDesc: TOTAL CPC | mosCode: 0 | motCode: 0 | motDesc: TOTAL MOT | qtyUnitCode: 5 | qtyUnitAbbr: u | qty: 50 | isQtyEstimated: false | altQtyUnitCode: 5 | altQtyUnitAbbr: u | altQty: 50 | isAltQtyEstimated: false | netWgt: 24 | isNetWgtEstimated: false | grossWgt: 0 | "
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-BIS_001-C0000",
+          "evidence_id": "BIS_001",
+          "relevance_score_raw": 33,
+          "authority_level": "S",
+          "publisher": "美国商务部工业与安全局（BIS）",
+          "topic": "出口管制",
+          "title": "Expansion of End-User Controls to Cover Affiliates of Certain Listed Entities（关联企业规则 / 50%穿透规则，临时最终规则） - Evidence ID: BIS_001 Title: Expansion of End-User Controls to Cover Affi...",
+          "content": "Evidence ID: BIS_001 Title: Expansion of End-User Controls to Cover Affiliates of Certain Listed Entities（关联企业规则 / 50%穿透规则，临时最终规则） Publisher: 美国商务部工业与安全局（BIS） Country/Jurisdiction: US / Federal Publication date: 2025-09-30 Status: CURRENT Topic: 出口管制 Applicability scope: GENERAL Related industries: 通用 Key finding: 90 FR 47201。被实体清单/MEU清单主体直接或间接、单独或合计持股≥50%的实体自动适用同等限制。 Content summary: 90 FR 47201。被实体清单/MEU清单主体直接或间接、单独或合计持股≥50%的实体自动适用同等限制。 47201 Federal Register / Vol. 90, No. 187 / Tuesday, September 30, 2025 / Rules and Regulations Control(s) Country chart (see Supp. No. 1 to part 738) AT applies to ‘‘tech- nology’’ for ‘‘devel- opment,’’ ‘‘produc- tion,’’ operation, in- stallation, mainte- nance, repair, over- haul, or refurbishing commodities in 0A505.a, .d, and .x. AT Column 1."
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-CASE_006-C0613",
+          "evidence_id": "CASE_006",
+          "relevance_score_raw": 24,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "天孚通信：泰国一期投产、二期2025年投入使用 - \"qqcom-article-cell-info-title\" title=\"6英寸晶圆代工产能持续偏紧，这家公司晶圆厂产能预计今年四季度有明显...",
+          "content": "\"qqcom-article-cell-info-title\" title=\"6英寸晶圆代工产能持续偏紧，这家公司晶圆厂产能预计今年四季度有明显释放丨机构调研\">6英寸晶圆代工产能持续偏紧，这家公司晶圆厂产能预计今年四季度有明显释放丨机构调研</div><div class=\"qqcom-article-cell-info-bottom\"><div class=\"qqcom-article-cell-info-count\"><span class=\"read-percent\">部分试看</span><a href=\"https://news.qq.com/omn/author/8QMc1nxf7YwUvjY%3D\" target=\"_blank\" rel=\"noopener\">21世纪经济报道</a><span>09-04</span></div></div></div><div class=\"qqcom-article-cell-info-media\" style=\"margin-left: 45px;\"><img class=\"qqcom-article-cell-info-image\" src=\"./CASE_006_files/0(9)\" alt=\"\"></div></div></div><div class=\"qqcom-article-cell recommend-article-cell\"><div class=\"qqcom-article-cell-common\"><div class=\"qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" title=\"【点金互动易】半导体+刻蚀零部件，这家公司是国内极少数先进制程核心零部件供应商，下游客户类型从设备商、逻辑电路拓展至存储器，并向先进封装延伸\">【点金互动易】半导体+刻蚀零部件，这家公司是国内极少数先进制程核心零部件供应商，下游客户类型从设备商、逻辑电路拓展至存储器，并向先进封装延伸</div><div class=\"qqcom-article-cell-info-bottom\"><div class=\"qqcom-ar"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-UNCTAD_001-C0354",
+          "evidence_id": "UNCTAD_001",
+          "relevance_score_raw": 22,
+          "authority_level": "A+",
+          "publisher": "联合国贸易和发展会议（UNCTAD）",
+          "topic": "对外投资",
+          "title": "World Investment Report 2026: International Investment in a Turbulent Era - Two thirds of agencies reported that geopolitical and trade policy turbu...",
+          "content": "Two thirds of agencies reported that geopolitical and trade policy turbulences have been the main factors affecting investment in their country, leading to project cancellations or downsizing in some cases, but also to relocations both into and out of their economies. Specifically, 60 per cent of respondents reported cancellations or downsizing, 50 per cent reported relocations to their country and 31 per cent reported relocations abroad (box III.1). In this context, two broad trends stand out and warrant closer analysis. First, FDI has expanded at an above-average pace in sectors increasingly viewed as strategic from the perspectives of both industrial policy and economic security. These sectors include artificial intelligence (AI) infrastructure, advanced and sensitive technologies, critical minerals, clean energy and semiconductors."
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "CASE_009",
+        "TRD_001",
+        "BIS_001",
+        "CASE_006",
+        "UNCTAD_001"
+      ],
+      "matched_evidence_ids": [
+        "BIS_001",
+        "CASE_009"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q008",
+      "question": "我们准备在2026年11月前后签署一份对美长期供货合同。BIS关联企业规则的暂停与恢复时间线会带来什么合规窗口风险？",
+      "scenario_category": "Policy / Trade Risk",
+      "expected_topic": "export_control",
+      "expected_evidence_ids": [
+        "BIS_002",
+        "CASE_009",
+        "BIS_001"
+      ],
+      "difficulty": "Hard",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-BIS_002-C0000",
+          "evidence_id": "BIS_002",
+          "relevance_score_raw": 33,
+          "authority_level": "S",
+          "publisher": "美国商务部工业与安全局（BIS）",
+          "topic": "出口管制",
+          "title": "One Year Suspension of Expansion of End-User Controls for Affiliates of Certain Listed Entities（关联企业规则暂停一年） - Evidence ID: BIS_002 Title: One Year Suspension of Expansion of End-User...",
+          "content": "Evidence ID: BIS_002 Title: One Year Suspension of Expansion of End-User Controls for Affiliates of Certain Listed Entities（关联企业规则暂停一年） Publisher: 美国商务部工业与安全局（BIS） Country/Jurisdiction: US / Federal Publication date: 2025-11-12 Status: CURRENT Topic: 出口管制 Applicability scope: GENERAL Related industries: 通用 Key finding: 暂停期2025-11-10至2026-11-09；与BIS_001配套使用，构成时间线。 Content summary: 暂停期2025-11-10至2026-11-09；与BIS_001配套使用，构成时间线。 This section of the FEDERAL REGISTER contains regulatory documents having general applicability and legal effect, most of which are keyed to and codified in the Code of Federal Regulations, which is published under 50 titles pursuant to 44 U.S.C. 1510. The Code of Federal Regulations is sold by the Superintendent of Documents. Rules and Regulations Federal Register 50857 Vol. 90, No."
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-ITA_001-C22417",
+          "evidence_id": "ITA_001",
+          "relevance_score_raw": 23,
+          "authority_level": "S",
+          "publisher": "美国国际贸易管理局（ITA）",
+          "topic": "出口管制",
+          "title": "Consolidated Screening List API（美国合并筛查清单） - VELOPMENT LIMITED\", \"BEIJING EXCELLENT GLOBAL TECHNOLOGY DEVELOPMENT COM...",
+          "content": "VELOPMENT LIMITED\", \"BEIJING EXCELLENT GLOBAL TECHNOLOGY DEVELOPMENT COMPANY\"] programs: [\"IFSR\", \"NPWMD\"] remarks: (Linked To: PARSAJAM, Mohsen) source: Specially Designated Nationals (SDN) - Treasury Department source_information_url: https://home.treasury.gov/policy-issues/financial-sanctions/specially-designated-nationals-and-blocked-persons-list-sdn-human-readable-lists source_list_url: https://sanctionslist.ofac.treas.gov/Home/SdnList ids: [{\"type\": \"Unified Social Credit Code (USCC)\", \"number\": \"91110105059259703U\", \"country\": \"CN\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Additional Sanctions Information -\", \"number\": \"Subject to Secondary Sanctions\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Organization Established Date\", \"number\": \"24 Jan 2013\", \"issue_date\": null, \"expiration_date\": null}] --- RECORD --- name: INNOVIA ELECTRONIC TECHNOLOGY CO LIMITED type: Entity entity_number: 55407 programs: [\""
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-UNCTAD_001-C0576",
+          "evidence_id": "UNCTAD_001",
+          "relevance_score_raw": 22,
+          "authority_level": "A+",
+          "publisher": "联合国贸易和发展会议（UNCTAD）",
+          "topic": "对外投资",
+          "title": "World Investment Report 2026: International Investment in a Turbulent Era - Firms may postpone projects, scale down expansion plans, delay technolog...",
+          "content": "Firms may postpone projects, scale down expansion plans, delay technological upgrading or adopt a wait-and-see approach before committing capital to new facilities. In this context, early policy responses often focus on maintaining the conditions for continued investment through liquidity support, trade finance and temporary relief on financing pressures, to prevent short-term shocks from turning into cancelled projects, delayed expansion and longer-term investment losses. Country experiences illustrate how such stabilization measures have been used in practice (box III.11). IPAs have taken a lead role in this context. According to the 2026 UNCTAD IPA Survey, nearly three quarters have adjusted their facilitation or aftercare services in response to geopolitical and trade policy turbulence. Among them, 82 per cent expanded aftercare and investor-retention activities, while 61 per cent strengthened policy advocacy on behalf of investors."
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-CASE_009-C0000",
+          "evidence_id": "CASE_009",
+          "relevance_score_raw": 21,
+          "authority_level": "S",
+          "publisher": "美国商务部工业与安全局（BIS）",
+          "topic": "出口管制",
+          "title": "BIS 50%穿透规则：发布→暂停→2026-11-10恢复的完整时间线 - Evidence ID: CASE_009 Title: BIS 50%穿透规则：发布→暂停→2026-11-10恢复的完整时间线 Publis...",
+          "content": "Evidence ID: CASE_009 Title: BIS 50%穿透规则：发布→暂停→2026-11-10恢复的完整时间线 Publisher: 美国商务部工业与安全局（BIS） Country/Jurisdiction: US / Federal Publication date: 2025-09-30 Status: CURRENT Topic: 出口管制 Applicability scope: GENERAL Related industries: 通用 Key finding: 政策事件型案例，由BIS_001和BIS_002组成。可用于演示“规则变化→客户是否落入边界”。 Content summary: 政策事件型案例，由BIS_001和BIS_002组成。可用于演示“规则变化→客户是否落入边界”。 This section of the FEDERAL REGISTER contains regulatory documents having general applicability and legal effect, most of which are keyed to and codified in the Code of Federal Regulations, which is published under 50 titles pursuant to 44 U.S.C. 1510. The Code of Federal Regulations is sold by the Superintendent of Documents. Rules and Regulations Federal Register 50857 Vol. 90, No. 216 Wednesday, November 12, 2025 DEPARTMENT OF COMMERCE Bureau of Industry and Security 15 CFR Parts 732, 734, 736, 744, and 748 [Docket No."
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-CASE_006-C0618",
+          "evidence_id": "CASE_006",
+          "relevance_score_raw": 18,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "天孚通信：泰国一期投产、二期2025年投入使用 - ips-text\">扫一扫查看详情</div></div><div class=\"scanner\"></div></div></div></di...",
+          "content": "ips-text\">扫一扫查看详情</div></div><div class=\"scanner\"></div></div></div></div></div></div></div></div><div id=\"pc-ad-media-3bm2p58ndll\" class=\"Bt801aD5UivI6l70yhQ7 vDUU3tA84v45092vA1mV\" data-ad-video-media=\"true\"><img class=\"LtTBfWei2VAGOx05qsdt\" src=\"https://pgdt.gtimg.cn/141/20204/snscosdownload/SZ/reserved/6a9fdbd900091af71eb5b83b20f001150000008d00004eec?ck=c278e8c21e38bb01d93a57b1aed999a0&amp;m=c278e8c21e38bb01d93a57b1aed999a0&amp;sha256=570b5967b145843e45f93cb04c7aba4a79fb648cd19698993477a9b2cff47ea7\"></div></div></div></div><div class=\"qqcom-article-cell recommend-article-cell\"><div class=\"qqcom-article-cell-common\"><div class=\"qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" title=\"富信科技：应用于通信领域的TEC产品验证周期较长 预计不会对2026年收入产生影响\">富信科技：应用于通信领域的TEC产品验证周期较长 预计不会对2026年收入产生影响</div><div class=\"qqcom-article-cell-info-bottom\"><div class=\"qqcom-article-cell-info-count\"><a href=\"https://news.qq.com/omn/author/8QMd3nda74UduTba\" ta"
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "BIS_002",
+        "ITA_001",
+        "UNCTAD_001",
+        "CASE_009",
+        "CASE_006"
+      ],
+      "matched_evidence_ids": [
+        "BIS_002",
+        "CASE_009"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q009",
+      "question": "公司计划通过越南、泰国或马来西亚完成部分加工后出口美国。美国当前对非法转运和原产地执法的政策方向会带来哪些额外风险？",
+      "scenario_category": "Policy / Trade Risk",
+      "expected_topic": "trade_policy",
+      "expected_evidence_ids": [
+        "WH_001",
+        "WH_002",
+        "CASE_010",
+        "CSIS_001"
+      ],
+      "difficulty": "Hard",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-TRD_001-C0000",
+          "evidence_id": "TRD_001",
+          "relevance_score_raw": 48,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 - Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–20...",
+          "content": "Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: US / Federal Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。 Content summary: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-CASE_010-C0000",
+          "evidence_id": "CASE_010",
+          "relevance_score_raw": 42,
+          "authority_level": "S",
+          "publisher": "美国白宫（经律所解读）",
+          "topic": "原产地与转运",
+          "title": "白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 - Evidence ID: CASE_010 Title: 白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 Publisher: 美国白宫...",
+          "content": "Evidence ID: CASE_010 Title: 白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 Publisher: 美国白宫（经律所解读） Country/Jurisdiction: US / Federal Publication date: 2026-08-13 Status: CURRENT Topic: 原产地与转运 Applicability scope: GENERAL Related industries: 通用 Key finding: 由WH_001与WH_002组成。对已在越南/泰国/马来西亚布局的企业，原产地举证压力上升。 Content summary: 由WH_001与WH_002组成。对已在越南/泰国/马来西亚布局的企业，原产地举证压力上升。"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-WH_002-C0000",
+          "evidence_id": "WH_002",
+          "relevance_score_raw": 39,
+          "authority_level": "S",
+          "publisher": "美国白宫贸易与制造业政策办公室",
+          "topic": "原产地与转运",
+          "title": "The Great Transshipment Scam: Rise, Scope, and Costs（白宫非法转运报告） - Evidence ID: WH_002 Title: The Great Transshipment Scam: Rise, Scope, an...",
+          "content": "Evidence ID: WH_002 Title: The Great Transshipment Scam: Rise, Scope, and Costs（白宫非法转运报告） Publisher: 美国白宫贸易与制造业政策办公室 Country/Jurisdiction: US / Federal Publication date: 2026-08-13 Status: CURRENT Topic: 原产地与转运 Applicability scope: GENERAL Related industries: 通用 Key finding: 点名40余个高风险转运国家（含越南、马来西亚、泰国、印尼）；宣布AI执法工具Detective Border。属政策立场报告，不是法规。 Content summary: 点名40余个高风险转运国家（含越南、马来西亚、泰国、印尼）；宣布AI执法工具Detective Border。属政策立场报告，不是法规。 1 Executive Summary The United States faces a growing challenge from the illegal transshipment of goods through third countries to evade applicable tariffs and other trade remedies. Exporters in higher-tariff jurisdictions can abuse differences in U.S. tariff treatment across countries to route goods through lower-tariff jurisdictions before entering the American market."
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-TRD_003-C0000",
+          "evidence_id": "TRD_003",
+          "relevance_score_raw": 27,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 - Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年...",
+          "content": "Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: CN / National Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。 Content summary: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-CASE_006-C0613",
+          "evidence_id": "CASE_006",
+          "relevance_score_raw": 23,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "天孚通信：泰国一期投产、二期2025年投入使用 - \"qqcom-article-cell-info-title\" title=\"6英寸晶圆代工产能持续偏紧，这家公司晶圆厂产能预计今年四季度有明显...",
+          "content": "\"qqcom-article-cell-info-title\" title=\"6英寸晶圆代工产能持续偏紧，这家公司晶圆厂产能预计今年四季度有明显释放丨机构调研\">6英寸晶圆代工产能持续偏紧，这家公司晶圆厂产能预计今年四季度有明显释放丨机构调研</div><div class=\"qqcom-article-cell-info-bottom\"><div class=\"qqcom-article-cell-info-count\"><span class=\"read-percent\">部分试看</span><a href=\"https://news.qq.com/omn/author/8QMc1nxf7YwUvjY%3D\" target=\"_blank\" rel=\"noopener\">21世纪经济报道</a><span>09-04</span></div></div></div><div class=\"qqcom-article-cell-info-media\" style=\"margin-left: 45px;\"><img class=\"qqcom-article-cell-info-image\" src=\"./CASE_006_files/0(9)\" alt=\"\"></div></div></div><div class=\"qqcom-article-cell recommend-article-cell\"><div class=\"qqcom-article-cell-common\"><div class=\"qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" title=\"【点金互动易】半导体+刻蚀零部件，这家公司是国内极少数先进制程核心零部件供应商，下游客户类型从设备商、逻辑电路拓展至存储器，并向先进封装延伸\">【点金互动易】半导体+刻蚀零部件，这家公司是国内极少数先进制程核心零部件供应商，下游客户类型从设备商、逻辑电路拓展至存储器，并向先进封装延伸</div><div class=\"qqcom-article-cell-info-bottom\"><div class=\"qqcom-ar"
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "TRD_001",
+        "CASE_010",
+        "WH_002",
+        "TRD_003",
+        "CASE_006"
+      ],
+      "matched_evidence_ids": [
+        "WH_002",
+        "CASE_010"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q010",
+      "question": "如果我们想用历史执法案例评估‘在东南亚加工就能改变原产地并避开美国贸易救济措施’这一假设，现有证据支持什么判断？",
+      "scenario_category": "Policy / Trade Risk",
+      "expected_topic": "trade_policy",
+      "expected_evidence_ids": [
+        "DOC_001",
+        "CASE_002",
+        "CASE_003"
+      ],
+      "difficulty": "Hard",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-CASE_010-C0000",
+          "evidence_id": "CASE_010",
+          "relevance_score_raw": 34,
+          "authority_level": "S",
+          "publisher": "美国白宫（经律所解读）",
+          "topic": "原产地与转运",
+          "title": "白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 - Evidence ID: CASE_010 Title: 白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 Publisher: 美国白宫...",
+          "content": "Evidence ID: CASE_010 Title: 白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 Publisher: 美国白宫（经律所解读） Country/Jurisdiction: US / Federal Publication date: 2026-08-13 Status: CURRENT Topic: 原产地与转运 Applicability scope: GENERAL Related industries: 通用 Key finding: 由WH_001与WH_002组成。对已在越南/泰国/马来西亚布局的企业，原产地举证压力上升。 Content summary: 由WH_001与WH_002组成。对已在越南/泰国/马来西亚布局的企业，原产地举证压力上升。"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-TRD_003-C0000",
+          "evidence_id": "TRD_003",
+          "relevance_score_raw": 32,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 - Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年...",
+          "content": "Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: CN / National Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。 Content summary: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-ITA_001-C22417",
+          "evidence_id": "ITA_001",
+          "relevance_score_raw": 26,
+          "authority_level": "S",
+          "publisher": "美国国际贸易管理局（ITA）",
+          "topic": "出口管制",
+          "title": "Consolidated Screening List API（美国合并筛查清单） - VELOPMENT LIMITED\", \"BEIJING EXCELLENT GLOBAL TECHNOLOGY DEVELOPMENT COM...",
+          "content": "VELOPMENT LIMITED\", \"BEIJING EXCELLENT GLOBAL TECHNOLOGY DEVELOPMENT COMPANY\"] programs: [\"IFSR\", \"NPWMD\"] remarks: (Linked To: PARSAJAM, Mohsen) source: Specially Designated Nationals (SDN) - Treasury Department source_information_url: https://home.treasury.gov/policy-issues/financial-sanctions/specially-designated-nationals-and-blocked-persons-list-sdn-human-readable-lists source_list_url: https://sanctionslist.ofac.treas.gov/Home/SdnList ids: [{\"type\": \"Unified Social Credit Code (USCC)\", \"number\": \"91110105059259703U\", \"country\": \"CN\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Additional Sanctions Information -\", \"number\": \"Subject to Secondary Sanctions\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Organization Established Date\", \"number\": \"24 Jan 2013\", \"issue_date\": null, \"expiration_date\": null}] --- RECORD --- name: INNOVIA ELECTRONIC TECHNOLOGY CO LIMITED type: Entity entity_number: 55407 programs: [\""
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-WH_002-C0000",
+          "evidence_id": "WH_002",
+          "relevance_score_raw": 24,
+          "authority_level": "S",
+          "publisher": "美国白宫贸易与制造业政策办公室",
+          "topic": "原产地与转运",
+          "title": "The Great Transshipment Scam: Rise, Scope, and Costs（白宫非法转运报告） - Evidence ID: WH_002 Title: The Great Transshipment Scam: Rise, Scope, an...",
+          "content": "Evidence ID: WH_002 Title: The Great Transshipment Scam: Rise, Scope, and Costs（白宫非法转运报告） Publisher: 美国白宫贸易与制造业政策办公室 Country/Jurisdiction: US / Federal Publication date: 2026-08-13 Status: CURRENT Topic: 原产地与转运 Applicability scope: GENERAL Related industries: 通用 Key finding: 点名40余个高风险转运国家（含越南、马来西亚、泰国、印尼）；宣布AI执法工具Detective Border。属政策立场报告，不是法规。 Content summary: 点名40余个高风险转运国家（含越南、马来西亚、泰国、印尼）；宣布AI执法工具Detective Border。属政策立场报告，不是法规。 1 Executive Summary The United States faces a growing challenge from the illegal transshipment of goods through third countries to evade applicable tariffs and other trade remedies. Exporters in higher-tariff jurisdictions can abuse differences in U.S. tariff treatment across countries to route goods through lower-tariff jurisdictions before entering the American market."
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-WH_001-C0000",
+          "evidence_id": "WH_001",
+          "relevance_score_raw": 22,
+          "authority_level": "S",
+          "publisher": "美国白宫",
+          "topic": "原产地与转运",
+          "title": "Executive Order 14411: Strengthening Customs Enforcement（加强海关执法行政令） - Evidence ID: WH_001 Title: Executive Order 14411: Strengthening Customs ...",
+          "content": "Evidence ID: WH_001 Title: Executive Order 14411: Strengthening Customs Enforcement（加强海关执法行政令） Publisher: 美国白宫 Country/Jurisdiction: US / Federal Publication date: 2026-06-03 Status: CURRENT Topic: 原产地与转运 Applicability scope: GENERAL Related industries: 通用 Key finding: 收紧进口商资质、保证金、所有权披露和处罚；执法重点含非法转运。 Content summary: 收紧进口商资质、保证金、所有权披露和处罚；执法重点含非法转运。 Presidential Documents 35125 Federal Register / Vol. 91, No. 111 / Wednesday, June 10, 2026 / Presidential Documents Executive Order 14411 of June 3, 2026 Strengthening Customs Enforcement By the authority vested in me as President by the Constitution and the laws of the United States of America, I hereby determine and order: Section 1. Purpose. Customs enforcement is essential to the national security, foreign policy, and economy of the United States."
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "CASE_010",
+        "TRD_003",
+        "ITA_001",
+        "WH_002",
+        "WH_001"
+      ],
+      "matched_evidence_ids": [],
+      "hit_at_5": 0
+    },
+    {
+      "question_id": "Q011",
+      "question": "一家中国制造企业计划新建海外工厂。2026年中国对外投资制度中有哪些官方规则应纳入项目立项和合规评估？",
+      "scenario_category": "Policy / Trade Risk",
+      "expected_topic": "investment_policy",
+      "expected_evidence_ids": [
+        "CNGOV_001"
+      ],
+      "difficulty": "Easy",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-CNGOV_001-C0001",
+          "evidence_id": "CNGOV_001",
+          "relevance_score_raw": 38,
+          "authority_level": "S",
+          "publisher": "中华人民共和国国务院",
+          "topic": "对外投资",
+          "title": "国务院关于对外投资的规定（国务院令第837号） - 总 理 李 强 2026年5⽉5⽇ 国务院关于对外投资的规定国务院关于对外投资的规定 第⼀条第⼀条 为了推进⾼⽔平对外开放，促进对外投资⾼质量发...",
+          "content": "总 理 李 强 2026年5⽉5⽇ 国务院关于对外投资的规定国务院关于对外投资的规定 第⼀条第⼀条 为了推进⾼⽔平对外开放，促进对外投资⾼质量发展，有效实施对外投资管理，保护投资者及其对外投资合法权益，维护国家主权、安全、发展利益，根据《中华⼈⺠共和国对外关系法》、《中华⼈⺠共和国对外贸易法》等法律，制定本规定。第⼆条第⼆条 中华⼈⺠共和国境内（以下简称中国境内）投资者对外投资，适⽤本规定。本规定所称对外投资即境外投资，是指投资者以投⼊资产、权益或者提供融资、担保等⽅式，直接或者间接获得其他国家（地区）的企业、资产等所有权、控制权、经营管理权以及其他相关权益的活动。本规定所称投资者，包括中国境内的企业、其他组织和居⺠个⼈。第三条第三条 对外投资⼯作坚持对外开放的基本国策，贯彻总体国家安全观，统筹发展和安全，统筹国内国际，健全对外投资管理服务体系，提升对外投资质量与⽔平，促进开放合作、互利共赢。第四条第四条 国家主动对接国际⾼标准经济贸易规则，推进⾼质量共建“⼀带⼀路”，推进多双边投资合作机制建设，积极参与国际投资规则制定，推动产业链供应链国际合作，反对单边主义和保护主义，推动建设开放型世界经济。第五条第五条 国家⽀持投资者按照市场化原则开展对外投资活动，积极参与国际合作竞争。投资者依法享有对外投资⾃主权，⾃主决策、⾃担⻛险、⾃负盈亏。投资者开展对外投资及其相关活动，应当遵守法律法规和国际惯例，尊重当地习俗和⽂化传统，遵守商业道德，诚实守信、公平竞争，履⾏社会责任，维护国家形象，不得妨害市场竞争秩序、破坏⽣态环境、损害劳动者合法权益，不得危害中国国家安全、损害国家利益和社会公共利益。"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-TRD_001-C0000",
+          "evidence_id": "TRD_001",
+          "relevance_score_raw": 34,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 - Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–20...",
+          "content": "Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: US / Federal Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。 Content summary: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-MOFCOM_002-C0021",
+          "evidence_id": "MOFCOM_002",
+          "relevance_score_raw": 25,
+          "authority_level": "S",
+          "publisher": "商务部",
+          "topic": "出口管制",
+          "title": "商务部公告2025年第72号（暂停实施2024年第46号公告第二款，涉及对美两用物项出口管制） - 电子商务中心</a> <a href=\"http://www.ltcjzx.org.cn/\" target=\"_blank\" class=\"ed...",
+          "content": "电子商务中心</a> <a href=\"http://www.ltcjzx.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">流通产业促进中心</a> <a href=\"http://www.coi.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">中国服务外包研究中心</a> <a href=\"http://www.ciieb.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">中国国际进口博览局</a> </p> </div> <h3 aria-level=\"3\"><em></em>业务主管社团</h3> <div class=\"sideCon\"> <p class=\"column_1\" setedaria=\"true\"> <a href=\"http://www.caefi.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">中国外商投资企业协会</a> 中俄机电商会 <a href=\"http://www.aetats.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">海峡两岸经贸交流协会</a> <a href=\"http://www.cait1981.com/\" target=\"_blank\" class=\"ediAssetsTextCon\">中国国际贸易学会</a> <a href=\"http://www.zgdwjjmykjxh.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">中国对外经济贸易会计学会</a> <a href=\"http://www.cafiecmofcom.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">中国国际经济合作学会</a> <a href=\"http://www.zgdwjjmytjxh.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">中国"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-CASE_001-C0000",
+          "evidence_id": "CASE_001",
+          "relevance_score_raw": 22,
+          "authority_level": "B+",
+          "publisher": "路透社（Reuters）",
+          "topic": "供应链布局",
+          "title": "Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 - Evidence ID: CASE_001 Title: Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 Publishe...",
+          "content": "Evidence ID: CASE_001 Title: Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 Publisher: 路透社（Reuters） Country/Jurisdiction: CN / National Publication date: 2026-09-14 Status: CURRENT Topic: 供应链布局 Applicability scope: GENERAL Related industries: 金属铸造 Key finding: 路透原文《Companies left China to dodge tariffs. Now some are heading back》。丹东铸造企业，美国客户转单印度后回流；企业评估外迁后放弃。可作“China+1执行难度”的反向案例。 Content summary: 路透原文《Companies left China to dodge tariffs. Now some are heading back》。丹东铸造企业，美国客户转单印度后回流；企业评估外迁后放弃。可作“China+1执行难度”的反向案例。"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-IMF_001-C0000",
+          "evidence_id": "IMF_001",
+          "relevance_score_raw": 20,
+          "authority_level": "A+",
+          "publisher": "国际货币基金组织（IMF）",
+          "topic": "对外投资",
+          "title": "World Economic Outlook, April 2023, Chapter 4: Geoeconomic Fragmentation and Foreign Direct Investment - Evidence ID: IMF_001 Title: World Economic Outlook, April 2023, Chapter ...",
+          "content": "Evidence ID: IMF_001 Title: World Economic Outlook, April 2023, Chapter 4: Geoeconomic Fragmentation and Foreign Direct Investment Publisher: 国际货币基金组织（IMF） Country/Jurisdiction: 全球 Publication date: 2023-04 Status: CURRENT Topic: 对外投资 Applicability scope: GENERAL Related industries: 通用 Key finding: 用于构建“政策→贸易投资规则→企业布局”的传导框架。信息来自已有知识，入库前需核对。 Content summary: 用于构建“政策→贸易投资规则→企业布局”的传导框架。信息来自已有知识，入库前需核对。 International Monetary Fund | April 2023 91 Supply-chain disruptions and rising geopolitical tensions have brought the risks and potential benefits and costs of geoeconomic fragmentation to the center of the policy debate. This chapter studies how such fragmentation can reshape the geography of foreign direct investment (FDI) and, in turn, how FDI fragmentation can affect the global economy."
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "CNGOV_001",
+        "TRD_001",
+        "MOFCOM_002",
+        "CASE_001",
+        "IMF_001"
+      ],
+      "matched_evidence_ids": [
+        "CNGOV_001"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q012",
+      "question": "管理层需要判断地缘经济碎片化是否会持续影响跨境投资决策。哪些国际组织证据可以支持这一政策/投资风险判断？",
+      "scenario_category": "Policy / Trade Risk",
+      "expected_topic": "investment_policy",
+      "expected_evidence_ids": [
+        "UNCTAD_001",
+        "IMF_001",
+        "WEF_001"
+      ],
+      "difficulty": "Medium",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-CNGOV_001-C0005",
+          "evidence_id": "CNGOV_001",
+          "relevance_score_raw": 36,
+          "authority_level": "S",
+          "publisher": "中华人民共和国国务院",
+          "topic": "对外投资",
+          "title": "国务院关于对外投资的规定（国务院令第837号） - ，维护其正当权益。投资⽬的国家（地区）发⽣战争、武装冲突、暴乱、严重⾃然灾害、重⼤事故灾难、重⼤传染病疫情、恐怖袭击等重⼤突发事件，在该国家（地...",
+          "content": "，维护其正当权益。投资⽬的国家（地区）发⽣战争、武装冲突、暴乱、严重⾃然灾害、重⼤事故灾难、重⼤传染病疫情、恐怖袭击等重⼤突发事件，在该国家（地区）的投资者及其投资的企业、项⽬所属中国籍员⼯因⼈身财产安全受到威胁需要帮助的，驻外外交机构应当及时核实情况，敦促有关国家（地区）采取有效措施保护中国公⺠、组织的⼈身财产安全，并根据相关情形提供协助；中国政府作出相应避险安排的，有关组织、个⼈应当予以配合。第⼆⼗⼀条第⼆⼗⼀条 ⿎励投资者通过协商、调解、仲裁、诉讼等多种⽅式化解对外投资有关⽭盾纠纷，维护⾃身合法权益。第⼆⼗⼆条第⼆⼗⼆条 中国境内组织、个⼈参与对外投资相关仲裁、诉讼或者受到境外司法、执法机构相关调查，需要向境外提供证据或者相关材料的，应当遵守保守国家秘密、数据安全、个⼈信息保护、技术出⼝管理、出⼝管制、司法协助等法律、⾏政法规和国家有关规定。依法须经主管机关准许的，应当履⾏相关法律程序。第⼆⼗三条第⼆⼗三条 投资者在投资⽬的国家（地区）遭遇与贸易有关的投资壁垒或者其他投资经营障碍的，国务院商务主管部⻔可以⾃⾏或者会同国务院其他有关部⻔组织开展调查，有关组织、个⼈应当予以协助、配合。根据调查结果，国务院有关部⻔可以采取调整有关国别投资政策，禁⽌或者限制有关货物、技术进出⼝或者国际服务贸易等措施。"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-MOFCOM_002-C0020",
+          "evidence_id": "MOFCOM_002",
+          "relevance_score_raw": 25,
+          "authority_level": "S",
+          "publisher": "商务部",
+          "topic": "出口管制",
+          "title": "商务部公告2025年第72号（暂停实施2024年第46号公告第二款，涉及对美两用物项出口管制） - /a> <a href=\"http://www.cipainvest.org.cn/\" target=\"_blank\" class=\"ediAs...",
+          "content": "/a> <a href=\"http://www.cipainvest.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">投资促进事务局</a> <a href=\"http://www.aieco.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">国际经济合作事务局</a> <a href=\"http://xkzj.mofcom.gov.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">配额许可证事务局</a> <a href=\"http://www.caitec.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">国际贸易经济合作研究院</a> <a href=\"http://www.cicete.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">中国国际经济技术交流中心</a> <a href=\"http://www.comnews.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">国际商报社</a> <a href=\"https://www.china-aibo.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">国际商务官员研修学院</a> <a href=\"http://www.cftc.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">中国对外贸易中心</a> <a href=\"https://ciecc.ec.com.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">中国国际电子商务中心</a> <a href=\"http://www.ltcjzx.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">流通产业促进中心</a> <a href=\"http://www.coi.org.cn/\" target"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-WEF_001-C0000",
+          "evidence_id": "WEF_001",
+          "relevance_score_raw": 25,
+          "authority_level": "A+",
+          "publisher": "世界经济论坛（WEF）",
+          "topic": "宏观风险",
+          "title": "Global Risks Report 2026（全球风险报告2026，第21版） - Evidence ID: WEF_001 Title: Global Risks Report 2026（全球风险报告2026，第21版） Pu...",
+          "content": "Evidence ID: WEF_001 Title: Global Risks Report 2026（全球风险报告2026，第21版） Publisher: 世界经济论坛（WEF） Country/Jurisdiction: 全球 Publication date: 2026-01-14 Status: CURRENT Topic: 宏观风险 Applicability scope: GENERAL Related industries: 通用 Key finding: 地缘经济对抗列为2026年首要风险。仅作PPT背景。 Content summary: 地缘经济对抗列为2026年首要风险。仅作PPT背景。 Contents Preface Overview of methodology Key findings Chapter 1: Global Risks 2026-2036: The Age of Competition 1.1 The world in 2026: on a precipice 1.2 The path to 2028: compounding risks 1.3 The path to 2036: over the edge?"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-MOFCOM_001-C0000",
+          "evidence_id": "MOFCOM_001",
+          "relevance_score_raw": 24,
+          "authority_level": "S",
+          "publisher": "商务部、海关总署",
+          "topic": "出口管制",
+          "title": "2026年度《两用物项和技术进出口许可证管理目录》 - Evidence ID: MOFCOM_001 Title: 2026年度《两用物项和技术进出口许可证管理目录》 Publisher: 商务部、...",
+          "content": "Evidence ID: MOFCOM_001 Title: 2026年度《两用物项和技术进出口许可证管理目录》 Publisher: 商务部、海关总署 Country/Jurisdiction: CN / National Publication date: 2025-12-31 Status: CURRENT Topic: 出口管制 Applicability scope: GENERAL Related industries: ◆随产业 Key finding: 2026-01-01起实施，同时废止2024年第67号公告。用于判断产品是否属于中国侧两用物项。 Content summary: 2026-01-01起实施，同时废止2024年第67号公告。用于判断产品是否属于中国侧两用物项。 -1 - 两用物项和技术进出口许可证管理目录 说明： 一、本目录分为《两用物项和技术进口许可证管理目录》 与《两用物项和技术出口许可证管理目录》。 二、本目录所列物项和技术是指依据《中华人民共和国 出口管制法》《中华人民共和国密码法》等相关法律、行政 法规和规章实施管制或管理的物项和技术。 三、进出口本目录的物项和技术，不论该物项和技术是 否在本目录中列明海关商品编号，均应依法办理两用物项 和技术进出口许可证。 四、本目录所列物项和技术及其商品名称和描述与相 关法律、行政法规、规章、《中华人民共和国两用物项出 口管制清单》及相关公告不一致时，以相关法律、行政法 规、规章、《中华人民共和国两用物项出口管制清单》及 相关公告为准。"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-ITA_001-C22417",
+          "evidence_id": "ITA_001",
+          "relevance_score_raw": 22,
+          "authority_level": "S",
+          "publisher": "美国国际贸易管理局（ITA）",
+          "topic": "出口管制",
+          "title": "Consolidated Screening List API（美国合并筛查清单） - VELOPMENT LIMITED\", \"BEIJING EXCELLENT GLOBAL TECHNOLOGY DEVELOPMENT COM...",
+          "content": "VELOPMENT LIMITED\", \"BEIJING EXCELLENT GLOBAL TECHNOLOGY DEVELOPMENT COMPANY\"] programs: [\"IFSR\", \"NPWMD\"] remarks: (Linked To: PARSAJAM, Mohsen) source: Specially Designated Nationals (SDN) - Treasury Department source_information_url: https://home.treasury.gov/policy-issues/financial-sanctions/specially-designated-nationals-and-blocked-persons-list-sdn-human-readable-lists source_list_url: https://sanctionslist.ofac.treas.gov/Home/SdnList ids: [{\"type\": \"Unified Social Credit Code (USCC)\", \"number\": \"91110105059259703U\", \"country\": \"CN\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Additional Sanctions Information -\", \"number\": \"Subject to Secondary Sanctions\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Organization Established Date\", \"number\": \"24 Jan 2013\", \"issue_date\": null, \"expiration_date\": null}] --- RECORD --- name: INNOVIA ELECTRONIC TECHNOLOGY CO LIMITED type: Entity entity_number: 55407 programs: [\""
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "CNGOV_001",
+        "MOFCOM_002",
+        "WEF_001",
+        "MOFCOM_001",
+        "ITA_001"
+      ],
+      "matched_evidence_ids": [
+        "WEF_001"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q013",
+      "question": "我们需要给董事会解释2026年全球贸易环境是否正在恶化，以及这种环境为什么会提高海外布局的不确定性。现有高权威证据有哪些？",
+      "scenario_category": "Policy / Trade Risk",
+      "expected_topic": "trade_policy",
+      "expected_evidence_ids": [
+        "WTO_001",
+        "WEF_001",
+        "MCK_001"
+      ],
+      "difficulty": "Medium",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-MOFCOM_002-C0327",
+          "evidence_id": "MOFCOM_002",
+          "relevance_score_raw": 32,
+          "authority_level": "S",
+          "publisher": "商务部",
+          "topic": "出口管制",
+          "title": "商务部公告2025年第72号（暂停实施2024年第46号公告第二款，涉及对美两用物项出口管制） - lass=\"ediAssetsTextCon\">学习宣传贯彻党的二十大精神</a></li> <li><a href=\"http://scyxs...",
+          "content": "lass=\"ediAssetsTextCon\">学习宣传贯彻党的二十大精神</a></li> <li><a href=\"http://scyxs.mofcom.gov.cn/xfpyjhx/index.html\" title=\"消费品以旧换新\" target=\"_blank\" class=\"ediAssetsTextCon\">消费品以旧换新</a></li> <li><a href=\"https://hzf.mofcom.gov.cn/\" title=\"国家层面海外综合服务平台\" target=\"_blank\" class=\"ediAssetsTextCon\">国家层面海外综合服务平台</a></li> <li><a href=\"https://cws.mofcom.gov.cn/swbf/index.html\" title=\"商务帮扶\" target=\"_blank\" class=\"ediAssetsTextCon\">商务帮扶</a></li> <li><a href=\"https://www.gov.cn/zhengce/jiedu/tzxfzxxd/index.htm\" title=\"提振消费专项行动 政策集成和综合解读专栏\" target=\"_blank\" class=\"ediAssetsTextCon\">提振消费专项行动 政策集成和综合解读专栏</a></li> <li><a href=\"https://www.mofcom.gov.cn/yhyshj/index.html\" title=\"优化营商环境-国际贸易专题\" target=\"_blank\" class=\"ediAssetsTextCon\">优化营商环境-国际贸易专题</a></li> <li><a href=\"http://wms.mofcom.gov.cn/ztxx/wmcj/\" title=\"外贸促进\" target=\"_blank\" class=\"ediAssetsTextCon\">外贸促进</a></li> <li><a href=\"https://wzxxbg.mofcom.gov.cn/wzWtsq/un/register\" title=\"外资企业问题诉求收集办理\" target=\"_"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-CASE_006-C0471",
+          "evidence_id": "CASE_006",
+          "relevance_score_raw": 31,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "天孚通信：泰国一期投产、二期2025年投入使用 - g: border-box;\"><span>【海内海外布局加速，新一轮产能释放的前夜】</span></strong></p><p style=...",
+          "content": "g: border-box;\"><span>【海内海外布局加速，新一轮产能释放的前夜】</span></strong></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><span><br></span></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><strong style=\"box-sizing: border-box;\"><span>面对算力需求爆发性增长，光模块头部厂商开启海内海外双线并行的产能扩张。</span></strong></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><strong style=\"box-sizing: border-box;\"><span><br></span></strong></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><strong style=\"box-sizing: border-box;\"><span>光通信龙头全球化产能扩张持续进行：</span></strong><span style=\"box-sizing: border-box; color: rgb(0, 0, 0);\"><span>光通信龙头厂商通过全球产能布局，建立包括中国大陆与东南亚的多边供应体系，规避地缘政治风险同时优化成本结构。新易盛于2022年在泰国设立生产基地，目前泰国工厂一期、二期均已正式投产，二期产能2025年至2026年持续释放。中际旭创泰国厂运营多年可全面量产出货，生产能力和国内基本齐平，公司产能多线布局，在苏州、铜陵以及泰国均有光模块产能。天孚通信泰国生产基地第一期已投产，正按需增加产能，第二期项目2025年投入使用，预计 2026 年泰国"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-CASE_004-C0480",
+          "evidence_id": "CASE_004",
+          "relevance_score_raw": 31,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "中际旭创：泰国工厂产能与国内基本齐平 - g: border-box;\"><span>【海内海外布局加速，新一轮产能释放的前夜】</span></strong></p><p style=...",
+          "content": "g: border-box;\"><span>【海内海外布局加速，新一轮产能释放的前夜】</span></strong></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><span><br></span></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><strong style=\"box-sizing: border-box;\"><span>面对算力需求爆发性增长，光模块头部厂商开启海内海外双线并行的产能扩张。</span></strong></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><strong style=\"box-sizing: border-box;\"><span><br></span></strong></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><strong style=\"box-sizing: border-box;\"><span>光通信龙头全球化产能扩张持续进行：</span></strong><span style=\"box-sizing: border-box; color: rgb(0, 0, 0);\"><span>光通信龙头厂商通过全球产能布局，建立包括中国大陆与东南亚的多边供应体系，规避地缘政治风险同时优化成本结构。新易盛于2022年在泰国设立生产基地，目前泰国工厂一期、二期均已正式投产，二期产能2025年至2026年持续释放。中际旭创泰国厂运营多年可全面量产出货，生产能力和国内基本齐平，公司产能多线布局，在苏州、铜陵以及泰国均有光模块产能。天孚通信泰国生产基地第一期已投产，正按需增加产能，第二期项目2025年投入使用，预计 2026 年泰国"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-UNCTAD_001-C0000",
+          "evidence_id": "UNCTAD_001",
+          "relevance_score_raw": 28,
+          "authority_level": "A+",
+          "publisher": "联合国贸易和发展会议（UNCTAD）",
+          "topic": "对外投资",
+          "title": "World Investment Report 2026: International Investment in a Turbulent Era - Evidence ID: UNCTAD_001 Title: World Investment Report 2026: Internation...",
+          "content": "Evidence ID: UNCTAD_001 Title: World Investment Report 2026: International Investment in a Turbulent Era Publisher: 联合国贸易和发展会议（UNCTAD） Country/Jurisdiction: 全球 Publication date: 2026-07-07 Status: CURRENT Topic: 对外投资 Applicability scope: GENERAL Related industries: 通用 Key finding: 2025年全球FDI增长6%至约1.6万亿美元；战略行业占绿地投资比重显著上升。 Content summary: 2025年全球FDI增长6%至约1.6万亿美元；战略行业占绿地投资比重显著上升。 International Investment in a Turbulent Era 2026 World Investment Report UNITED NATIONS CONFERENCE ON TRADE AND DEVELOPMENTUNITED NATIONS CONFERENCE ON TRADE AND DEVELOPMENT Geneva, 2026 ii © 2026, United Nations All rights reserved worldwide Requests to reproduce excerpts or to photocopy should be addressed to the Copyright Clearance Center at copyright.com."
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-CASE_005-C0000",
+          "evidence_id": "CASE_005",
+          "relevance_score_raw": 27,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "新易盛：2022年设立泰国基地，一二期已投产 - 问AI · 2026年产能集中释放会怎样提升行业业绩？ 摘要 在过去几周的周报中，我们反复强调光模块行业正处于高景气周期，AI算力需求持续爆发推...",
+          "content": "问AI · 2026年产能集中释放会怎样提升行业业绩？ 摘要 在过去几周的周报中，我们反复强调光模块行业正处于高景气周期，AI算力需求持续爆发推动高端光模块需求快速增长，供给将成为核心矛盾。近期我们调研发现，头部厂商在大陆和泰国加速扩产，预计2026年一季度将迎来产能集中释放，驱动业绩进入新一轮爬坡期。 【算力需求强劲，瓶颈在于供给】 算力产业链正处于高景气周期，AI模型持续创新演进推动算力需求快速增长。 业绩全面超预期： 谷歌新一代大模型Gemini 3表现优异，Scaling Law持续有效；英伟达发布三季度财报，业绩及指引全面超预期。谷歌与英伟达的强势表现，共同印证了模型创新与算力建设正在形成相互促进的良性循环，算力需求加速扩张。 北美巨头资本开支全面上调，AI加速落地： Meta2025年三季报将本财年资本支出的预测从660-720亿美元上调至700-720亿美元；谷歌将全年资本开支指引由此前的850亿美元上调至910-930亿美元；亚马逊全年资本开支预计约 1250 亿美元，2026 年规模将进一步增加。 光模块产业链存在供给缺口： 算力需求迅速增长导致了光模块产业链的供应缺口，上游光芯片结构性短缺，高速光模块技术门槛高，产能爬坡缓慢，已成为制约行业发展的关键因素。 【海内海外布局加速，新一轮产能释放的前夜】 面对算力需求爆发性增长，光模块头部厂商开启海内海外双线并行的产能扩张。 光通信龙头全球化产能扩张持续进行： 光通信龙头厂商通过全球产能布局，建立包括中国大陆与东南亚的多边供应体系，规避地缘政治风险同时优化成本结构。新易盛于2022年在泰国设立生产基地，目前泰国工厂一期、二期均已正式投产，二期产能2025年至2026年持续释放。中际旭创泰国厂运营多年可全面量产出货，生产能力和国内基本齐平，公司产能多线布局，在苏州、铜陵以及泰国均有光模块产能。天孚通信泰国生产基地第一期已投产，正按需增加产能，第二期项目2025年投入使用，预计 2026 年泰国生产基地各产品线将快速爬坡；除泰国基地外，公司在江西高安生产基地亦持续扩产。"
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "MOFCOM_002",
+        "CASE_006",
+        "CASE_004",
+        "UNCTAD_001",
+        "CASE_005"
+      ],
+      "matched_evidence_ids": [],
+      "hit_at_5": 0
+    },
+    {
+      "question_id": "Q014",
+      "question": "合规团队要建立美国受限方筛查流程。现有证据库中哪个官方数据源最适合用于企业/客户名称筛查？同时应关注哪些出口管制规则？",
+      "scenario_category": "Policy / Trade Risk",
+      "expected_topic": "export_control",
+      "expected_evidence_ids": [
+        "ITA_001",
+        "BIS_001",
+        "BIS_002"
+      ],
+      "difficulty": "Medium",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-ITA_001-C0000",
+          "evidence_id": "ITA_001",
+          "relevance_score_raw": 41,
+          "authority_level": "S",
+          "publisher": "美国国际贸易管理局（ITA）",
+          "topic": "出口管制",
+          "title": "Consolidated Screening List API（美国合并筛查清单） - Evidence ID: ITA_001 Title: Consolidated Screening List API（美国合并筛查清单） Pu...",
+          "content": "Evidence ID: ITA_001 Title: Consolidated Screening List API（美国合并筛查清单） Publisher: 美国国际贸易管理局（ITA） Country/Jurisdiction: US / Federal Publication date: 持续更新（每日） Status: CURRENT Topic: 出口管制 Applicability scope: GENERAL Related industries: 通用 Key finding: 合并商务部、国务院、财政部11份清单；支持模糊名称搜索。 Content summary: 合并商务部、国务院、财政部11份清单；支持模糊名称搜索。 name: BANK OF KUNLUN CO LTD type: Entity entity_number: 15268 alt_names: [\"KARAMAY URBAN CREDIT COOPERATIVES\", \"KARAMAY CITY COMMERCIAL BANK CO LTD.\"] programs: [\"561-Related\"] remarks: United States financial institutions are prohibited from opening or maintaining a correspondent account or a payable-through account for the foreign financial institution listed here, pursuant to 31 C.F.R."
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-MOFCOM_001-C0000",
+          "evidence_id": "MOFCOM_001",
+          "relevance_score_raw": 34,
+          "authority_level": "S",
+          "publisher": "商务部、海关总署",
+          "topic": "出口管制",
+          "title": "2026年度《两用物项和技术进出口许可证管理目录》 - Evidence ID: MOFCOM_001 Title: 2026年度《两用物项和技术进出口许可证管理目录》 Publisher: 商务部、...",
+          "content": "Evidence ID: MOFCOM_001 Title: 2026年度《两用物项和技术进出口许可证管理目录》 Publisher: 商务部、海关总署 Country/Jurisdiction: CN / National Publication date: 2025-12-31 Status: CURRENT Topic: 出口管制 Applicability scope: GENERAL Related industries: ◆随产业 Key finding: 2026-01-01起实施，同时废止2024年第67号公告。用于判断产品是否属于中国侧两用物项。 Content summary: 2026-01-01起实施，同时废止2024年第67号公告。用于判断产品是否属于中国侧两用物项。 -1 - 两用物项和技术进出口许可证管理目录 说明： 一、本目录分为《两用物项和技术进口许可证管理目录》 与《两用物项和技术出口许可证管理目录》。 二、本目录所列物项和技术是指依据《中华人民共和国 出口管制法》《中华人民共和国密码法》等相关法律、行政 法规和规章实施管制或管理的物项和技术。 三、进出口本目录的物项和技术，不论该物项和技术是 否在本目录中列明海关商品编号，均应依法办理两用物项 和技术进出口许可证。 四、本目录所列物项和技术及其商品名称和描述与相 关法律、行政法规、规章、《中华人民共和国两用物项出 口管制清单》及相关公告不一致时，以相关法律、行政法 规、规章、《中华人民共和国两用物项出口管制清单》及 相关公告为准。"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-CASE_006-C0618",
+          "evidence_id": "CASE_006",
+          "relevance_score_raw": 22,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "天孚通信：泰国一期投产、二期2025年投入使用 - ips-text\">扫一扫查看详情</div></div><div class=\"scanner\"></div></div></div></di...",
+          "content": "ips-text\">扫一扫查看详情</div></div><div class=\"scanner\"></div></div></div></div></div></div></div></div><div id=\"pc-ad-media-3bm2p58ndll\" class=\"Bt801aD5UivI6l70yhQ7 vDUU3tA84v45092vA1mV\" data-ad-video-media=\"true\"><img class=\"LtTBfWei2VAGOx05qsdt\" src=\"https://pgdt.gtimg.cn/141/20204/snscosdownload/SZ/reserved/6a9fdbd900091af71eb5b83b20f001150000008d00004eec?ck=c278e8c21e38bb01d93a57b1aed999a0&amp;m=c278e8c21e38bb01d93a57b1aed999a0&amp;sha256=570b5967b145843e45f93cb04c7aba4a79fb648cd19698993477a9b2cff47ea7\"></div></div></div></div><div class=\"qqcom-article-cell recommend-article-cell\"><div class=\"qqcom-article-cell-common\"><div class=\"qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" title=\"富信科技：应用于通信领域的TEC产品验证周期较长 预计不会对2026年收入产生影响\">富信科技：应用于通信领域的TEC产品验证周期较长 预计不会对2026年收入产生影响</div><div class=\"qqcom-article-cell-info-bottom\"><div class=\"qqcom-article-cell-info-count\"><a href=\"https://news.qq.com/omn/author/8QMd3nda74UduTba\" ta"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-MOFCOM_002-C0004",
+          "evidence_id": "MOFCOM_002",
+          "relevance_score_raw": 22,
+          "authority_level": "S",
+          "publisher": "商务部",
+          "topic": "出口管制",
+          "title": "商务部公告2025年第72号（暂停实施2024年第46号公告第二款，涉及对美两用物项出口管制） - 管制局\"> <meta name=\"Keywords\" content=\"公告,商务部,日,加强,管制\"> <meta name=\"Author...",
+          "content": "管制局\"> <meta name=\"Keywords\" content=\"公告,商务部,日,加强,管制\"> <meta name=\"Author\" content=\"aqygzj\"> <meta name=\"Description\" content=\"经批准，自即日起至2026年11月27日，商务部公告2024年第46号（《关于加强相关两用物项对美国出口管制的公告》）第二款暂停实施。商务部 2025年11月9日\"> <meta name=\"Url\" content=\"/zwgk/zcfb/art/2025/art_5c68985a6b1a46778e2e8dbff1bb1601.html\"> <meta name=\"server\" content=\"/zwgk/zcfb/art/2025/art_5c68985a6b1a46778e2e8dbff1bb1601.html\"> <meta name=\"extend1\" content=\"0\"> <meta name=\"MakeTime\" content=\"2026-09-21 14:39:11\"> <meta id=\"pagetype\" content=\"1\"> <link rel=\"stylesheet\" type=\"text/css\" href=\"./MOFCOM_002_files/outSideChain.min.css\" class=\"targetLink\"></head> <body id=\"page_type\" alt=\"列表页\"><div id=\"barrierfree_container\"> <script type=\"text/javascript\"> //var _paq = window._paq || []; //_paq.push(['trackPageView']); //_paq.push(['enableLinkTracking']); //_paq.push(['enableHeartBeatTimer']); //(function() { // var u=\"https://analysis.mofcom.gov.cn/\"; // _paq.push(['setTrackerUrl"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-FR_001-C0000",
+          "evidence_id": "FR_001",
+          "relevance_score_raw": 22,
+          "authority_level": "S",
+          "publisher": "美国国家档案馆联邦公报办公室",
+          "topic": "出口管制/关税",
+          "title": "Federal Register API（美国联邦公报） - Evidence ID: FR_001 Title: Federal Register API（美国联邦公报） Publisher: 美国国家档...",
+          "content": "Evidence ID: FR_001 Title: Federal Register API（美国联邦公报） Publisher: 美国国家档案馆联邦公报办公室 Country/Jurisdiction: US / Federal Publication date: 持续更新（每日） Status: CURRENT Topic: 出口管制/关税 Applicability scope: GENERAL Related industries: 通用 Key finding: 免费，无需key；按机构（BIS/USTR/CBP）过滤。 Content summary: 免费，无需key；按机构（BIS/USTR/CBP）过滤。 type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Rule --- RECORD --- type: Rule --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Proposed Rule --- RECORD --- type: Notice"
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "ITA_001",
+        "MOFCOM_001",
+        "CASE_006",
+        "MOFCOM_002",
+        "FR_001"
+      ],
+      "matched_evidence_ids": [
+        "ITA_001"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q015",
+      "question": "我们希望持续监控美国BIS、USTR、CBP等机构发布的新规，以便及时发现关税或出口管制变化。现有证据库中哪个官方入口适合作为监测源？",
+      "scenario_category": "Policy / Trade Risk",
+      "expected_topic": "regulation",
+      "expected_evidence_ids": [
+        "FR_001"
+      ],
+      "difficulty": "Easy",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-TRD_001-C0000",
+          "evidence_id": "TRD_001",
+          "relevance_score_raw": 44,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 - Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–20...",
+          "content": "Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: US / Federal Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。 Content summary: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-FR_001-C0000",
+          "evidence_id": "FR_001",
+          "relevance_score_raw": 38,
+          "authority_level": "S",
+          "publisher": "美国国家档案馆联邦公报办公室",
+          "topic": "出口管制/关税",
+          "title": "Federal Register API（美国联邦公报） - Evidence ID: FR_001 Title: Federal Register API（美国联邦公报） Publisher: 美国国家档...",
+          "content": "Evidence ID: FR_001 Title: Federal Register API（美国联邦公报） Publisher: 美国国家档案馆联邦公报办公室 Country/Jurisdiction: US / Federal Publication date: 持续更新（每日） Status: CURRENT Topic: 出口管制/关税 Applicability scope: GENERAL Related industries: 通用 Key finding: 免费，无需key；按机构（BIS/USTR/CBP）过滤。 Content summary: 免费，无需key；按机构（BIS/USTR/CBP）过滤。 type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Rule --- RECORD --- type: Rule --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Notice --- RECORD --- type: Proposed Rule --- RECORD --- type: Notice"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-ITA_001-C22417",
+          "evidence_id": "ITA_001",
+          "relevance_score_raw": 25,
+          "authority_level": "S",
+          "publisher": "美国国际贸易管理局（ITA）",
+          "topic": "出口管制",
+          "title": "Consolidated Screening List API（美国合并筛查清单） - VELOPMENT LIMITED\", \"BEIJING EXCELLENT GLOBAL TECHNOLOGY DEVELOPMENT COM...",
+          "content": "VELOPMENT LIMITED\", \"BEIJING EXCELLENT GLOBAL TECHNOLOGY DEVELOPMENT COMPANY\"] programs: [\"IFSR\", \"NPWMD\"] remarks: (Linked To: PARSAJAM, Mohsen) source: Specially Designated Nationals (SDN) - Treasury Department source_information_url: https://home.treasury.gov/policy-issues/financial-sanctions/specially-designated-nationals-and-blocked-persons-list-sdn-human-readable-lists source_list_url: https://sanctionslist.ofac.treas.gov/Home/SdnList ids: [{\"type\": \"Unified Social Credit Code (USCC)\", \"number\": \"91110105059259703U\", \"country\": \"CN\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Additional Sanctions Information -\", \"number\": \"Subject to Secondary Sanctions\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Organization Established Date\", \"number\": \"24 Jan 2013\", \"issue_date\": null, \"expiration_date\": null}] --- RECORD --- name: INNOVIA ELECTRONIC TECHNOLOGY CO LIMITED type: Entity entity_number: 55407 programs: [\""
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-MOFCOM_001-C0055",
+          "evidence_id": "MOFCOM_001",
+          "relevance_score_raw": 22,
+          "authority_level": "S",
+          "publisher": "商务部、海关总署",
+          "topic": "出口管制",
+          "title": "2026年度《两用物项和技术进出口许可证管理目录》 - 3002499020 千克/ 株 255 1C450.a.1 a．可作为化学 武器的化学品： 1．烷基（甲基、乙 基、正丙基或异丙 基）氟膦酸烷...",
+          "content": "3002499020 千克/ 株 255 1C450.a.1 a．可作为化学 武器的化学品： 1．烷基（甲基、乙 基、正丙基或异丙 基）氟膦酸烷（少于 或等于 10个碳原子 烷基（甲基、 乙基、正丙基 或异丙基）氟 膦酸烷（少于 2931590001 千克 - 41 - 序号 管制编码 物项名称及描述 参考商品名称 海关商品编号 单位 监控化学品*： 注意：1C450项的 出口管制适用《中 华人民共和国监 控化学品管理条 例》的规定，《中 华人民共和国监 控化学品管理条 例》中未作规定的 事项，由国务院工 业和信息化主管 部门依照《中华人 民共和国出口管 制法》和《中华人 民共和国两用物 项出口管制条例》 的有关规定执行。"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-CASE_006-C0608",
+          "evidence_id": "CASE_006",
+          "relevance_score_raw": 21,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "天孚通信：泰国一期投产、二期2025年投入使用 - common\"><div class=\"qqcom-article-cell-info\"><div class=\"qqcom-article-c...",
+          "content": "common\"><div class=\"qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" title=\"在手订单与预收款持续增长！这家半导体设备龙头业务实现多点突破，碳化硅衬底已规模化供应丨机构调研\">在手订单与预收款持续增长！这家半导体设备龙头业务实现多点突破，碳化硅衬底已规模化供应丨机构调研</div><div class=\"qqcom-article-cell-info-bottom\"><div class=\"qqcom-article-cell-info-count\"><span class=\"read-percent\">部分试看</span><a href=\"https://news.qq.com/omn/author/8QMc1nxf7YwUvjY%3D\" target=\"_blank\" rel=\"noopener\">21世纪经济报道</a><span>08-26</span></div></div></div><div class=\"qqcom-article-cell-info-media\" style=\"margin-left: 45px;\"><img class=\"qqcom-article-cell-info-image\" src=\"./CASE_006_files/0(6)\" alt=\"\"></div></div></div><div class=\"qqcom-article-cell recommend-article-cell\"><div class=\"qqcom-article-cell-common\"><div class=\"qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" title=\"半导体背后的“隐形战场”：洁净室，一个千亿级赛道丨黄金眼\">半导体背后的“隐形战场”：洁净室，一个千亿级赛道丨黄金眼</div><div class=\"qqcom-article-cell-info-bottom\"><div class=\"qqcom-article-cell-inf"
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "TRD_001",
+        "FR_001",
+        "ITA_001",
+        "MOFCOM_001",
+        "CASE_006"
+      ],
+      "matched_evidence_ids": [
+        "FR_001"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q016",
+      "question": "我们要判断美国EV/电池进口是否正在从中国向越南、泰国、马来西亚转移。现有哪组贸易数据最直接支持这个供应链迁移分析？",
+      "scenario_category": "Supply Chain Risk",
+      "expected_topic": "supply_chain",
+      "expected_evidence_ids": [
+        "TRD_001"
+      ],
+      "difficulty": "Easy",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-TRD_001-C0000",
+          "evidence_id": "TRD_001",
+          "relevance_score_raw": 67,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 - Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–20...",
+          "content": "Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: US / Federal Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。 Content summary: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-UNCTAD_001-C0702",
+          "evidence_id": "UNCTAD_001",
+          "relevance_score_raw": 39,
+          "authority_level": "A+",
+          "publisher": "联合国贸易和发展会议（UNCTAD）",
+          "topic": "对外投资",
+          "title": "World Investment Report 2026: International Investment in a Turbulent Era - In electric vehicles, opportunities are broader but more selective, requ...",
+          "content": "In electric vehicles, opportunities are broader but more selective, requiring not only market size 2 International Energy Agency (IEA), Global EV Outlook 2025, chapters “Electric vehicle batteries” and “Trends in electric car markets”; Reuters, Gotion High-Tech Morocco gigafactory to start production in 2026, 7 June 2024; Reuters, U.S. government confirms Tesla and LG Energy Solution’s $4.3 billion battery deal, 17 March 2026; Reuters, Chinese carmaker GAC plans Brazil production from 2027, 18 March 2026. and policy support but also technological capabilities, industrial infrastructure, skills and integration into evolving value chains. The experiences of Morocco and Thailand illustrate how developing economies can use targeted industrial policy, investment facilitation and capability-building measures to position themselves in emerging value chains for electric vehicles."
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-TRD_003-C0000",
+          "evidence_id": "TRD_003",
+          "relevance_score_raw": 38,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 - Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年...",
+          "content": "Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: CN / National Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。 Content summary: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-CSIS_001-C0009",
+          "evidence_id": "CSIS_001",
+          "relevance_score_raw": 37,
+          "authority_level": "A",
+          "publisher": "战略与国际研究中心（CSIS）",
+          "topic": "原产地与转运",
+          "title": "The Visibility Gap: How AI Can Stop Chinese Transshipment Under USMCA - This spring, Bloomberg reported that roughly $300 billion in goods subje...",
+          "content": "This spring, Bloomberg reported that roughly $300 billion in goods subject to U.S. tariﬀs are being rerouted around them every year, increasingly through Mexico; shipment patterns consistent with circumvention are up 76 percent in a single year. A tariﬀ wall cannot tell a genuinely North American input from one merely routed through a North American port, but a veriﬁed supply chain can. None of this erases the real obstacles. An electric vehicle (EV) battery can pass through a Chinese cathode supplier, a South Korean cell manufacturer, a Mexican assembly plant, and a Canadian facility before claiming preferential treatment at the U.S. border. Each tier adds a jurisdiction, a privacy law, and a watch list the others may not share. Closing those seams takes legal and data harmonization down to the state and provincial level, patient investment, and the political will to formalize trust that has so far only ever been informal."
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-TRD_002-C0000",
+          "evidence_id": "TRD_002",
+          "relevance_score_raw": 29,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "美国自越南、泰国、马来西亚、柬埔寨进口光伏组件HS 854140，2018–2025年度 - Evidence ID: TRD_002 Title: 美国自越南、泰国、马来西亚、柬埔寨进口光伏组件HS 854140，2018–2025年度...",
+          "content": "Evidence ID: TRD_002 Title: 美国自越南、泰国、马来西亚、柬埔寨进口光伏组件HS 854140，2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: US / Federal Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆光伏 Key finding: HS 2022版起光伏组件编码调整（旧版854140拆分），跨年比较须做编码对照。配合CASE_002做回溯。 Content summary: HS 2022版起光伏组件编码调整（旧版854140拆分），跨年比较须做编码对照。配合CASE_002做回溯。"
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "TRD_001",
+        "UNCTAD_001",
+        "TRD_003",
+        "CSIS_001",
+        "TRD_002"
+      ],
+      "matched_evidence_ids": [
+        "TRD_001"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q017",
+      "question": "如果东南亚工厂仍大量依赖来自中国的中间品，企业的‘China+1’布局可能存在哪类供应商依赖和原产地风险？现有数据与政策证据如何组合？",
+      "scenario_category": "Supply Chain Risk",
+      "expected_topic": "supplier_dependency",
+      "expected_evidence_ids": [
+        "TRD_003",
+        "CSIS_001",
+        "CASE_010"
+      ],
+      "difficulty": "Hard",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-TRD_003-C0000",
+          "evidence_id": "TRD_003",
+          "relevance_score_raw": 38,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 - Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年...",
+          "content": "Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: CN / National Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。 Content summary: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-CASE_004-C0652",
+          "evidence_id": "CASE_004",
+          "relevance_score_raw": 18,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "中际旭创：泰国工厂产能与国内基本齐平 - 加剧\">欧洲柴油价格大涨，供应不确定性加剧</span></div><div class=\"RVau_7rDSrRFpECiPRGS\">欧洲柴油...",
+          "content": "加剧\">欧洲柴油价格大涨，供应不确定性加剧</span></div><div class=\"RVau_7rDSrRFpECiPRGS\">欧洲柴油价格大涨，供应不确定性加剧</div></div></div></div><div><div id=\"PC_News_Stream_1_finance_90924401000_279N7szPr4Tcqzc86l8KVafl\" style=\"height: 100%;\"><div class=\"rectangle_ad-item\"><div class=\"undefined 117 right-big-rectangle\"><div class=\"ad-cell-common\"><span data-ad-feedback=\"true\" class=\"feedback-icon\"></span><div class=\"content-box\"><div class=\"cell-content\"><img class=\"play-icon\" src=\"./CASE_004_files/0(21)\"><img class=\"content-picture\" src=\"https://pgdt.gtimg.cn/141/20204/snscosdownload/SZ/reserved/6a028938000e1b0705121e0db50555150000008d00004eec?ck=572ab960d4390ce0a238d771444d0c33&amp;m=572ab960d4390ce0a238d771444d0c33&amp;sha256=495b337826719ae94290ffd69be5e4fa94b9e695dbf378964b3b046fde5d6dec\" alt=\"\"></div></div><div class=\"cell-title-box\"><p class=\"cell-title\">WorkBuddy AI办公助手，免部署安装即用</p></div></div></div></div></div></div><div class=\"user-article\"><div class=\"bHKkyKhzd"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-CASE_010-C0000",
+          "evidence_id": "CASE_010",
+          "relevance_score_raw": 17,
+          "authority_level": "S",
+          "publisher": "美国白宫（经律所解读）",
+          "topic": "原产地与转运",
+          "title": "白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 - Evidence ID: CASE_010 Title: 白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 Publisher: 美国白宫...",
+          "content": "Evidence ID: CASE_010 Title: 白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 Publisher: 美国白宫（经律所解读） Country/Jurisdiction: US / Federal Publication date: 2026-08-13 Status: CURRENT Topic: 原产地与转运 Applicability scope: GENERAL Related industries: 通用 Key finding: 由WH_001与WH_002组成。对已在越南/泰国/马来西亚布局的企业，原产地举证压力上升。 Content summary: 由WH_001与WH_002组成。对已在越南/泰国/马来西亚布局的企业，原产地举证压力上升。"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-ITA_001-C0075",
+          "evidence_id": "ITA_001",
+          "relevance_score_raw": 12,
+          "authority_level": "S",
+          "publisher": "美国国际贸易管理局（ITA）",
+          "topic": "出口管制",
+          "title": "Consolidated Screening List API（美国合并筛查清单） - RY GROUP POWER COMPANY LIMITED type: Entity entity_number: 32106 alt_nam...",
+          "content": "RY GROUP POWER COMPANY LIMITED type: Entity entity_number: 32106 alt_names: [\"China Shipbuilding Industry Group Power Co Ltd\", \"China Shipbuilding Industry Group Power\", \"CSIC Power\", \"CSICP\", \"Fengfan Co., Ltd.\"] programs: [\"CMIC-EO13959\"] source: Non-SDN Chinese Military-Industrial Complex Companies List (CMIC) - Treasury Department source_information_url: https://ofac.treasury.gov/other-ofac-sanctions-lists source_list_url: https://sanctionslist.ofac.treas.gov/Home/ConsolidatedList ids: [{\"type\": \"Unified Social Credit Code (USCC)\", \"number\": \"911306007109266097\", \"country\": \"CN\"}, {\"type\": \"Target Type\", \"number\": \"Public Company\"}, {\"type\": \"Issuer Name\", \"number\": \"China Shipbuilding Industry Group Power\"}, {\"type\": \"Equity Ticker\", \"number\": \"600482 CN\"}, {\"type\": \"ISIN\", \"number\": \"CNE000001KB1\"}, {\"type\": \"Listing Date (CMIC)\", \"number\": \"2021-06-03\"}, {\"type\": \"Effective Date (CMIC)\", \"number\": \"2021-08-02\"}, {\"type\": \"Purchas"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-MOFCOM_002-C0020",
+          "evidence_id": "MOFCOM_002",
+          "relevance_score_raw": 11,
+          "authority_level": "S",
+          "publisher": "商务部",
+          "topic": "出口管制",
+          "title": "商务部公告2025年第72号（暂停实施2024年第46号公告第二款，涉及对美两用物项出口管制） - /a> <a href=\"http://www.cipainvest.org.cn/\" target=\"_blank\" class=\"ediAs...",
+          "content": "/a> <a href=\"http://www.cipainvest.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">投资促进事务局</a> <a href=\"http://www.aieco.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">国际经济合作事务局</a> <a href=\"http://xkzj.mofcom.gov.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">配额许可证事务局</a> <a href=\"http://www.caitec.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">国际贸易经济合作研究院</a> <a href=\"http://www.cicete.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">中国国际经济技术交流中心</a> <a href=\"http://www.comnews.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">国际商报社</a> <a href=\"https://www.china-aibo.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">国际商务官员研修学院</a> <a href=\"http://www.cftc.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">中国对外贸易中心</a> <a href=\"https://ciecc.ec.com.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">中国国际电子商务中心</a> <a href=\"http://www.ltcjzx.org.cn/\" target=\"_blank\" class=\"ediAssetsTextCon\">流通产业促进中心</a> <a href=\"http://www.coi.org.cn/\" target"
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "TRD_003",
+        "CASE_004",
+        "CASE_010",
+        "ITA_001",
+        "MOFCOM_002"
+      ],
+      "matched_evidence_ids": [
+        "TRD_003",
+        "CASE_010"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q018",
+      "question": "管理层正在比较中国本土生产与东南亚生产。现有案例是否表明仅把最终生产环节迁往东南亚并不能完全隔离贸易与供应链风险？",
+      "scenario_category": "Supply Chain Risk",
+      "expected_topic": "supply_chain",
+      "expected_evidence_ids": [
+        "CASE_002",
+        "CASE_003",
+        "TRD_003"
+      ],
+      "difficulty": "Hard",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-TRD_001-C0000",
+          "evidence_id": "TRD_001",
+          "relevance_score_raw": 38,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 - Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–20...",
+          "content": "Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: US / Federal Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。 Content summary: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-TRD_003-C0000",
+          "evidence_id": "TRD_003",
+          "relevance_score_raw": 36,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 - Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年...",
+          "content": "Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: CN / National Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。 Content summary: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-CASE_006-C0013",
+          "evidence_id": "CASE_006",
+          "relevance_score_raw": 25,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "天孚通信：泰国一期投产、二期2025年投入使用 - \\u003e\\u003cp style=\\\"box-sizing: border-box; margin: 0px; padding: 0px;...",
+          "content": "\\u003e\\u003cp style=\\\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal\\\"\\u003e\\u003cstrong style=\\\"box-sizing: border-box\\\"\\u003e\\u003cspan leaf=\\\"\\\"\\u003e\\u003cbr/\\u003e\\u003c/span\\u003e\\u003c/strong\\u003e\\u003c/p\\u003e\\u003cp style=\\\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal\\\"\\u003e\\u003cstrong style=\\\"box-sizing: border-box\\\"\\u003e\\u003cspan leaf=\\\"\\\"\\u003e光通信龙头全球化产能扩张持续进行：\\u003c/span\\u003e\\u003c/strong\\u003e\\u003cspan style=\\\"box-sizing: border-box; color: rgb(0, 0, 0)\\\"\\u003e\\u003cspan leaf=\\\"\\\"\\u003e光通信龙头厂商通过全球产能布局，建立包括中国大陆与东南亚的多边供应体系，规避地缘政治风险同时优化成本结构。新易盛于2022年在泰国设立生产基地，目前泰国工厂一期、二期均已正式投产，二期产能2025年至2026年持续释放。中际旭创泰国厂运营多年可全面量产出货，生产能力和国内基本齐平，公司产能多线布局，在苏州、铜陵以及泰国均有光模块产能。天孚通信泰国生产基地第一期已投产，正按需增加产能，第二期项目2025年投入使用，预计 2026 年泰国生产基地各产品线将快速爬坡；除泰国基地外，公司在江西高安生产基地亦持续扩产。\\u003c!--AI_AD_1000--\\u003e\\u003c/span\\u003e\\u003c/span\\u003e\\u003c/p\\u003e\\u003cp style=\\\"box-sizing: border-box; margin: 0px; pad"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-CASE_004-C0013",
+          "evidence_id": "CASE_004",
+          "relevance_score_raw": 25,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "中际旭创：泰国工厂产能与国内基本齐平 - \\u003e\\u003cp style=\\\"box-sizing: border-box; margin: 0px; padding: 0px;...",
+          "content": "\\u003e\\u003cp style=\\\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal\\\"\\u003e\\u003cstrong style=\\\"box-sizing: border-box\\\"\\u003e\\u003cspan leaf=\\\"\\\"\\u003e\\u003cbr/\\u003e\\u003c/span\\u003e\\u003c/strong\\u003e\\u003c/p\\u003e\\u003cp style=\\\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal\\\"\\u003e\\u003cstrong style=\\\"box-sizing: border-box\\\"\\u003e\\u003cspan leaf=\\\"\\\"\\u003e光通信龙头全球化产能扩张持续进行：\\u003c/span\\u003e\\u003c/strong\\u003e\\u003cspan style=\\\"box-sizing: border-box; color: rgb(0, 0, 0)\\\"\\u003e\\u003cspan leaf=\\\"\\\"\\u003e光通信龙头厂商通过全球产能布局，建立包括中国大陆与东南亚的多边供应体系，规避地缘政治风险同时优化成本结构。新易盛于2022年在泰国设立生产基地，目前泰国工厂一期、二期均已正式投产，二期产能2025年至2026年持续释放。中际旭创泰国厂运营多年可全面量产出货，生产能力和国内基本齐平，公司产能多线布局，在苏州、铜陵以及泰国均有光模块产能。天孚通信泰国生产基地第一期已投产，正按需增加产能，第二期项目2025年投入使用，预计 2026 年泰国生产基地各产品线将快速爬坡；除泰国基地外，公司在江西高安生产基地亦持续扩产。\\u003c!--AI_AD_1000--\\u003e\\u003c/span\\u003e\\u003c/span\\u003e\\u003c/p\\u003e\\u003cp style=\\\"box-sizing: border-box; margin: 0px; pad"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-ITA_001-C22417",
+          "evidence_id": "ITA_001",
+          "relevance_score_raw": 23,
+          "authority_level": "S",
+          "publisher": "美国国际贸易管理局（ITA）",
+          "topic": "出口管制",
+          "title": "Consolidated Screening List API（美国合并筛查清单） - VELOPMENT LIMITED\", \"BEIJING EXCELLENT GLOBAL TECHNOLOGY DEVELOPMENT COM...",
+          "content": "VELOPMENT LIMITED\", \"BEIJING EXCELLENT GLOBAL TECHNOLOGY DEVELOPMENT COMPANY\"] programs: [\"IFSR\", \"NPWMD\"] remarks: (Linked To: PARSAJAM, Mohsen) source: Specially Designated Nationals (SDN) - Treasury Department source_information_url: https://home.treasury.gov/policy-issues/financial-sanctions/specially-designated-nationals-and-blocked-persons-list-sdn-human-readable-lists source_list_url: https://sanctionslist.ofac.treas.gov/Home/SdnList ids: [{\"type\": \"Unified Social Credit Code (USCC)\", \"number\": \"91110105059259703U\", \"country\": \"CN\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Additional Sanctions Information -\", \"number\": \"Subject to Secondary Sanctions\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Organization Established Date\", \"number\": \"24 Jan 2013\", \"issue_date\": null, \"expiration_date\": null}] --- RECORD --- name: INNOVIA ELECTRONIC TECHNOLOGY CO LIMITED type: Entity entity_number: 55407 programs: [\""
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "TRD_001",
+        "TRD_003",
+        "CASE_006",
+        "CASE_004",
+        "ITA_001"
+      ],
+      "matched_evidence_ids": [
+        "TRD_003"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q019",
+      "question": "我们要做供应链韧性方案，哪些证据可以说明大企业正在调整供应链布局，以及企业在海外扩产时可能面临哪些执行风险？",
+      "scenario_category": "Supply Chain Risk",
+      "expected_topic": "supply_chain",
+      "expected_evidence_ids": [
+        "KPMG_001",
+        "CASE_004",
+        "CASE_005",
+        "CASE_006"
+      ],
+      "difficulty": "Medium",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-KPMG_001-C0000",
+          "evidence_id": "KPMG_001",
+          "relevance_score_raw": 35,
+          "authority_level": "A",
+          "publisher": "毕马威（KPMG）",
+          "topic": "供应链布局",
+          "title": "KPMG 2026 US Supply Chain Survey - Evidence ID: KPMG_001 Title: KPMG 2026 US Supply Chain Survey Publisher:...",
+          "content": "Evidence ID: KPMG_001 Title: KPMG 2026 US Supply Chain Survey Publisher: 毕马威（KPMG） Country/Jurisdiction: US / Federal Publication date: 2026-05-01 Status: CURRENT Topic: 供应链布局 Applicability scope: GENERAL Related industries: 通用 Key finding: 样本为462位年营收10亿美元以上企业的供应链负责人。样本是美国大企业，不代表中国中小企业。 Content summary: 样本为462位年营收10亿美元以上企业的供应链负责人。样本是美国大企业，不代表中国中小企业。 Built for speed, tested by risk Supply chain priorities in technology , media, and telecom KPMG 2026 US Supply Chain Survey New survey finds leaders are focused on meeting rising risk with modernized operating models and more agile, connected supply chains. kpmg.com Ask supply chain leaders in technology, media, and telecommunications what matters most right now, and the answer is resoundingly consistent: managing the rising levels of risk on multiple fronts and building operations resilient enough to absorb them."
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-CASE_001-C0000",
+          "evidence_id": "CASE_001",
+          "relevance_score_raw": 29,
+          "authority_level": "B+",
+          "publisher": "路透社（Reuters）",
+          "topic": "供应链布局",
+          "title": "Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 - Evidence ID: CASE_001 Title: Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 Publishe...",
+          "content": "Evidence ID: CASE_001 Title: Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 Publisher: 路透社（Reuters） Country/Jurisdiction: CN / National Publication date: 2026-09-14 Status: CURRENT Topic: 供应链布局 Applicability scope: GENERAL Related industries: 金属铸造 Key finding: 路透原文《Companies left China to dodge tariffs. Now some are heading back》。丹东铸造企业，美国客户转单印度后回流；企业评估外迁后放弃。可作“China+1执行难度”的反向案例。 Content summary: 路透原文《Companies left China to dodge tariffs. Now some are heading back》。丹东铸造企业，美国客户转单印度后回流；企业评估外迁后放弃。可作“China+1执行难度”的反向案例。"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-ITA_001-C22416",
+          "evidence_id": "ITA_001",
+          "relevance_score_raw": 23,
+          "authority_level": "S",
+          "publisher": "美国国际贸易管理局（ITA）",
+          "topic": "出口管制",
+          "title": "Consolidated Screening List API（美国合并筛查清单） - ITED) source: Specially Designated Nationals (SDN) - Treasury Department...",
+          "content": "ITED) source: Specially Designated Nationals (SDN) - Treasury Department source_information_url: https://home.treasury.gov/policy-issues/financial-sanctions/specially-designated-nationals-and-blocked-persons-list-sdn-human-readable-lists source_list_url: https://sanctionslist.ofac.treas.gov/Home/SdnList ids: [{\"type\": \"National ID No.\", \"number\": \"320722198611070815\", \"country\": \"CN\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Additional Sanctions Information -\", \"number\": \"Subject to Secondary Sanctions\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Gender\", \"number\": \"Male\", \"issue_date\": null, \"expiration_date\": null}] --- RECORD --- name: EXCELLENT BEIJING TECHNOLOGY DEVELOPMENT COMPANY LIMITED type: Entity entity_number: 55406 alt_names: [\"EXCELLENT BEIJING TECHNOLOGY DEVELOPMENT LIMITED\", \"BEIJING EXCELLENT GLOBAL TECHNOLOGY DEVELOPMENT COMPANY\"] programs: [\"IFSR\", \"NPWMD\"] remarks: (Linked To: PARSAJAM, Mo"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-CASE_008-C0000",
+          "evidence_id": "CASE_008",
+          "relevance_score_raw": 23,
+          "authority_level": "B+",
+          "publisher": "中国基金报",
+          "topic": "供应链布局",
+          "title": "光模块厂商选择东南亚建厂以规避与欧美客户合作风险（中际旭创互动平台回复等） - Evidence ID: CASE_008 Title: 光模块厂商选择东南亚建厂以规避与欧美客户合作风险（中际旭创互动平台回复等） Publi...",
+          "content": "Evidence ID: CASE_008 Title: 光模块厂商选择东南亚建厂以规避与欧美客户合作风险（中际旭创互动平台回复等） Publisher: 中国基金报 Country/Jurisdiction: CN / National Publication date: 2024-07-14 Status: CURRENT Topic: 供应链布局 Applicability scope: GENERAL Related industries: 光模块 Key finding: 文中引用中际旭创互动平台回复，可据此到互动易查原始问答，升级为一手证据。 Content summary: 文中引用中际旭创互动平台回复，可据此到互动易查原始问答，升级为一手证据。"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-CASE_004-C0652",
+          "evidence_id": "CASE_004",
+          "relevance_score_raw": 22,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "中际旭创：泰国工厂产能与国内基本齐平 - 加剧\">欧洲柴油价格大涨，供应不确定性加剧</span></div><div class=\"RVau_7rDSrRFpECiPRGS\">欧洲柴油...",
+          "content": "加剧\">欧洲柴油价格大涨，供应不确定性加剧</span></div><div class=\"RVau_7rDSrRFpECiPRGS\">欧洲柴油价格大涨，供应不确定性加剧</div></div></div></div><div><div id=\"PC_News_Stream_1_finance_90924401000_279N7szPr4Tcqzc86l8KVafl\" style=\"height: 100%;\"><div class=\"rectangle_ad-item\"><div class=\"undefined 117 right-big-rectangle\"><div class=\"ad-cell-common\"><span data-ad-feedback=\"true\" class=\"feedback-icon\"></span><div class=\"content-box\"><div class=\"cell-content\"><img class=\"play-icon\" src=\"./CASE_004_files/0(21)\"><img class=\"content-picture\" src=\"https://pgdt.gtimg.cn/141/20204/snscosdownload/SZ/reserved/6a028938000e1b0705121e0db50555150000008d00004eec?ck=572ab960d4390ce0a238d771444d0c33&amp;m=572ab960d4390ce0a238d771444d0c33&amp;sha256=495b337826719ae94290ffd69be5e4fa94b9e695dbf378964b3b046fde5d6dec\" alt=\"\"></div></div><div class=\"cell-title-box\"><p class=\"cell-title\">WorkBuddy AI办公助手，免部署安装即用</p></div></div></div></div></div></div><div class=\"user-article\"><div class=\"bHKkyKhzd"
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "KPMG_001",
+        "CASE_001",
+        "ITA_001",
+        "CASE_008",
+        "CASE_004"
+      ],
+      "matched_evidence_ids": [
+        "KPMG_001",
+        "CASE_004"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q020",
+      "question": "如果公司计划把关键产能集中在泰国或马来西亚，现有证据如何支持对地理集中、非法转运审查和中间品依赖进行联合评估？",
+      "scenario_category": "Supply Chain Risk",
+      "expected_topic": "supplier_dependency",
+      "expected_evidence_ids": [
+        "WH_002",
+        "CSIS_001",
+        "TRD_003",
+        "CASE_010"
+      ],
+      "difficulty": "Hard",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-TRD_001-C0000",
+          "evidence_id": "TRD_001",
+          "relevance_score_raw": 51,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 - Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–20...",
+          "content": "Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: US / Federal Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。 Content summary: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-TRD_003-C0000",
+          "evidence_id": "TRD_003",
+          "relevance_score_raw": 40,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 - Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年...",
+          "content": "Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: CN / National Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。 Content summary: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-CASE_006-C0612",
+          "evidence_id": "CASE_006",
+          "relevance_score_raw": 24,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "天孚通信：泰国一期投产、二期2025年投入使用 - l recommend-article-cell\"><div class=\"qqcom-article-cell-common\"><div cl...",
+          "content": "l recommend-article-cell\"><div class=\"qqcom-article-cell-common\"><div class=\"qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" title=\"公司丨主业反转在即，跨界并购实现半导体量测+光模块设备双轮驱动，新增长曲线可期\">公司丨主业反转在即，跨界并购实现半导体量测+光模块设备双轮驱动，新增长曲线可期</div><div class=\"qqcom-article-cell-info-bottom\"><div class=\"qqcom-article-cell-info-count\"><span class=\"read-percent\">部分试看</span><a href=\"https://news.qq.com/omn/author/8QMc339c7oQVuzrZ5AB1\" target=\"_blank\" rel=\"noopener\">第一财经视频</a><span>09-18</span></div></div></div><div class=\"qqcom-article-cell-info-media\" style=\"margin-left: 45px;\"><img class=\"qqcom-article-cell-info-image\" src=\"./CASE_006_files/0(8)\" alt=\"\"></div></div></div><div class=\"qqcom-article-cell recommend-article-cell\"><div class=\"qqcom-article-cell-common\"><div class=\"qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" title=\"6英寸晶圆代工产能持续偏紧，这家公司晶圆厂产能预计今年四季度有明显释放丨机构调研\">6英寸晶圆代工产能持续偏紧，这家公司晶圆厂产能预计今年四季度有明显释放丨机构调研</div><div class=\"q"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-CASE_004-C0621",
+          "evidence_id": "CASE_004",
+          "relevance_score_raw": 23,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "中际旭创：泰国工厂产能与国内基本齐平 - /div><div class=\"qqcom-article-cell recommend-article-cell\"><div class=\"...",
+          "content": "/div><div class=\"qqcom-article-cell recommend-article-cell\"><div class=\"qqcom-article-cell-common\"><div class=\"qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" title=\"6英寸晶圆代工产能持续偏紧，这家公司晶圆厂产能预计今年四季度有明显释放丨机构调研\">6英寸晶圆代工产能持续偏紧，这家公司晶圆厂产能预计今年四季度有明显释放丨机构调研</div><div class=\"qqcom-article-cell-info-bottom\"><div class=\"qqcom-article-cell-info-count\"><span class=\"read-percent\">部分试看</span><a href=\"https://news.qq.com/omn/author/8QMc1nxf7YwUvjY%3D\" target=\"_blank\" rel=\"noopener\">21世纪经济报道</a><span>09-04</span></div></div></div><div class=\"qqcom-article-cell-info-media\" style=\"margin-left: 45px;\"><img class=\"qqcom-article-cell-info-image\" src=\"./CASE_004_files/0(8)\" alt=\"\"></div></div></div><div class=\"qqcom-article-cell recommend-article-cell\"><div class=\"qqcom-article-cell-common\"><div class=\"qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" title=\"粤芯半导体产能利用率96.38%趋于饱和，资本开支居高不下，中期表现看什么？\">粤芯半导体产能利用率96.38%趋于饱和，资本开支"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-ITA_001-C22416",
+          "evidence_id": "ITA_001",
+          "relevance_score_raw": 21,
+          "authority_level": "S",
+          "publisher": "美国国际贸易管理局（ITA）",
+          "topic": "出口管制",
+          "title": "Consolidated Screening List API（美国合并筛查清单） - ITED) source: Specially Designated Nationals (SDN) - Treasury Department...",
+          "content": "ITED) source: Specially Designated Nationals (SDN) - Treasury Department source_information_url: https://home.treasury.gov/policy-issues/financial-sanctions/specially-designated-nationals-and-blocked-persons-list-sdn-human-readable-lists source_list_url: https://sanctionslist.ofac.treas.gov/Home/SdnList ids: [{\"type\": \"National ID No.\", \"number\": \"320722198611070815\", \"country\": \"CN\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Additional Sanctions Information -\", \"number\": \"Subject to Secondary Sanctions\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Gender\", \"number\": \"Male\", \"issue_date\": null, \"expiration_date\": null}] --- RECORD --- name: EXCELLENT BEIJING TECHNOLOGY DEVELOPMENT COMPANY LIMITED type: Entity entity_number: 55406 alt_names: [\"EXCELLENT BEIJING TECHNOLOGY DEVELOPMENT LIMITED\", \"BEIJING EXCELLENT GLOBAL TECHNOLOGY DEVELOPMENT COMPANY\"] programs: [\"IFSR\", \"NPWMD\"] remarks: (Linked To: PARSAJAM, Mo"
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "TRD_001",
+        "TRD_003",
+        "CASE_006",
+        "CASE_004",
+        "ITA_001"
+      ],
+      "matched_evidence_ids": [
+        "TRD_003"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q021",
+      "question": "我们在越南生产后出口美国，能否仅凭申报的越南原产地降低美国市场准入风险？现有证据对真实组件来源和原产地举证提出了什么警示？",
+      "scenario_category": "Market Access",
+      "expected_topic": "market_access",
+      "expected_evidence_ids": [
+        "CSIS_001",
+        "WH_001",
+        "WH_002"
+      ],
+      "difficulty": "Hard",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-TRD_001-C0000",
+          "evidence_id": "TRD_001",
+          "relevance_score_raw": 42,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 - Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–20...",
+          "content": "Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: US / Federal Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。 Content summary: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-CASE_010-C0000",
+          "evidence_id": "CASE_010",
+          "relevance_score_raw": 42,
+          "authority_level": "S",
+          "publisher": "美国白宫（经律所解读）",
+          "topic": "原产地与转运",
+          "title": "白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 - Evidence ID: CASE_010 Title: 白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 Publisher: 美国白宫...",
+          "content": "Evidence ID: CASE_010 Title: 白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 Publisher: 美国白宫（经律所解读） Country/Jurisdiction: US / Federal Publication date: 2026-08-13 Status: CURRENT Topic: 原产地与转运 Applicability scope: GENERAL Related industries: 通用 Key finding: 由WH_001与WH_002组成。对已在越南/泰国/马来西亚布局的企业，原产地举证压力上升。 Content summary: 由WH_001与WH_002组成。对已在越南/泰国/马来西亚布局的企业，原产地举证压力上升。"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-TRD_003-C0000",
+          "evidence_id": "TRD_003",
+          "relevance_score_raw": 27,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 - Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年...",
+          "content": "Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: CN / National Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。 Content summary: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-ITA_001-C22416",
+          "evidence_id": "ITA_001",
+          "relevance_score_raw": 25,
+          "authority_level": "S",
+          "publisher": "美国国际贸易管理局（ITA）",
+          "topic": "出口管制",
+          "title": "Consolidated Screening List API（美国合并筛查清单） - ITED) source: Specially Designated Nationals (SDN) - Treasury Department...",
+          "content": "ITED) source: Specially Designated Nationals (SDN) - Treasury Department source_information_url: https://home.treasury.gov/policy-issues/financial-sanctions/specially-designated-nationals-and-blocked-persons-list-sdn-human-readable-lists source_list_url: https://sanctionslist.ofac.treas.gov/Home/SdnList ids: [{\"type\": \"National ID No.\", \"number\": \"320722198611070815\", \"country\": \"CN\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Additional Sanctions Information -\", \"number\": \"Subject to Secondary Sanctions\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Gender\", \"number\": \"Male\", \"issue_date\": null, \"expiration_date\": null}] --- RECORD --- name: EXCELLENT BEIJING TECHNOLOGY DEVELOPMENT COMPANY LIMITED type: Entity entity_number: 55406 alt_names: [\"EXCELLENT BEIJING TECHNOLOGY DEVELOPMENT LIMITED\", \"BEIJING EXCELLENT GLOBAL TECHNOLOGY DEVELOPMENT COMPANY\"] programs: [\"IFSR\", \"NPWMD\"] remarks: (Linked To: PARSAJAM, Mo"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-WH_002-C0000",
+          "evidence_id": "WH_002",
+          "relevance_score_raw": 25,
+          "authority_level": "S",
+          "publisher": "美国白宫贸易与制造业政策办公室",
+          "topic": "原产地与转运",
+          "title": "The Great Transshipment Scam: Rise, Scope, and Costs（白宫非法转运报告） - Evidence ID: WH_002 Title: The Great Transshipment Scam: Rise, Scope, an...",
+          "content": "Evidence ID: WH_002 Title: The Great Transshipment Scam: Rise, Scope, and Costs（白宫非法转运报告） Publisher: 美国白宫贸易与制造业政策办公室 Country/Jurisdiction: US / Federal Publication date: 2026-08-13 Status: CURRENT Topic: 原产地与转运 Applicability scope: GENERAL Related industries: 通用 Key finding: 点名40余个高风险转运国家（含越南、马来西亚、泰国、印尼）；宣布AI执法工具Detective Border。属政策立场报告，不是法规。 Content summary: 点名40余个高风险转运国家（含越南、马来西亚、泰国、印尼）；宣布AI执法工具Detective Border。属政策立场报告，不是法规。 1 Executive Summary The United States faces a growing challenge from the illegal transshipment of goods through third countries to evade applicable tariffs and other trade remedies. Exporters in higher-tariff jurisdictions can abuse differences in U.S. tariff treatment across countries to route goods through lower-tariff jurisdictions before entering the American market."
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "TRD_001",
+        "CASE_010",
+        "TRD_003",
+        "ITA_001",
+        "WH_002"
+      ],
+      "matched_evidence_ids": [
+        "WH_002"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q022",
+      "question": "一家电池材料企业担心客户或客户关联方被美国限制清单覆盖。哪些证据最适合评估这类市场准入风险？",
+      "scenario_category": "Market Access",
+      "expected_topic": "export_control",
+      "expected_evidence_ids": [
+        "ITA_001",
+        "BIS_001",
+        "BIS_002"
+      ],
+      "difficulty": "Medium",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-CASE_001-C0000",
+          "evidence_id": "CASE_001",
+          "relevance_score_raw": 37,
+          "authority_level": "B+",
+          "publisher": "路透社（Reuters）",
+          "topic": "供应链布局",
+          "title": "Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 - Evidence ID: CASE_001 Title: Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 Publishe...",
+          "content": "Evidence ID: CASE_001 Title: Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 Publisher: 路透社（Reuters） Country/Jurisdiction: CN / National Publication date: 2026-09-14 Status: CURRENT Topic: 供应链布局 Applicability scope: GENERAL Related industries: 金属铸造 Key finding: 路透原文《Companies left China to dodge tariffs. Now some are heading back》。丹东铸造企业，美国客户转单印度后回流；企业评估外迁后放弃。可作“China+1执行难度”的反向案例。 Content summary: 路透原文《Companies left China to dodge tariffs. Now some are heading back》。丹东铸造企业，美国客户转单印度后回流；企业评估外迁后放弃。可作“China+1执行难度”的反向案例。"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-BIS_001-C0000",
+          "evidence_id": "BIS_001",
+          "relevance_score_raw": 29,
+          "authority_level": "S",
+          "publisher": "美国商务部工业与安全局（BIS）",
+          "topic": "出口管制",
+          "title": "Expansion of End-User Controls to Cover Affiliates of Certain Listed Entities（关联企业规则 / 50%穿透规则，临时最终规则） - Evidence ID: BIS_001 Title: Expansion of End-User Controls to Cover Affi...",
+          "content": "Evidence ID: BIS_001 Title: Expansion of End-User Controls to Cover Affiliates of Certain Listed Entities（关联企业规则 / 50%穿透规则，临时最终规则） Publisher: 美国商务部工业与安全局（BIS） Country/Jurisdiction: US / Federal Publication date: 2025-09-30 Status: CURRENT Topic: 出口管制 Applicability scope: GENERAL Related industries: 通用 Key finding: 90 FR 47201。被实体清单/MEU清单主体直接或间接、单独或合计持股≥50%的实体自动适用同等限制。 Content summary: 90 FR 47201。被实体清单/MEU清单主体直接或间接、单独或合计持股≥50%的实体自动适用同等限制。 47201 Federal Register / Vol. 90, No. 187 / Tuesday, September 30, 2025 / Rules and Regulations Control(s) Country chart (see Supp. No. 1 to part 738) AT applies to ‘‘tech- nology’’ for ‘‘devel- opment,’’ ‘‘produc- tion,’’ operation, in- stallation, mainte- nance, repair, over- haul, or refurbishing commodities in 0A505.a, .d, and .x. AT Column 1."
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-CASE_009-C0000",
+          "evidence_id": "CASE_009",
+          "relevance_score_raw": 21,
+          "authority_level": "S",
+          "publisher": "美国商务部工业与安全局（BIS）",
+          "topic": "出口管制",
+          "title": "BIS 50%穿透规则：发布→暂停→2026-11-10恢复的完整时间线 - Evidence ID: CASE_009 Title: BIS 50%穿透规则：发布→暂停→2026-11-10恢复的完整时间线 Publis...",
+          "content": "Evidence ID: CASE_009 Title: BIS 50%穿透规则：发布→暂停→2026-11-10恢复的完整时间线 Publisher: 美国商务部工业与安全局（BIS） Country/Jurisdiction: US / Federal Publication date: 2025-09-30 Status: CURRENT Topic: 出口管制 Applicability scope: GENERAL Related industries: 通用 Key finding: 政策事件型案例，由BIS_001和BIS_002组成。可用于演示“规则变化→客户是否落入边界”。 Content summary: 政策事件型案例，由BIS_001和BIS_002组成。可用于演示“规则变化→客户是否落入边界”。 This section of the FEDERAL REGISTER contains regulatory documents having general applicability and legal effect, most of which are keyed to and codified in the Code of Federal Regulations, which is published under 50 titles pursuant to 44 U.S.C. 1510. The Code of Federal Regulations is sold by the Superintendent of Documents. Rules and Regulations Federal Register 50857 Vol. 90, No. 216 Wednesday, November 12, 2025 DEPARTMENT OF COMMERCE Bureau of Industry and Security 15 CFR Parts 732, 734, 736, 744, and 748 [Docket No."
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-BIS_002-C0000",
+          "evidence_id": "BIS_002",
+          "relevance_score_raw": 20,
+          "authority_level": "S",
+          "publisher": "美国商务部工业与安全局（BIS）",
+          "topic": "出口管制",
+          "title": "One Year Suspension of Expansion of End-User Controls for Affiliates of Certain Listed Entities（关联企业规则暂停一年） - Evidence ID: BIS_002 Title: One Year Suspension of Expansion of End-User...",
+          "content": "Evidence ID: BIS_002 Title: One Year Suspension of Expansion of End-User Controls for Affiliates of Certain Listed Entities（关联企业规则暂停一年） Publisher: 美国商务部工业与安全局（BIS） Country/Jurisdiction: US / Federal Publication date: 2025-11-12 Status: CURRENT Topic: 出口管制 Applicability scope: GENERAL Related industries: 通用 Key finding: 暂停期2025-11-10至2026-11-09；与BIS_001配套使用，构成时间线。 Content summary: 暂停期2025-11-10至2026-11-09；与BIS_001配套使用，构成时间线。 This section of the FEDERAL REGISTER contains regulatory documents having general applicability and legal effect, most of which are keyed to and codified in the Code of Federal Regulations, which is published under 50 titles pursuant to 44 U.S.C. 1510. The Code of Federal Regulations is sold by the Superintendent of Documents. Rules and Regulations Federal Register 50857 Vol. 90, No."
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-CASE_010-C0000",
+          "evidence_id": "CASE_010",
+          "relevance_score_raw": 20,
+          "authority_level": "S",
+          "publisher": "美国白宫（经律所解读）",
+          "topic": "原产地与转运",
+          "title": "白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 - Evidence ID: CASE_010 Title: 白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 Publisher: 美国白宫...",
+          "content": "Evidence ID: CASE_010 Title: 白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 Publisher: 美国白宫（经律所解读） Country/Jurisdiction: US / Federal Publication date: 2026-08-13 Status: CURRENT Topic: 原产地与转运 Applicability scope: GENERAL Related industries: 通用 Key finding: 由WH_001与WH_002组成。对已在越南/泰国/马来西亚布局的企业，原产地举证压力上升。 Content summary: 由WH_001与WH_002组成。对已在越南/泰国/马来西亚布局的企业，原产地举证压力上升。"
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "CASE_001",
+        "BIS_001",
+        "CASE_009",
+        "BIS_002",
+        "CASE_010"
+      ],
+      "matched_evidence_ids": [
+        "BIS_001",
+        "BIS_002"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q023",
+      "question": "我们考虑在泰国或越南建立面向美国市场的生产基地。光伏反规避案例对‘海外生产即可获得美国市场准入’这一判断有什么借鉴？",
+      "scenario_category": "Market Access",
+      "expected_topic": "market_access",
+      "expected_evidence_ids": [
+        "CASE_002",
+        "CASE_003",
+        "DOC_001"
+      ],
+      "difficulty": "Hard",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-TRD_001-C0000",
+          "evidence_id": "TRD_001",
+          "relevance_score_raw": 47,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 - Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–20...",
+          "content": "Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: US / Federal Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。 Content summary: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-CASE_006-C0442",
+          "evidence_id": "CASE_006",
+          "relevance_score_raw": 33,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "天孚通信：泰国一期投产、二期2025年投入使用 - e-space: normal;\"><strong style=\"box-sizing: border-box;\"><span>面对算力需求爆发...",
+          "content": "e-space: normal;\"><strong style=\"box-sizing: border-box;\"><span>面对算力需求爆发性增长，光模块头部厂商开启海内海外双线并行的产能扩张。</span></strong></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><strong style=\"box-sizing: border-box;\"><span><br></span></strong></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><strong style=\"box-sizing: border-box;\"><span>光通信龙头全球化产能扩张持续进行：</span></strong><span style=\"box-sizing: border-box; color: rgb(0, 0, 0);\"><span>光通信龙头厂商通过全球产能布局，建立包括中国大陆与东南亚的多边供应体系，规避地缘政治风险同时优化成本结构。新易盛于2022年在泰国设立生产基地，目前泰国工厂一期、二期均已正式投产，二期产能2025年至2026年持续释放。中际旭创泰国厂运营多年可全面量产出货，生产能力和国内基本齐平，公司产能多线布局，在苏州、铜陵以及泰国均有光模块产能。天孚通信泰国生产基地第一期已投产，正按需增加产能，第二期项目2025年投入使用，预计 2026 年泰国生产基地各产品线将快速爬坡；除泰国基地外，公司在江西高安生产基地亦持续扩产。</span></span></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><span style=\"box-sizing: border-box; color: rgb(0, 0, 0);\"><span><br></span></span></p><p sty"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-CASE_004-C0451",
+          "evidence_id": "CASE_004",
+          "relevance_score_raw": 33,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "中际旭创：泰国工厂产能与国内基本齐平 - 的前夜】</span></strong></p><p style=\"box-sizing: border-box; margin: 0px; p...",
+          "content": "的前夜】</span></strong></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><span><br></span></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><strong style=\"box-sizing: border-box;\"><span>面对算力需求爆发性增长，光模块头部厂商开启海内海外双线并行的产能扩张。</span></strong></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><strong style=\"box-sizing: border-box;\"><span><br></span></strong></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><strong style=\"box-sizing: border-box;\"><span>光通信龙头全球化产能扩张持续进行：</span></strong><span style=\"box-sizing: border-box; color: rgb(0, 0, 0);\"><span>光通信龙头厂商通过全球产能布局，建立包括中国大陆与东南亚的多边供应体系，规避地缘政治风险同时优化成本结构。新易盛于2022年在泰国设立生产基地，目前泰国工厂一期、二期均已正式投产，二期产能2025年至2026年持续释放。中际旭创泰国厂运营多年可全面量产出货，生产能力和国内基本齐平，公司产能多线布局，在苏州、铜陵以及泰国均有光模块产能。天孚通信泰国生产基地第一期已投产，正按需增加产能，第二期项目2025年投入使用，预计 2026 年泰国生产基地各产品线将快速爬坡；除泰国基地外，公司在江西高安生产基地亦持续扩产。<"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-TRD_002-C0000",
+          "evidence_id": "TRD_002",
+          "relevance_score_raw": 26,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "美国自越南、泰国、马来西亚、柬埔寨进口光伏组件HS 854140，2018–2025年度 - Evidence ID: TRD_002 Title: 美国自越南、泰国、马来西亚、柬埔寨进口光伏组件HS 854140，2018–2025年度...",
+          "content": "Evidence ID: TRD_002 Title: 美国自越南、泰国、马来西亚、柬埔寨进口光伏组件HS 854140，2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: US / Federal Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆光伏 Key finding: HS 2022版起光伏组件编码调整（旧版854140拆分），跨年比较须做编码对照。配合CASE_002做回溯。 Content summary: HS 2022版起光伏组件编码调整（旧版854140拆分），跨年比较须做编码对照。配合CASE_002做回溯。"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-CASE_005-C0000",
+          "evidence_id": "CASE_005",
+          "relevance_score_raw": 26,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "新易盛：2022年设立泰国基地，一二期已投产 - 问AI · 2026年产能集中释放会怎样提升行业业绩？ 摘要 在过去几周的周报中，我们反复强调光模块行业正处于高景气周期，AI算力需求持续爆发推...",
+          "content": "问AI · 2026年产能集中释放会怎样提升行业业绩？ 摘要 在过去几周的周报中，我们反复强调光模块行业正处于高景气周期，AI算力需求持续爆发推动高端光模块需求快速增长，供给将成为核心矛盾。近期我们调研发现，头部厂商在大陆和泰国加速扩产，预计2026年一季度将迎来产能集中释放，驱动业绩进入新一轮爬坡期。 【算力需求强劲，瓶颈在于供给】 算力产业链正处于高景气周期，AI模型持续创新演进推动算力需求快速增长。 业绩全面超预期： 谷歌新一代大模型Gemini 3表现优异，Scaling Law持续有效；英伟达发布三季度财报，业绩及指引全面超预期。谷歌与英伟达的强势表现，共同印证了模型创新与算力建设正在形成相互促进的良性循环，算力需求加速扩张。 北美巨头资本开支全面上调，AI加速落地： Meta2025年三季报将本财年资本支出的预测从660-720亿美元上调至700-720亿美元；谷歌将全年资本开支指引由此前的850亿美元上调至910-930亿美元；亚马逊全年资本开支预计约 1250 亿美元，2026 年规模将进一步增加。 光模块产业链存在供给缺口： 算力需求迅速增长导致了光模块产业链的供应缺口，上游光芯片结构性短缺，高速光模块技术门槛高，产能爬坡缓慢，已成为制约行业发展的关键因素。 【海内海外布局加速，新一轮产能释放的前夜】 面对算力需求爆发性增长，光模块头部厂商开启海内海外双线并行的产能扩张。 光通信龙头全球化产能扩张持续进行： 光通信龙头厂商通过全球产能布局，建立包括中国大陆与东南亚的多边供应体系，规避地缘政治风险同时优化成本结构。新易盛于2022年在泰国设立生产基地，目前泰国工厂一期、二期均已正式投产，二期产能2025年至2026年持续释放。中际旭创泰国厂运营多年可全面量产出货，生产能力和国内基本齐平，公司产能多线布局，在苏州、铜陵以及泰国均有光模块产能。天孚通信泰国生产基地第一期已投产，正按需增加产能，第二期项目2025年投入使用，预计 2026 年泰国生产基地各产品线将快速爬坡；除泰国基地外，公司在江西高安生产基地亦持续扩产。"
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "TRD_001",
+        "CASE_006",
+        "CASE_004",
+        "TRD_002",
+        "CASE_005"
+      ],
+      "matched_evidence_ids": [],
+      "hit_at_5": 0
+    },
+    {
+      "question_id": "Q024",
+      "question": "董事会想比较东南亚布局带来的市场准入机会与美国强化转运执法带来的风险。现有证据库中哪些政策和企业案例应一起看？",
+      "scenario_category": "Market Access",
+      "expected_topic": "market_access",
+      "expected_evidence_ids": [
+        "WH_001",
+        "WH_002",
+        "CASE_008",
+        "CASE_010"
+      ],
+      "difficulty": "Hard",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-CASE_010-C0000",
+          "evidence_id": "CASE_010",
+          "relevance_score_raw": 38,
+          "authority_level": "S",
+          "publisher": "美国白宫（经律所解读）",
+          "topic": "原产地与转运",
+          "title": "白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 - Evidence ID: CASE_010 Title: 白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 Publisher: 美国白宫...",
+          "content": "Evidence ID: CASE_010 Title: 白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 Publisher: 美国白宫（经律所解读） Country/Jurisdiction: US / Federal Publication date: 2026-08-13 Status: CURRENT Topic: 原产地与转运 Applicability scope: GENERAL Related industries: 通用 Key finding: 由WH_001与WH_002组成。对已在越南/泰国/马来西亚布局的企业，原产地举证压力上升。 Content summary: 由WH_001与WH_002组成。对已在越南/泰国/马来西亚布局的企业，原产地举证压力上升。"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-TRD_003-C0000",
+          "evidence_id": "TRD_003",
+          "relevance_score_raw": 20,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 - Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年...",
+          "content": "Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: CN / National Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。 Content summary: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-CASE_001-C0000",
+          "evidence_id": "CASE_001",
+          "relevance_score_raw": 20,
+          "authority_level": "B+",
+          "publisher": "路透社（Reuters）",
+          "topic": "供应链布局",
+          "title": "Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 - Evidence ID: CASE_001 Title: Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 Publishe...",
+          "content": "Evidence ID: CASE_001 Title: Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 Publisher: 路透社（Reuters） Country/Jurisdiction: CN / National Publication date: 2026-09-14 Status: CURRENT Topic: 供应链布局 Applicability scope: GENERAL Related industries: 金属铸造 Key finding: 路透原文《Companies left China to dodge tariffs. Now some are heading back》。丹东铸造企业，美国客户转单印度后回流；企业评估外迁后放弃。可作“China+1执行难度”的反向案例。 Content summary: 路透原文《Companies left China to dodge tariffs. Now some are heading back》。丹东铸造企业，美国客户转单印度后回流；企业评估外迁后放弃。可作“China+1执行难度”的反向案例。"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-CASE_006-C0648",
+          "evidence_id": "CASE_006",
+          "relevance_score_raw": 16,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "天孚通信：泰国一期投产、二期2025年投入使用 - lass=\"qqcom-article-cell-info-title\" title=\"【国盛通信】光博会启示：看山还是山\">【国盛通信】光博会...",
+          "content": "lass=\"qqcom-article-cell-info-title\" title=\"【国盛通信】光博会启示：看山还是山\">【国盛通信】光博会启示：看山还是山</div><div class=\"qqcom-article-cell-info-bottom\"><div class=\"qqcom-article-cell-info-count\"><span>09-13</span></div></div></div></div></div></div><div><div id=\"PC_News_Stream_1_finance_138395550052_q3wVBi1DdaFcywc5zJG8NAIc\" style=\"height: 100%;\"><div class=\"JCql9RmVxiqMH3BtMx2_ author-list-theme article-author-list GCirc2D9oGH7YmDFDE8Q YTekkFxT1n3l15BHTJVi\"><div id=\"pc-ad-media-c7sfzv8lotg\" class=\"Bt801aD5UivI6l70yhQ7 fv9XPn43Kd4s2QKSuMSE\" data-ad-video-media=\"true\"><img class=\"LtTBfWei2VAGOx05qsdt\" src=\"https://pgdt.gtimg.cn/141/20204/snscosdownload/SZ/reserved/6a7d85e90004d1d6102a204a36d615150000008d00004eec?ck=d5faf9811b9520a9fabb2d81f428e9b8&amp;m=d5faf9811b9520a9fabb2d81f428e9b8&amp;sha256=dbc4589140b02a9336e9714be52d4f18510110c98828c1177754702071e6bcb7\"></div><div class=\"gsb8tj32iSMI8_b6NIN0\"><div class=\"zRnNaXw3nkddFVsVlymL\">定投纳指总限额？微众银行一键批量定投，自动追加买入"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-CASE_008-C0000",
+          "evidence_id": "CASE_008",
+          "relevance_score_raw": 16,
+          "authority_level": "B+",
+          "publisher": "中国基金报",
+          "topic": "供应链布局",
+          "title": "光模块厂商选择东南亚建厂以规避与欧美客户合作风险（中际旭创互动平台回复等） - Evidence ID: CASE_008 Title: 光模块厂商选择东南亚建厂以规避与欧美客户合作风险（中际旭创互动平台回复等） Publi...",
+          "content": "Evidence ID: CASE_008 Title: 光模块厂商选择东南亚建厂以规避与欧美客户合作风险（中际旭创互动平台回复等） Publisher: 中国基金报 Country/Jurisdiction: CN / National Publication date: 2024-07-14 Status: CURRENT Topic: 供应链布局 Applicability scope: GENERAL Related industries: 光模块 Key finding: 文中引用中际旭创互动平台回复，可据此到互动易查原始问答，升级为一手证据。 Content summary: 文中引用中际旭创互动平台回复，可据此到互动易查原始问答，升级为一手证据。"
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "CASE_010",
+        "TRD_003",
+        "CASE_001",
+        "CASE_006",
+        "CASE_008"
+      ],
+      "matched_evidence_ids": [
+        "CASE_008",
+        "CASE_010"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q025",
+      "question": "如果全球贸易增速放缓、跨境投资更加偏向战略行业，公司进入海外市场时应如何理解外部需求与投资环境？哪些宏观证据最相关？",
+      "scenario_category": "Market Access",
+      "expected_topic": "trade_policy",
+      "expected_evidence_ids": [
+        "WTO_001",
+        "UNCTAD_001",
+        "WEF_001"
+      ],
+      "difficulty": "Medium",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-TRD_001-C0000",
+          "evidence_id": "TRD_001",
+          "relevance_score_raw": 36,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 - Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–20...",
+          "content": "Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: US / Federal Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。 Content summary: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-UNCTAD_001-C0000",
+          "evidence_id": "UNCTAD_001",
+          "relevance_score_raw": 33,
+          "authority_level": "A+",
+          "publisher": "联合国贸易和发展会议（UNCTAD）",
+          "topic": "对外投资",
+          "title": "World Investment Report 2026: International Investment in a Turbulent Era - Evidence ID: UNCTAD_001 Title: World Investment Report 2026: Internation...",
+          "content": "Evidence ID: UNCTAD_001 Title: World Investment Report 2026: International Investment in a Turbulent Era Publisher: 联合国贸易和发展会议（UNCTAD） Country/Jurisdiction: 全球 Publication date: 2026-07-07 Status: CURRENT Topic: 对外投资 Applicability scope: GENERAL Related industries: 通用 Key finding: 2025年全球FDI增长6%至约1.6万亿美元；战略行业占绿地投资比重显著上升。 Content summary: 2025年全球FDI增长6%至约1.6万亿美元；战略行业占绿地投资比重显著上升。 International Investment in a Turbulent Era 2026 World Investment Report UNITED NATIONS CONFERENCE ON TRADE AND DEVELOPMENTUNITED NATIONS CONFERENCE ON TRADE AND DEVELOPMENT Geneva, 2026 ii © 2026, United Nations All rights reserved worldwide Requests to reproduce excerpts or to photocopy should be addressed to the Copyright Clearance Center at copyright.com."
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-CNGOV_001-C0003",
+          "evidence_id": "CNGOV_001",
+          "relevance_score_raw": 32,
+          "authority_level": "S",
+          "publisher": "中华人民共和国国务院",
+          "topic": "对外投资",
+          "title": "国务院关于对外投资的规定（国务院令第837号） - 院其他有关部⻔根据国⺠经济和社会发展需要、有关国家（地区）投资环境变化和⻛险程度等，制定、调整和实施对外投资政策，明确⿎励、限制、禁⽌的对外投资...",
+          "content": "院其他有关部⻔根据国⺠经济和社会发展需要、有关国家（地区）投资环境变化和⻛险程度等，制定、调整和实施对外投资政策，明确⿎励、限制、禁⽌的对外投资，加强对外投资监管，指导、监督投资者规范投资经营⾏为。第⼗⼆条第⼗⼆条 投资者开展对外投资活动依法需要履⾏核准备案、信息报告、跨境资⾦登记等⼿续的，应当依照国家有关规定办理，如实提交有关材料，并配合有关主管部⻔的监督检查。第⼗三条第⼗三条 投资者开展对外投资活动，不得出⼝、使⽤国家禁⽌出⼝的货物、技术、服务及相关数据，或者未经许可出⼝、使⽤国家限制出⼝的货物、技术、服务及相关数据；不得以跨境派遣技术⼈员、组织⼈员赴其他国家（地区）⼯作、跨境提供技术指导、安排⼈员跨境培训等⽅式向其他国家（地区）转移国家禁⽌出⼝的货物、技术、服务及相关数据，或者未经许可向其他国家（地区）转移国家限制出⼝的货物、技术、服务及相关数据。第⼗四条第⼗四条 对外投资涉及资⾦汇兑、货物与技术进出⼝、跨境服务贸易、跨境数据流动、⼈员出境⼊境的管理以及经营者集中审查、出⼝管制、⽹络安全监管、税收征收管理、国有资产监管等，依照有关法律、⾏政法规和国家有关规定执⾏。"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-ITA_001-C22417",
+          "evidence_id": "ITA_001",
+          "relevance_score_raw": 23,
+          "authority_level": "S",
+          "publisher": "美国国际贸易管理局（ITA）",
+          "topic": "出口管制",
+          "title": "Consolidated Screening List API（美国合并筛查清单） - VELOPMENT LIMITED\", \"BEIJING EXCELLENT GLOBAL TECHNOLOGY DEVELOPMENT COM...",
+          "content": "VELOPMENT LIMITED\", \"BEIJING EXCELLENT GLOBAL TECHNOLOGY DEVELOPMENT COMPANY\"] programs: [\"IFSR\", \"NPWMD\"] remarks: (Linked To: PARSAJAM, Mohsen) source: Specially Designated Nationals (SDN) - Treasury Department source_information_url: https://home.treasury.gov/policy-issues/financial-sanctions/specially-designated-nationals-and-blocked-persons-list-sdn-human-readable-lists source_list_url: https://sanctionslist.ofac.treas.gov/Home/SdnList ids: [{\"type\": \"Unified Social Credit Code (USCC)\", \"number\": \"91110105059259703U\", \"country\": \"CN\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Additional Sanctions Information -\", \"number\": \"Subject to Secondary Sanctions\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Organization Established Date\", \"number\": \"24 Jan 2013\", \"issue_date\": null, \"expiration_date\": null}] --- RECORD --- name: INNOVIA ELECTRONIC TECHNOLOGY CO LIMITED type: Entity entity_number: 55407 programs: [\""
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-WEF_001-C0359",
+          "evidence_id": "WEF_001",
+          "relevance_score_raw": 21,
+          "authority_level": "A+",
+          "publisher": "世界经济论坛（WEF）",
+          "topic": "宏观风险",
+          "title": "Global Risks Report 2026（全球风险报告2026，第21版） - Dayang Hajah Zohrah binti Haji Sulaiman, Vice-Chancellor Dr. Mohamad Sai...",
+          "content": "Dayang Hajah Zohrah binti Haji Sulaiman, Vice-Chancellor Dr. Mohamad Saiful bin Haji Omar, Assistant Vice- Chancellor (External and Industry Relations) Dr."
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "TRD_001",
+        "UNCTAD_001",
+        "CNGOV_001",
+        "ITA_001",
+        "WEF_001"
+      ],
+      "matched_evidence_ids": [
+        "UNCTAD_001",
+        "WEF_001"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q026",
+      "question": "情景A：BIS 50%关联企业规则按计划恢复；情景B：暂停继续延长。对于依赖美国客户的制造企业，两种情景下应重点比较哪些合规和客户准入影响？",
+      "scenario_category": "Scenario Simulation Support",
+      "expected_topic": "export_control",
+      "expected_evidence_ids": [
+        "BIS_001",
+        "BIS_002",
+        "CASE_009"
+      ],
+      "difficulty": "Hard",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-TRD_001-C0047",
+          "evidence_id": "TRD_001",
+          "relevance_score_raw": 37,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 - 98 | primaryValue: 17.498 | legacyEstimationFlag: 4 | isReported: false ...",
+          "content": "98 | primaryValue: 17.498 | legacyEstimationFlag: 4 | isReported: false | isAggregate: true typeCode: C | freqCode: A | refPeriodId: 20210101 | refYear: 2021 | refMonth: 52 | period: 2021 | reporterCode: 764 | reporterISO: THA | reporterDesc: Thailand | flowCode: X | flowDesc: Export | partnerCode: 842 | partnerISO: USA | partnerDesc: USA | partner2Code: 579 | partner2ISO: NOR | partner2Desc: Norway | classificationCode: H5 | classificationSearchCode: HS | isOriginalClassification: true | cmdCode: 850760 | cmdDesc: Electric accumulators; lithium-ion, including separators, whether or not rectangular (including square) | aggrLevel: 6 | isLeaf: true | customsCode: C00 | customsDesc: TOTAL CPC | mosCode: 0 | motCode: 0 | motDesc: TOTAL MOT | qtyUnitCode: 5 | qtyUnitAbbr: u | qty: 50 | isQtyEstimated: false | altQtyUnitCode: 5 | altQtyUnitAbbr: u | altQty: 50 | isAltQtyEstimated: false | netWgt: 24 | isNetWgtEstimated: false | grossWgt: 0 | "
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-BIS_002-C0000",
+          "evidence_id": "BIS_002",
+          "relevance_score_raw": 35,
+          "authority_level": "S",
+          "publisher": "美国商务部工业与安全局（BIS）",
+          "topic": "出口管制",
+          "title": "One Year Suspension of Expansion of End-User Controls for Affiliates of Certain Listed Entities（关联企业规则暂停一年） - Evidence ID: BIS_002 Title: One Year Suspension of Expansion of End-User...",
+          "content": "Evidence ID: BIS_002 Title: One Year Suspension of Expansion of End-User Controls for Affiliates of Certain Listed Entities（关联企业规则暂停一年） Publisher: 美国商务部工业与安全局（BIS） Country/Jurisdiction: US / Federal Publication date: 2025-11-12 Status: CURRENT Topic: 出口管制 Applicability scope: GENERAL Related industries: 通用 Key finding: 暂停期2025-11-10至2026-11-09；与BIS_001配套使用，构成时间线。 Content summary: 暂停期2025-11-10至2026-11-09；与BIS_001配套使用，构成时间线。 This section of the FEDERAL REGISTER contains regulatory documents having general applicability and legal effect, most of which are keyed to and codified in the Code of Federal Regulations, which is published under 50 titles pursuant to 44 U.S.C. 1510. The Code of Federal Regulations is sold by the Superintendent of Documents. Rules and Regulations Federal Register 50857 Vol. 90, No."
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-CASE_001-C0000",
+          "evidence_id": "CASE_001",
+          "relevance_score_raw": 35,
+          "authority_level": "B+",
+          "publisher": "路透社（Reuters）",
+          "topic": "供应链布局",
+          "title": "Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 - Evidence ID: CASE_001 Title: Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 Publishe...",
+          "content": "Evidence ID: CASE_001 Title: Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 Publisher: 路透社（Reuters） Country/Jurisdiction: CN / National Publication date: 2026-09-14 Status: CURRENT Topic: 供应链布局 Applicability scope: GENERAL Related industries: 金属铸造 Key finding: 路透原文《Companies left China to dodge tariffs. Now some are heading back》。丹东铸造企业，美国客户转单印度后回流；企业评估外迁后放弃。可作“China+1执行难度”的反向案例。 Content summary: 路透原文《Companies left China to dodge tariffs. Now some are heading back》。丹东铸造企业，美国客户转单印度后回流；企业评估外迁后放弃。可作“China+1执行难度”的反向案例。"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-CASE_009-C0000",
+          "evidence_id": "CASE_009",
+          "relevance_score_raw": 31,
+          "authority_level": "S",
+          "publisher": "美国商务部工业与安全局（BIS）",
+          "topic": "出口管制",
+          "title": "BIS 50%穿透规则：发布→暂停→2026-11-10恢复的完整时间线 - Evidence ID: CASE_009 Title: BIS 50%穿透规则：发布→暂停→2026-11-10恢复的完整时间线 Publis...",
+          "content": "Evidence ID: CASE_009 Title: BIS 50%穿透规则：发布→暂停→2026-11-10恢复的完整时间线 Publisher: 美国商务部工业与安全局（BIS） Country/Jurisdiction: US / Federal Publication date: 2025-09-30 Status: CURRENT Topic: 出口管制 Applicability scope: GENERAL Related industries: 通用 Key finding: 政策事件型案例，由BIS_001和BIS_002组成。可用于演示“规则变化→客户是否落入边界”。 Content summary: 政策事件型案例，由BIS_001和BIS_002组成。可用于演示“规则变化→客户是否落入边界”。 This section of the FEDERAL REGISTER contains regulatory documents having general applicability and legal effect, most of which are keyed to and codified in the Code of Federal Regulations, which is published under 50 titles pursuant to 44 U.S.C. 1510. The Code of Federal Regulations is sold by the Superintendent of Documents. Rules and Regulations Federal Register 50857 Vol. 90, No. 216 Wednesday, November 12, 2025 DEPARTMENT OF COMMERCE Bureau of Industry and Security 15 CFR Parts 732, 734, 736, 744, and 748 [Docket No."
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-BIS_001-C0000",
+          "evidence_id": "BIS_001",
+          "relevance_score_raw": 28,
+          "authority_level": "S",
+          "publisher": "美国商务部工业与安全局（BIS）",
+          "topic": "出口管制",
+          "title": "Expansion of End-User Controls to Cover Affiliates of Certain Listed Entities（关联企业规则 / 50%穿透规则，临时最终规则） - Evidence ID: BIS_001 Title: Expansion of End-User Controls to Cover Affi...",
+          "content": "Evidence ID: BIS_001 Title: Expansion of End-User Controls to Cover Affiliates of Certain Listed Entities（关联企业规则 / 50%穿透规则，临时最终规则） Publisher: 美国商务部工业与安全局（BIS） Country/Jurisdiction: US / Federal Publication date: 2025-09-30 Status: CURRENT Topic: 出口管制 Applicability scope: GENERAL Related industries: 通用 Key finding: 90 FR 47201。被实体清单/MEU清单主体直接或间接、单独或合计持股≥50%的实体自动适用同等限制。 Content summary: 90 FR 47201。被实体清单/MEU清单主体直接或间接、单独或合计持股≥50%的实体自动适用同等限制。 47201 Federal Register / Vol. 90, No. 187 / Tuesday, September 30, 2025 / Rules and Regulations Control(s) Country chart (see Supp. No. 1 to part 738) AT applies to ‘‘tech- nology’’ for ‘‘devel- opment,’’ ‘‘produc- tion,’’ operation, in- stallation, mainte- nance, repair, over- haul, or refurbishing commodities in 0A505.a, .d, and .x. AT Column 1."
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "TRD_001",
+        "BIS_002",
+        "CASE_001",
+        "CASE_009",
+        "BIS_001"
+      ],
+      "matched_evidence_ids": [
+        "BIS_001",
+        "BIS_002",
+        "CASE_009"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q027",
+      "question": "情景A：公司继续从中国直接出口美国；情景B：将部分工序迁至东南亚。基于现有反规避和转运证据，哪种方案的贸易风险更低，评估时必须检查哪些条件？",
+      "scenario_category": "Scenario Simulation Support",
+      "expected_topic": "trade_policy",
+      "expected_evidence_ids": [
+        "DOC_001",
+        "CASE_002",
+        "CASE_003",
+        "WH_002",
+        "CSIS_001"
+      ],
+      "difficulty": "Hard",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-TRD_001-C0000",
+          "evidence_id": "TRD_001",
+          "relevance_score_raw": 46,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 - Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–20...",
+          "content": "Evidence ID: TRD_001 Title: 美国自中国、越南、泰国、马来西亚进口 HS 870380, 850760，2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: US / Federal Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。 Content summary: HS 851762仅为光模块常见归类，须核对。用于观察产能转移痕迹。"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-TRD_003-C0000",
+          "evidence_id": "TRD_003",
+          "relevance_score_raw": 37,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 - Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年...",
+          "content": "Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: CN / National Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。 Content summary: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-ITA_001-C22416",
+          "evidence_id": "ITA_001",
+          "relevance_score_raw": 26,
+          "authority_level": "S",
+          "publisher": "美国国际贸易管理局（ITA）",
+          "topic": "出口管制",
+          "title": "Consolidated Screening List API（美国合并筛查清单） - ITED) source: Specially Designated Nationals (SDN) - Treasury Department...",
+          "content": "ITED) source: Specially Designated Nationals (SDN) - Treasury Department source_information_url: https://home.treasury.gov/policy-issues/financial-sanctions/specially-designated-nationals-and-blocked-persons-list-sdn-human-readable-lists source_list_url: https://sanctionslist.ofac.treas.gov/Home/SdnList ids: [{\"type\": \"National ID No.\", \"number\": \"320722198611070815\", \"country\": \"CN\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Additional Sanctions Information -\", \"number\": \"Subject to Secondary Sanctions\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Gender\", \"number\": \"Male\", \"issue_date\": null, \"expiration_date\": null}] --- RECORD --- name: EXCELLENT BEIJING TECHNOLOGY DEVELOPMENT COMPANY LIMITED type: Entity entity_number: 55406 alt_names: [\"EXCELLENT BEIJING TECHNOLOGY DEVELOPMENT LIMITED\", \"BEIJING EXCELLENT GLOBAL TECHNOLOGY DEVELOPMENT COMPANY\"] programs: [\"IFSR\", \"NPWMD\"] remarks: (Linked To: PARSAJAM, Mo"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-CASE_006-C0614",
+          "evidence_id": "CASE_006",
+          "relevance_score_raw": 23,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "天孚通信：泰国一期投产、二期2025年投入使用 - 【点金互动易】半导体+刻蚀零部件，这家公司是国内极少数先进制程核心零部件供应商，下游客户类型从设备商、逻辑电路拓展至存储器，并向先进封装延伸</...",
+          "content": "【点金互动易】半导体+刻蚀零部件，这家公司是国内极少数先进制程核心零部件供应商，下游客户类型从设备商、逻辑电路拓展至存储器，并向先进封装延伸</div><div class=\"qqcom-article-cell-info-bottom\"><div class=\"qqcom-article-cell-info-count\"><span class=\"read-percent\">部分试看</span><a href=\"https://news.qq.com/omn/author/8QIf3n9a5IIcsDjY5gU%3D\" target=\"_blank\" rel=\"noopener\">财联社V说</a><span>5小时前</span></div></div></div><div class=\"qqcom-article-cell-info-media\" style=\"margin-left: 45px;\"><img class=\"qqcom-article-cell-info-image\" src=\"./CASE_006_files/0(10)\" alt=\"\"></div></div></div><div class=\"qqcom-article-cell recommend-article-cell\"><div class=\"qqcom-article-cell-common\"><div class=\"qqcom-article-cell-info\"><div class=\"qqcom-article-cell-info-title\" title=\"半导体设备中报总结：业绩高增，订单护航\">半导体设备中报总结：业绩高增，订单护航</div><div class=\"qqcom-article-cell-info-bottom\"><div class=\"qqcom-article-cell-info-count\"><span class=\"read-percent\">部分试看</span><a href=\"https://news.qq.com/omn/author/8QMd33hY6IYUvz7a\" target=\"_blank\" rel=\"noopener\">一财"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-CASE_008-C0000",
+          "evidence_id": "CASE_008",
+          "relevance_score_raw": 22,
+          "authority_level": "B+",
+          "publisher": "中国基金报",
+          "topic": "供应链布局",
+          "title": "光模块厂商选择东南亚建厂以规避与欧美客户合作风险（中际旭创互动平台回复等） - Evidence ID: CASE_008 Title: 光模块厂商选择东南亚建厂以规避与欧美客户合作风险（中际旭创互动平台回复等） Publi...",
+          "content": "Evidence ID: CASE_008 Title: 光模块厂商选择东南亚建厂以规避与欧美客户合作风险（中际旭创互动平台回复等） Publisher: 中国基金报 Country/Jurisdiction: CN / National Publication date: 2024-07-14 Status: CURRENT Topic: 供应链布局 Applicability scope: GENERAL Related industries: 光模块 Key finding: 文中引用中际旭创互动平台回复，可据此到互动易查原始问答，升级为一手证据。 Content summary: 文中引用中际旭创互动平台回复，可据此到互动易查原始问答，升级为一手证据。"
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "TRD_001",
+        "TRD_003",
+        "ITA_001",
+        "CASE_006",
+        "CASE_008"
+      ],
+      "matched_evidence_ids": [],
+      "hit_at_5": 0
+    },
+    {
+      "question_id": "Q028",
+      "question": "情景A：东南亚工厂继续大量采购中国中间品；情景B：提高当地供应商比例。现有证据如何支持比较两种方案的供应链依赖与原产地风险？",
+      "scenario_category": "Scenario Simulation Support",
+      "expected_topic": "supplier_dependency",
+      "expected_evidence_ids": [
+        "TRD_003",
+        "CSIS_001",
+        "CASE_002",
+        "CASE_003"
+      ],
+      "difficulty": "Hard",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-TRD_003-C0000",
+          "evidence_id": "TRD_003",
+          "relevance_score_raw": 39,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 - Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年...",
+          "content": "Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: CN / National Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。 Content summary: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-CASE_004-C0652",
+          "evidence_id": "CASE_004",
+          "relevance_score_raw": 20,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "中际旭创：泰国工厂产能与国内基本齐平 - 加剧\">欧洲柴油价格大涨，供应不确定性加剧</span></div><div class=\"RVau_7rDSrRFpECiPRGS\">欧洲柴油...",
+          "content": "加剧\">欧洲柴油价格大涨，供应不确定性加剧</span></div><div class=\"RVau_7rDSrRFpECiPRGS\">欧洲柴油价格大涨，供应不确定性加剧</div></div></div></div><div><div id=\"PC_News_Stream_1_finance_90924401000_279N7szPr4Tcqzc86l8KVafl\" style=\"height: 100%;\"><div class=\"rectangle_ad-item\"><div class=\"undefined 117 right-big-rectangle\"><div class=\"ad-cell-common\"><span data-ad-feedback=\"true\" class=\"feedback-icon\"></span><div class=\"content-box\"><div class=\"cell-content\"><img class=\"play-icon\" src=\"./CASE_004_files/0(21)\"><img class=\"content-picture\" src=\"https://pgdt.gtimg.cn/141/20204/snscosdownload/SZ/reserved/6a028938000e1b0705121e0db50555150000008d00004eec?ck=572ab960d4390ce0a238d771444d0c33&amp;m=572ab960d4390ce0a238d771444d0c33&amp;sha256=495b337826719ae94290ffd69be5e4fa94b9e695dbf378964b3b046fde5d6dec\" alt=\"\"></div></div><div class=\"cell-title-box\"><p class=\"cell-title\">WorkBuddy AI办公助手，免部署安装即用</p></div></div></div></div></div></div><div class=\"user-article\"><div class=\"bHKkyKhzd"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-CASE_008-C0000",
+          "evidence_id": "CASE_008",
+          "relevance_score_raw": 12,
+          "authority_level": "B+",
+          "publisher": "中国基金报",
+          "topic": "供应链布局",
+          "title": "光模块厂商选择东南亚建厂以规避与欧美客户合作风险（中际旭创互动平台回复等） - Evidence ID: CASE_008 Title: 光模块厂商选择东南亚建厂以规避与欧美客户合作风险（中际旭创互动平台回复等） Publi...",
+          "content": "Evidence ID: CASE_008 Title: 光模块厂商选择东南亚建厂以规避与欧美客户合作风险（中际旭创互动平台回复等） Publisher: 中国基金报 Country/Jurisdiction: CN / National Publication date: 2024-07-14 Status: CURRENT Topic: 供应链布局 Applicability scope: GENERAL Related industries: 光模块 Key finding: 文中引用中际旭创互动平台回复，可据此到互动易查原始问答，升级为一手证据。 Content summary: 文中引用中际旭创互动平台回复，可据此到互动易查原始问答，升级为一手证据。"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-CASE_010-C0000",
+          "evidence_id": "CASE_010",
+          "relevance_score_raw": 11,
+          "authority_level": "S",
+          "publisher": "美国白宫（经律所解读）",
+          "topic": "原产地与转运",
+          "title": "白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 - Evidence ID: CASE_010 Title: 白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 Publisher: 美国白宫...",
+          "content": "Evidence ID: CASE_010 Title: 白宫点名东南亚为非法转运高风险地区，并推出AI执法工具 Publisher: 美国白宫（经律所解读） Country/Jurisdiction: US / Federal Publication date: 2026-08-13 Status: CURRENT Topic: 原产地与转运 Applicability scope: GENERAL Related industries: 通用 Key finding: 由WH_001与WH_002组成。对已在越南/泰国/马来西亚布局的企业，原产地举证压力上升。 Content summary: 由WH_001与WH_002组成。对已在越南/泰国/马来西亚布局的企业，原产地举证压力上升。"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-CASE_005-C0001",
+          "evidence_id": "CASE_005",
+          "relevance_score_raw": 8,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "新易盛：2022年设立泰国基地，一二期已投产 - 财务数据印证产能扩张强度： 中际旭创三季报显示，其在建工程为9.8亿元，相比年初增幅达1765.7%，盖因扩产投入，包含厂房扩建与设备部署所致。...",
+          "content": "财务数据印证产能扩张强度： 中际旭创三季报显示，其在建工程为9.8亿元，相比年初增幅达1765.7%，盖因扩产投入，包含厂房扩建与设备部署所致。东田微三季度在建工程较年初增加108.7%，主要系本期厂房装修、设备采购增加所致。前瞻性的投入印证厂商订单需求充足，对行业长期高景气度信心坚定。 新一轮产能集中释放，业绩打开增长空间： 预计2026年一季度将迎来产能集中释放，业绩持续爬坡的关键窗口。从业绩爬坡节奏看，光模块行业将经历从“产能释放”到“业绩兑现”的渐进过程。初期可能面临良率爬升、成本控制等挑战，但随着生产规模扩大和工艺成熟，规模效应将逐步显现，推动业绩稳步爬升。 算力产业链正处于高景气周期，爆发式增长的算力需求正面临光模块产业链的供给瓶颈。为应对供需缺口，头部光模块厂商正积极推进 “中国大陆与泰国”双线并行的产能扩张战略，多家龙头的泰国基地已投产或正在扩建，同时国内基地也在同步扩产，行业正处在新一轮产能释放的前夜，预计明年一季度将迎来产能的集中释放，光通信行业进入从“产能释放”到“业绩爬坡”的新阶段。 综上，我们继续看好算力板块，坚定推荐算力产业链相关企业如光模块行业龙头中际旭创、新易盛等，同时建议关注光器件“一大五小”天孚通信+仕佳光子/太辰光/长芯博创/德科立/东田微，建议关注国产算力产业链，如其中的液冷环节如英维克、东阳光等。 建议关注： 算力—— 光通信： 中际旭创、新易盛、天孚通信、太辰光、腾景科技、光库科技、光迅科技、德科立、联特科技、华工科技、源杰科技、剑桥科技、铭普光磁、东田微。 铜链接： 沃尔核材、精达股份。 算力设备： 中兴通讯、紫光股份、锐捷网络、盛科通信、菲菱科思、工业富联、沪电股份、 寒武纪 、海光信息。 液冷： 英维克、申菱环境、高澜股份。 边缘算力承载平台： 美格智能、广和通、移远通信。 卫星通信： 中国卫通、中国卫星、震有科技、海格通信。 IDC： 润泽科技、光环新网、奥飞数据、科华数据、润建股份。 母线： 威腾电气等。 数据要素—— 运营商： 中国电信、中国移动、中国联通。 数据可视化： 浩瀚深度、恒为科技、中新赛克。 风险提示： AI发展不及预期，算力需求不及预期，市场竞争风险。 1."
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "TRD_003",
+        "CASE_004",
+        "CASE_008",
+        "CASE_010",
+        "CASE_005"
+      ],
+      "matched_evidence_ids": [
+        "TRD_003"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q029",
+      "question": "情景A：立即启动海外建厂；情景B：延后投资等待贸易政策更清晰。管理层应参考哪些投资政策、全球投资趋势和企业供应链调查证据？",
+      "scenario_category": "Scenario Simulation Support",
+      "expected_topic": "investment_policy",
+      "expected_evidence_ids": [
+        "CNGOV_001",
+        "UNCTAD_001",
+        "IMF_001",
+        "KPMG_001",
+        "MCK_001"
+      ],
+      "difficulty": "Hard",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-CNGOV_001-C0002",
+          "evidence_id": "CNGOV_001",
+          "relevance_score_raw": 37,
+          "authority_level": "S",
+          "publisher": "中华人民共和国国务院",
+          "topic": "对外投资",
+          "title": "国务院关于对外投资的规定（国务院令第837号） - 2026/9/22 18:15 中华⼈民共和国国务院令（第 837 号） 国务院关于对外投资的规定 __2026 年第 16 号国务院公报 _ ...",
+          "content": "2026/9/22 18:15 中华⼈民共和国国务院令（第 837 号） 国务院关于对外投资的规定 __2026 年第 16 号国务院公报 _ 中国政府⽹ https://www.gov.cn/gongbao/2026/issue_12786/202606/content_7071618.html 1/5 第六条第六条 国家健全海外综合服务体系，促进贸易投资⼀体化，完善公共平台与服务，统筹外事、法律、财税、⾦融、经贸、物流、出境⼊境、海关、贸促等领域服务资源，为投资者提供服务保障。省级以上⼈⺠政府及其有关部⻔提升公共服务能⼒和⽔平，为投资者提供法律法规、政策措施、投资指南、知识产权、⻛险防范应对、权益保护等⽅⾯的公共产品和服务。第七条第七条 ⽀持咨询评估、法律服务、会计审计、信⽤评级、调解仲裁、知识产权等专业服务机构拓展海外服务⽹络，提⾼国际化服务能⼒和⽔平，为投资者及其对外投资提供⾼质量专业服务。有关专业服务机构应当遵循诚实守信、勤勉尽责、独⽴客观的原则，建⽴有效的⻛险控制和内部控制制度，配备具有相应专业能⼒的从业⼈员，依法开展有关服务活动。第⼋条第⼋条 银⾏业⾦融机构应当⽴⾜职能定位，遵循市场化、法治化、商业可持续和⻛险可控原则，在业务范围内为投资者对外投资提供融资等⾦融服务。⿎励政策性保险机构为投资者对外投资提供海外投资保险等服务。第九条第九条 有关⾏业协会商会应当依照法律、法规和章程，加强⾏业⾃律，提升服务投资者及其对外投资的能⼒和⽔平，及时反映⾏业诉求。⾏业协会商会、贸易投资促进组织按照章程提供与对外投资有关的信息咨询、市场拓展、经贸交流、权益保护、纠纷处理等⽅⾯的服务。第⼗条第⼗条 国家健全对外投资管理体系，完善调控措施，分类分级实施全过程监管，加强⻛险防控，提⾼对外投资的科学性、安全性，推动投资便利化和有效防范⻛险相结合。第⼗⼀条第⼗⼀条 国务院投资主管部⻔、商务主管部⻔会同国务院其他有关部⻔根据国⺠经济和社会发展需要、有关国家（地区）投资环境变化和⻛险程度等，制定、调整和实施对外投资政策，明确⿎励、限制、禁⽌的对外投资，加强对外投资监管，指导、监督投资者规范投资经营⾏为。第⼗⼆条第⼗⼆条 投资者开展对外投资活动依法需要履⾏核准备案、信息报告、跨境资⾦登"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-IMF_001-C0000",
+          "evidence_id": "IMF_001",
+          "relevance_score_raw": 31,
+          "authority_level": "A+",
+          "publisher": "国际货币基金组织（IMF）",
+          "topic": "对外投资",
+          "title": "World Economic Outlook, April 2023, Chapter 4: Geoeconomic Fragmentation and Foreign Direct Investment - Evidence ID: IMF_001 Title: World Economic Outlook, April 2023, Chapter ...",
+          "content": "Evidence ID: IMF_001 Title: World Economic Outlook, April 2023, Chapter 4: Geoeconomic Fragmentation and Foreign Direct Investment Publisher: 国际货币基金组织（IMF） Country/Jurisdiction: 全球 Publication date: 2023-04 Status: CURRENT Topic: 对外投资 Applicability scope: GENERAL Related industries: 通用 Key finding: 用于构建“政策→贸易投资规则→企业布局”的传导框架。信息来自已有知识，入库前需核对。 Content summary: 用于构建“政策→贸易投资规则→企业布局”的传导框架。信息来自已有知识，入库前需核对。 International Monetary Fund | April 2023 91 Supply-chain disruptions and rising geopolitical tensions have brought the risks and potential benefits and costs of geoeconomic fragmentation to the center of the policy debate. This chapter studies how such fragmentation can reshape the geography of foreign direct investment (FDI) and, in turn, how FDI fragmentation can affect the global economy."
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-MOFCOM_002-C0033",
+          "evidence_id": "MOFCOM_002",
+          "relevance_score_raw": 29,
+          "authority_level": "S",
+          "publisher": "商务部",
+          "topic": "出口管制",
+          "title": "商务部公告2025年第72号（暂停实施2024年第46号公告第二款，涉及对美两用物项出口管制） - v.cn/zcfb/gnmygl/index.html\" target=\"_blank\" class=\"ediAssetsTextCon\">国内...",
+          "content": "v.cn/zcfb/gnmygl/index.html\" target=\"_blank\" class=\"ediAssetsTextCon\">国内贸易管理</a> <a href=\"https://www.mofcom.gov.cn/zcfb/wwmwwzzccs/index.html\" target=\"_blank\" class=\"ediAssetsTextCon\">稳外贸稳外资政策措施</a> <a href=\"https://www.mofcom.gov.cn/zcfb/dwmygl/index.html\" target=\"_blank\" class=\"ediAssetsTextCon\">对外贸易管理</a> <a href=\"https://www.mofcom.gov.cn/zcfb/fwmy/index.html\" target=\"_blank\" class=\"ediAssetsTextCon\">服务贸易</a> <a href=\"https://www.mofcom.gov.cn/zcfb/gpmy/index.html\" target=\"_blank\" class=\"ediAssetsTextCon\">公平贸易</a> <a href=\"https://www.mofcom.gov.cn/zcfb/wgtzgl/index.html\" target=\"_blank\" class=\"ediAssetsTextCon\">外国投资管理</a> <a href=\"https://www.mofcom.gov.cn/zcfb/dwjjjshz/index.html\" target=\"_blank\" class=\"ediAssetsTextCon\">对外经济技术合作</a> <a href=\"https://www.mofcom.gov.cn/swzcfg/index.html\" target=\"_blank\" class=\"ediAssetsTextCon\">商务法规</a> <a href=\"https://www.mofcom.gov.cn/zcfb/zgdwjjmywg/index.html\" target=\"_blank\" class=\"ediAssets"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-CASE_001-C0000",
+          "evidence_id": "CASE_001",
+          "relevance_score_raw": 23,
+          "authority_level": "B+",
+          "publisher": "路透社（Reuters）",
+          "topic": "供应链布局",
+          "title": "Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 - Evidence ID: CASE_001 Title: Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 Publishe...",
+          "content": "Evidence ID: CASE_001 Title: Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 Publisher: 路透社（Reuters） Country/Jurisdiction: CN / National Publication date: 2026-09-14 Status: CURRENT Topic: 供应链布局 Applicability scope: GENERAL Related industries: 金属铸造 Key finding: 路透原文《Companies left China to dodge tariffs. Now some are heading back》。丹东铸造企业，美国客户转单印度后回流；企业评估外迁后放弃。可作“China+1执行难度”的反向案例。 Content summary: 路透原文《Companies left China to dodge tariffs. Now some are heading back》。丹东铸造企业，美国客户转单印度后回流；企业评估外迁后放弃。可作“China+1执行难度”的反向案例。"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-UNCTAD_001-C0000",
+          "evidence_id": "UNCTAD_001",
+          "relevance_score_raw": 22,
+          "authority_level": "A+",
+          "publisher": "联合国贸易和发展会议（UNCTAD）",
+          "topic": "对外投资",
+          "title": "World Investment Report 2026: International Investment in a Turbulent Era - Evidence ID: UNCTAD_001 Title: World Investment Report 2026: Internation...",
+          "content": "Evidence ID: UNCTAD_001 Title: World Investment Report 2026: International Investment in a Turbulent Era Publisher: 联合国贸易和发展会议（UNCTAD） Country/Jurisdiction: 全球 Publication date: 2026-07-07 Status: CURRENT Topic: 对外投资 Applicability scope: GENERAL Related industries: 通用 Key finding: 2025年全球FDI增长6%至约1.6万亿美元；战略行业占绿地投资比重显著上升。 Content summary: 2025年全球FDI增长6%至约1.6万亿美元；战略行业占绿地投资比重显著上升。 International Investment in a Turbulent Era 2026 World Investment Report UNITED NATIONS CONFERENCE ON TRADE AND DEVELOPMENTUNITED NATIONS CONFERENCE ON TRADE AND DEVELOPMENT Geneva, 2026 ii © 2026, United Nations All rights reserved worldwide Requests to reproduce excerpts or to photocopy should be addressed to the Copyright Clearance Center at copyright.com."
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "CNGOV_001",
+        "IMF_001",
+        "MOFCOM_002",
+        "CASE_001",
+        "UNCTAD_001"
+      ],
+      "matched_evidence_ids": [
+        "CNGOV_001",
+        "UNCTAD_001",
+        "IMF_001"
+      ],
+      "hit_at_5": 1
+    },
+    {
+      "question_id": "Q030",
+      "question": "情景A：把泰国作为单一海外生产中心；情景B：在泰国和马来西亚分散布局。基于现有企业案例、美国转运执法和贸易数据，应该如何比较两种方案的集中度与市场准入风险？",
+      "scenario_category": "Scenario Simulation Support",
+      "expected_topic": "supply_chain",
+      "expected_evidence_ids": [
+        "CASE_004",
+        "CASE_005",
+        "CASE_006",
+        "CASE_007",
+        "WH_002",
+        "CASE_010",
+        "TRD_001"
+      ],
+      "difficulty": "Hard",
+      "retrieved": [
+        {
+          "rank": 1,
+          "raw_evidence_id": "EVD-TRD_003-C0000",
+          "evidence_id": "TRD_003",
+          "relevance_score_raw": 40,
+          "authority_level": "A+",
+          "publisher": "联合国商品贸易统计数据库（UN Comtrade）",
+          "topic": "贸易流",
+          "title": "中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 - Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年...",
+          "content": "Evidence ID: TRD_003 Title: 中国对越南、泰国、马来西亚出口 HS 8541/8542（中间品），2018–2025年度 Publisher: 联合国商品贸易统计数据库（UN Comtrade） Country/Jurisdiction: CN / National Publication date: 持续更新 Status: CURRENT Topic: 贸易流 Applicability scope: GENERAL Related industries: ◆电子/光电 Key finding: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。 Content summary: 看东南亚产能是否依赖中国中间品，与原产地风险直接相关。"
+        },
+        {
+          "rank": 2,
+          "raw_evidence_id": "EVD-ITA_001-C22416",
+          "evidence_id": "ITA_001",
+          "relevance_score_raw": 27,
+          "authority_level": "S",
+          "publisher": "美国国际贸易管理局（ITA）",
+          "topic": "出口管制",
+          "title": "Consolidated Screening List API（美国合并筛查清单） - ITED) source: Specially Designated Nationals (SDN) - Treasury Department...",
+          "content": "ITED) source: Specially Designated Nationals (SDN) - Treasury Department source_information_url: https://home.treasury.gov/policy-issues/financial-sanctions/specially-designated-nationals-and-blocked-persons-list-sdn-human-readable-lists source_list_url: https://sanctionslist.ofac.treas.gov/Home/SdnList ids: [{\"type\": \"National ID No.\", \"number\": \"320722198611070815\", \"country\": \"CN\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Additional Sanctions Information -\", \"number\": \"Subject to Secondary Sanctions\", \"issue_date\": null, \"expiration_date\": null}, {\"type\": \"Gender\", \"number\": \"Male\", \"issue_date\": null, \"expiration_date\": null}] --- RECORD --- name: EXCELLENT BEIJING TECHNOLOGY DEVELOPMENT COMPANY LIMITED type: Entity entity_number: 55406 alt_names: [\"EXCELLENT BEIJING TECHNOLOGY DEVELOPMENT LIMITED\", \"BEIJING EXCELLENT GLOBAL TECHNOLOGY DEVELOPMENT COMPANY\"] programs: [\"IFSR\", \"NPWMD\"] remarks: (Linked To: PARSAJAM, Mo"
+        },
+        {
+          "rank": 3,
+          "raw_evidence_id": "EVD-CASE_006-C0471",
+          "evidence_id": "CASE_006",
+          "relevance_score_raw": 27,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "天孚通信：泰国一期投产、二期2025年投入使用 - g: border-box;\"><span>【海内海外布局加速，新一轮产能释放的前夜】</span></strong></p><p style=...",
+          "content": "g: border-box;\"><span>【海内海外布局加速，新一轮产能释放的前夜】</span></strong></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><span><br></span></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><strong style=\"box-sizing: border-box;\"><span>面对算力需求爆发性增长，光模块头部厂商开启海内海外双线并行的产能扩张。</span></strong></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><strong style=\"box-sizing: border-box;\"><span><br></span></strong></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><strong style=\"box-sizing: border-box;\"><span>光通信龙头全球化产能扩张持续进行：</span></strong><span style=\"box-sizing: border-box; color: rgb(0, 0, 0);\"><span>光通信龙头厂商通过全球产能布局，建立包括中国大陆与东南亚的多边供应体系，规避地缘政治风险同时优化成本结构。新易盛于2022年在泰国设立生产基地，目前泰国工厂一期、二期均已正式投产，二期产能2025年至2026年持续释放。中际旭创泰国厂运营多年可全面量产出货，生产能力和国内基本齐平，公司产能多线布局，在苏州、铜陵以及泰国均有光模块产能。天孚通信泰国生产基地第一期已投产，正按需增加产能，第二期项目2025年投入使用，预计 2026 年泰国"
+        },
+        {
+          "rank": 4,
+          "raw_evidence_id": "EVD-CASE_004-C0480",
+          "evidence_id": "CASE_004",
+          "relevance_score_raw": 27,
+          "authority_level": "B+",
+          "publisher": "国盛证券（经腾讯新闻转载）",
+          "topic": "供应链布局",
+          "title": "中际旭创：泰国工厂产能与国内基本齐平 - g: border-box;\"><span>【海内海外布局加速，新一轮产能释放的前夜】</span></strong></p><p style=...",
+          "content": "g: border-box;\"><span>【海内海外布局加速，新一轮产能释放的前夜】</span></strong></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><span><br></span></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><strong style=\"box-sizing: border-box;\"><span>面对算力需求爆发性增长，光模块头部厂商开启海内海外双线并行的产能扩张。</span></strong></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><strong style=\"box-sizing: border-box;\"><span><br></span></strong></p><p style=\"box-sizing: border-box; margin: 0px; padding: 0px; white-space: normal;\"><strong style=\"box-sizing: border-box;\"><span>光通信龙头全球化产能扩张持续进行：</span></strong><span style=\"box-sizing: border-box; color: rgb(0, 0, 0);\"><span>光通信龙头厂商通过全球产能布局，建立包括中国大陆与东南亚的多边供应体系，规避地缘政治风险同时优化成本结构。新易盛于2022年在泰国设立生产基地，目前泰国工厂一期、二期均已正式投产，二期产能2025年至2026年持续释放。中际旭创泰国厂运营多年可全面量产出货，生产能力和国内基本齐平，公司产能多线布局，在苏州、铜陵以及泰国均有光模块产能。天孚通信泰国生产基地第一期已投产，正按需增加产能，第二期项目2025年投入使用，预计 2026 年泰国"
+        },
+        {
+          "rank": 5,
+          "raw_evidence_id": "EVD-CASE_001-C0000",
+          "evidence_id": "CASE_001",
+          "relevance_score_raw": 25,
+          "authority_level": "B+",
+          "publisher": "路透社（Reuters）",
+          "topic": "供应链布局",
+          "title": "Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 - Evidence ID: CASE_001 Title: Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 Publishe...",
+          "content": "Evidence ID: CASE_001 Title: Dawang Metals：客户订单转移印度后回流，企业放弃海外建厂 Publisher: 路透社（Reuters） Country/Jurisdiction: CN / National Publication date: 2026-09-14 Status: CURRENT Topic: 供应链布局 Applicability scope: GENERAL Related industries: 金属铸造 Key finding: 路透原文《Companies left China to dodge tariffs. Now some are heading back》。丹东铸造企业，美国客户转单印度后回流；企业评估外迁后放弃。可作“China+1执行难度”的反向案例。 Content summary: 路透原文《Companies left China to dodge tariffs. Now some are heading back》。丹东铸造企业，美国客户转单印度后回流；企业评估外迁后放弃。可作“China+1执行难度”的反向案例。"
+        }
+      ],
+      "retrieved_evidence_ids": [
+        "TRD_003",
+        "ITA_001",
+        "CASE_006",
+        "CASE_004",
+        "CASE_001"
+      ],
+      "matched_evidence_ids": [
+        "CASE_004",
+        "CASE_006"
+      ],
+      "hit_at_5": 1
+    }
+  ]
+}
