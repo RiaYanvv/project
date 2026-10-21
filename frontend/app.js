@@ -543,6 +543,7 @@ async function streamAssessment(payload, onStage) {
       if (event.type === "stage") onStage(event);
       else if (event.type === "assessment") assessment = event.assessment;
       else if (event.type === "error") throw new Error(event.message || "Assessment failed");
+      else if (event.type === "heartbeat") continue;
     }
   }
   if (!assessment) throw new Error("Assessment service returned no result");

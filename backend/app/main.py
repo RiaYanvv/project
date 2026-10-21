@@ -537,7 +537,11 @@ async def create_assessment_stream(request: AssessmentRequest) -> StreamingRespo
         task = asyncio.create_task(run_job())
         try:
             while True:
-                event = await queue.get()
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=10)
+                except TimeoutError:
+                    yield json.dumps({"type": "heartbeat"}) + "\n"
+                    continue
                 yield json.dumps(event, ensure_ascii=False) + "\n"
                 if event["type"] == "done":
                     break
@@ -711,7 +715,11 @@ async def chat_stream(
         task = asyncio.create_task(run_job())
         try:
             while True:
-                event = await queue.get()
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=10)
+                except TimeoutError:
+                    yield json.dumps({"type": "heartbeat"}) + "\n"
+                    continue
                 yield json.dumps(event, ensure_ascii=False) + "\n"
                 if event["type"] == "done":
                     break
