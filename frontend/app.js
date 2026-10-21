@@ -550,7 +550,7 @@ async function streamAssessment(payload, onStage) {
 }
 
 function dailyAssessmentLimitMessage(error) {
-  const limit = error.limit || 15;
+  const limit = error.limit || 10;
   const seconds = Math.max(0, Number(error.retryAfterSeconds) || 0);
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.ceil((seconds % 3600) / 60);
