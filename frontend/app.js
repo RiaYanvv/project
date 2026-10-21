@@ -482,7 +482,9 @@ async function describeApiError(response) {
   try {
     const body = await response.clone().json();
     const detail = body && body.detail;
-    if (typeof detail === "string" && detail.trim()) return `: ${detail.trim()}`;
+    if (typeof detail === "string" && detail.trim()) {
+      return { suffix: `: ${detail.trim()}`, body };
+    }
     if (Array.isArray(detail) && detail.length) {
       const parts = detail.slice(0, 2).map(entry => {
         const where = Array.isArray(entry.loc)
@@ -490,10 +492,11 @@ async function describeApiError(response) {
           : "";
         return [where, entry.msg].filter(Boolean).join(": ");
       });
-      return `: ${parts.join("; ")}`;
+      return { suffix: `: ${parts.join("; ")}`, body };
     }
+    return { suffix: "", body };
   } catch { /* the body was not JSON — fall back to the status code alone */ }
-  return "";
+  return { suffix: "", body: null };
 }
 
 async function streamAssessment(payload, onStage) {
@@ -506,9 +509,21 @@ async function streamAssessment(payload, onStage) {
     body: JSON.stringify({ ...request, api_key: window.LOCUS_API_KEY, llm_model: window.LOCUS_MODEL || "deepseek-flash", language: currentLanguage() === "zh" ? "zh" : "en" }),
   }, 120000);
   if (!response.ok || !response.body) {
-    throw new Error(
-      `Assessment service returned ${response.status}${await describeApiError(response)}`
+    const apiError = await describeApiError(response);
+    const error = new Error(
+      `Assessment service returned ${response.status}${apiError.suffix}`
     );
+    error.status = response.status;
+    error.code = apiError.body?.code || "";
+    error.limit = Number(apiError.body?.limit) || null;
+    error.used = Number(apiError.body?.used) || null;
+    error.resetAt = apiError.body?.reset_at || "";
+    error.retryAfterSeconds = Number(
+      apiError.body?.retry_after_seconds ||
+      response.headers.get("Retry-After") ||
+      0
+    );
+    throw error;
   }
 
   const reader = response.body.getReader();
@@ -532,6 +547,49 @@ async function streamAssessment(payload, onStage) {
   }
   if (!assessment) throw new Error("Assessment service returned no result");
   return assessment;
+}
+
+function dailyAssessmentLimitMessage(error) {
+  const limit = error.limit || 15;
+  const seconds = Math.max(0, Number(error.retryAfterSeconds) || 0);
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.ceil((seconds % 3600) / 60);
+  const waitZh = [
+    hours ? `${hours} 小时` : "",
+    minutes ? `${minutes} 分钟` : "",
+  ].filter(Boolean).join(" ") || "少于 1 分钟";
+  const waitEn = [
+    hours ? `${hours} hour${hours === 1 ? "" : "s"}` : "",
+    minutes ? `${minutes} minute${minutes === 1 ? "" : "s"}` : "",
+  ].filter(Boolean).join(" ") || "less than 1 minute";
+
+  let resetLabel = "";
+  if (error.resetAt) {
+    const resetDate = new Date(error.resetAt);
+    if (!Number.isNaN(resetDate.getTime())) {
+      resetLabel = new Intl.DateTimeFormat(
+        currentLanguage() === "zh" ? "zh-CN" : "en-GB",
+        {
+          timeZone: "Asia/Shanghai",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hourCycle: "h23",
+        }
+      ).format(resetDate);
+    }
+  }
+
+  if (currentLanguage() === "zh") {
+    return `今日 ${limit} 次分析额度已用完。请在${
+      resetLabel ? `北京时间 ${resetLabel}` : "下一个北京时间 00:00"
+    }后再试，预计等待 ${waitZh}。`;
+  }
+  return `The daily limit of ${limit} analyses has been reached. Try again after ${
+    resetLabel ? `${resetLabel} Beijing time` : "the next Beijing midnight"
+  }, in about ${waitEn}.`;
 }
 
 const CONTEXT_TYPE_LABELS = {
@@ -882,6 +940,15 @@ async function runAnalysis(profile, thenSimulate = false) {
       return;
     } catch (error) {
       if (runId !== analysisRunId) return;
+      if (error.code === "daily_assessment_limit_reached") {
+        runInFlight = false;
+        if (submitButton) submitButton.disabled = false;
+        showScreen("consultation");
+        const message = dailyAssessmentLimitMessage(error);
+        showAgentNotice(message, "warn");
+        showToast(message);
+        return;
+      }
       showAgentNotice(
         `Live agent unavailable (${error.message}). Showing the local preview for this run.`,
         "warn"

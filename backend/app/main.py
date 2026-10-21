@@ -23,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from .agent import AgentService
 from .company_research import CompanyResearchTool
 from .config import DEFAULT_CORS_ORIGIN_REGEX, PROJECT_ROOT, Settings
+from .daily_limit import DailyAssessmentLimiter
 from .knowledge import KnowledgeRepository
 from .llm import DeepSeekLLM, MockLLM
 from .pdf_report import build_assessment_pdf
@@ -47,6 +48,10 @@ from .web_search import WebSearchTool
 settings = Settings.from_env()
 repository = AssessmentRepository(settings.database_path)
 knowledge_repository = KnowledgeRepository(settings.database_path)
+daily_assessment_limiter = DailyAssessmentLimiter(
+    settings.database_path,
+    settings.assessment_rate_limit_per_day,
+)
 # Task 4 optimisation layer (metadata filtering / query enhancement /
 # authority ranking).  Off by default; enable with RETRIEVAL_OPTIMIZER=1
 # once the product-side review signs off on the Task 4 evaluation.
@@ -120,14 +125,18 @@ async def public_demo_rate_limit(request, call_next):
     assessments_per_hour = int(
         os.getenv("ASSESSMENT_RATE_LIMIT_PER_HOUR", "20")
     )
+    is_assessment_run = (
+        request.method == "POST"
+        and request.url.path
+        in {"/api/v1/assessments", "/api/v1/assessments/stream"}
+    )
     if not _request_limiter.allow(client_key, per_minute, 60):
         return JSONResponse(
             status_code=429,
             content={"detail": "Too many requests; please retry later."},
         )
     if (
-        request.method == "POST"
-        and request.url.path == "/api/v1/assessments"
+        is_assessment_run
         and not _assessment_limiter.allow(
             client_key,
             assessments_per_hour,
@@ -140,7 +149,47 @@ async def public_demo_rate_limit(request, call_next):
                 "detail": "Assessment limit reached; please retry later."
             },
         )
-    return await call_next(request)
+    daily_decision = None
+    if is_assessment_run:
+        daily_decision = daily_assessment_limiter.consume(client_key)
+        if not daily_decision.allowed:
+            reset_label = daily_decision.reset_at.strftime("%Y-%m-%d %H:%M")
+            return JSONResponse(
+                status_code=429,
+                headers={
+                    "Retry-After": str(
+                        daily_decision.retry_after_seconds
+                    ),
+                    "X-RateLimit-Limit": str(daily_decision.limit),
+                    "X-RateLimit-Remaining": "0",
+                    "X-RateLimit-Reset": daily_decision.reset_at.isoformat(),
+                },
+                content={
+                    "code": "daily_assessment_limit_reached",
+                    "detail": (
+                        "每日分析次数已用完"
+                        f"（{daily_decision.used}/{daily_decision.limit}）。"
+                        f"请在 {reset_label}（北京时间）后再试。"
+                    ),
+                    "limit": daily_decision.limit,
+                    "used": daily_decision.used,
+                    "reset_at": daily_decision.reset_at.isoformat(),
+                    "retry_after_seconds": (
+                        daily_decision.retry_after_seconds
+                    ),
+                },
+            )
+
+    response = await call_next(request)
+    if daily_decision is not None:
+        response.headers["X-RateLimit-Limit"] = str(daily_decision.limit)
+        response.headers["X-RateLimit-Remaining"] = str(
+            daily_decision.remaining
+        )
+        response.headers["X-RateLimit-Reset"] = (
+            daily_decision.reset_at.isoformat()
+        )
+    return response
 # The frontend lives on its own branch, so the backend must also run without it.
 if frontend_dir.is_dir():
     app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
@@ -199,6 +248,9 @@ def meta() -> dict[str, object]:
         "deepseek_configured": bool(settings.deepseek_api_key),
         "llm_configured": llm.mode == "deepseek" and bool(settings.deepseek_api_key),
         "llm_required": settings.llm_required,
+        "assessment_rate_limit_per_day": (
+            settings.assessment_rate_limit_per_day
+        ),
         "supported_languages": ["en", "zh"],
         "cors_origins": list(settings.cors_origins),
         "cors_origin_regex": settings.cors_origin_regex,

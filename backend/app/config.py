@@ -52,6 +52,7 @@ class Settings:
     data_root: Path
     cors_origins: tuple[str, ...]
     cors_origin_regex: str
+    assessment_rate_limit_per_day: int
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -92,5 +93,8 @@ class Settings:
             cors_origins=cors_origins,
             cors_origin_regex=os.getenv(
                 "CORS_ORIGIN_REGEX", DEFAULT_CORS_ORIGIN_REGEX
+            ),
+            assessment_rate_limit_per_day=int(
+                os.getenv("ASSESSMENT_RATE_LIMIT_PER_DAY", "15")
             ),
         )
