@@ -54,23 +54,23 @@ class DailyAssessmentLimiterTest(unittest.TestCase):
             self.assertFalse(limiter.consume("198.51.100.1").allowed)
             self.assertTrue(limiter.consume("198.51.100.2").allowed)
 
-    def test_twenty_fifth_assessment_is_allowed_and_twenty_sixth_is_blocked(
+    def test_hundredth_assessment_is_allowed_and_hundred_first_is_blocked(
         self,
     ) -> None:
         now = datetime(2026, 10, 21, 9, 0, tzinfo=BEIJING_TZ)
         with tempfile.TemporaryDirectory() as directory:
             limiter = DailyAssessmentLimiter(
                 Path(directory) / "usage.db",
-                25,
+                100,
                 now_provider=lambda: now,
             )
-            decisions = [limiter.consume("192.0.2.25") for _ in range(26)]
+            decisions = [limiter.consume("192.0.2.100") for _ in range(101)]
 
-            self.assertTrue(all(item.allowed for item in decisions[:25]))
-            self.assertEqual(decisions[24].used, 25)
-            self.assertEqual(decisions[24].remaining, 0)
-            self.assertFalse(decisions[25].allowed)
-            self.assertEqual(decisions[25].used, 25)
+            self.assertTrue(all(item.allowed for item in decisions[:100]))
+            self.assertEqual(decisions[99].used, 100)
+            self.assertEqual(decisions[99].remaining, 0)
+            self.assertFalse(decisions[100].allowed)
+            self.assertEqual(decisions[100].used, 100)
 
 
 if __name__ == "__main__":

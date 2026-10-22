@@ -18,7 +18,7 @@ Local mode uses `LLM_PROVIDER=mock`. Live mode uses `LLM_PROVIDER=deepseek` and
 reads `DEEPSEEK_API_KEY` from the server environment. The repository does not
 contain a live API key.
 
-`ASSESSMENT_RATE_LIMIT_PER_DAY` defaults to `25`. The daily assessment counter
+`ASSESSMENT_RATE_LIMIT_PER_DAY` defaults to `100`. The daily assessment counter
 resets at midnight in Beijing time (UTC+8).
 
 ## 2. Workflow and scoring rules

@@ -187,7 +187,7 @@ DEEPSEEK_API_KEY=<your-deepseek-api-key>
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-flash
 WEB_SEARCH_ENABLED=false
-ASSESSMENT_RATE_LIMIT_PER_DAY=25
+ASSESSMENT_RATE_LIMIT_PER_DAY=100
 ```
 
 `.env` 已被 `.gitignore` 排除。不要将真实 Key 写入源码、前端、README、截图或提交记录。
@@ -268,7 +268,7 @@ python -m http.server 8123
 | `GET` | `/api/v1/assessments/{id}/report` | 下载 PDF 报告 |
 | `GET` | `/api/v1/schema/assessment` | 评估 JSON Schema |
 
-完整评估接口按客户端 IP 限流：每分钟 40 次 API 请求、每小时 12 次评估、每天 25 次评估。每日额度按北京时间 00:00 重置，超过后返回 `429` 和下一次可用时间。
+完整评估接口按客户端 IP 限流：每分钟 40 次 API 请求、每小时 12 次评估、每天 100 次评估。每日额度按北京时间 00:00 重置，超过后返回 `429` 和下一次可用时间。
 
 示例请求见 [`docs/examples/sample-input.json`](docs/examples/sample-input.json)，示例输出说明见 [`docs/examples/sample-output.md`](docs/examples/sample-output.md)。
 
