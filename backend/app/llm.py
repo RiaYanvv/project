@@ -1017,13 +1017,16 @@ class DeepSeekLLM:
             cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
             cleaned = re.sub(r"\s*```$", "", cleaned)
         try:
-            result = json.loads(cleaned)
+            # DeepSeek occasionally puts an unescaped newline inside a JSON
+            # string, especially in Markdown chat answers. strict=False keeps
+            # the response instead of dropping it to the rule-based fallback.
+            result = json.loads(cleaned, strict=False)
         except json.JSONDecodeError:
             start = cleaned.find("{")
             end = cleaned.rfind("}")
             if start < 0 or end <= start:
                 raise
-            result = json.loads(cleaned[start : end + 1])
+            result = json.loads(cleaned[start : end + 1], strict=False)
         if not isinstance(result, dict):
             raise TypeError("model JSON is not an object")
         return result

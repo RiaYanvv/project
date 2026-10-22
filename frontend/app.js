@@ -20,6 +20,10 @@ let runInFlight = false;
 let analysisRunId = 0;
 const draftKey = "locus-decision-draft";
 const projectsKey = "locus-decision-projects";
+const activeAssessmentJobKey = "locus-active-assessment-job";
+let activeAssessmentJob = null;
+let assessmentJobWake = null;
+let assessmentJobResumeRunning = false;
 // Shown on the home screen and used as the asset cache key (index.html).
 const APP_BUILD = (document.querySelector('meta[name="locus-build"]') || {}).content || "dev";
 
@@ -505,55 +509,238 @@ async function describeApiError(response) {
   return { suffix: "", body: null };
 }
 
-async function streamAssessment(payload, onStage) {
+function readActiveAssessmentJob() {
+  if (activeAssessmentJob) return activeAssessmentJob;
+  if (!canStore) return null;
+  try {
+    const stored = JSON.parse(localStorage.getItem(activeAssessmentJobKey) || "null");
+    if (!stored?.jobId) return null;
+    const created = Date.parse(stored.createdAt || "");
+    if (!Number.isNaN(created) && Date.now() - created > 24 * 60 * 60 * 1000) {
+      localStorage.removeItem(activeAssessmentJobKey);
+      return null;
+    }
+    activeAssessmentJob = stored;
+    return stored;
+  } catch {
+    return null;
+  }
+}
+
+function saveActiveAssessmentJob(job) {
+  activeAssessmentJob = job;
+  if (!canStore) return;
+  try {
+    localStorage.setItem(activeAssessmentJobKey, JSON.stringify(job));
+  } catch { /* the in-memory job still resumes while this tab stays open */ }
+}
+
+function clearActiveAssessmentJob() {
+  activeAssessmentJob = null;
+  if (!canStore) return;
+  try { localStorage.removeItem(activeAssessmentJobKey); } catch { /* storage unavailable */ }
+}
+
+function wakeAssessmentJobPolling() {
+  if (!assessmentJobWake) return;
+  const wake = assessmentJobWake;
+  assessmentJobWake = null;
+  wake();
+}
+
+function waitForAssessmentPoll(delayMs = 3000) {
+  return new Promise(resolve => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      if (assessmentJobWake === finish) assessmentJobWake = null;
+      resolve();
+    };
+    assessmentJobWake = finish;
+    setTimeout(finish, delayMs);
+  });
+}
+
+function assessmentJobError(response, apiError) {
+  const error = new Error(
+    `Assessment service returned ${response.status}${apiError.suffix}`
+  );
+  error.status = response.status;
+  error.code = apiError.body?.code || "";
+  error.limit = Number(apiError.body?.limit) || null;
+  error.used = Number(apiError.body?.used) || null;
+  error.resetAt = apiError.body?.reset_at || "";
+  error.retryAfterSeconds = Number(
+    apiError.body?.retry_after_seconds ||
+    response.headers.get("Retry-After") ||
+    0
+  );
+  return error;
+}
+
+async function requestAssessmentJob(payload, context) {
   // `productionTotal` is a local guard value; the API schema forbids extra keys.
   const { productionTotal, ...request } = payload;
   await waitForAgentService();
-  const response = await fetchWithTimeout(`${window.LOCUS_API_BASE}/api/v1/assessments/stream`, {
+  const response = await fetchWithTimeout(`${window.LOCUS_API_BASE}/api/v1/assessment-jobs`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...request, api_key: window.LOCUS_API_KEY, llm_model: window.LOCUS_MODEL || "deepseek-flash", language: currentLanguage() === "zh" ? "zh" : "en" }),
-  }, 120000);
-  if (!response.ok || !response.body) {
-    const apiError = await describeApiError(response);
-    const error = new Error(
-      `Assessment service returned ${response.status}${apiError.suffix}`
-    );
-    error.status = response.status;
-    error.code = apiError.body?.code || "";
-    error.limit = Number(apiError.body?.limit) || null;
-    error.used = Number(apiError.body?.used) || null;
-    error.resetAt = apiError.body?.reset_at || "";
-    error.retryAfterSeconds = Number(
-      apiError.body?.retry_after_seconds ||
-      response.headers.get("Retry-After") ||
-      0
-    );
-    throw error;
+    body: JSON.stringify({
+      ...request,
+      api_key: window.LOCUS_API_KEY,
+      llm_model: window.LOCUS_MODEL || "deepseek-flash",
+      language: currentLanguage() === "zh" ? "zh" : "en",
+    }),
+  }, 30000);
+  if (!response.ok) {
+    throw assessmentJobError(response, await describeApiError(response));
   }
+  const job = await response.json();
+  if (context?.persist !== false) {
+    saveActiveAssessmentJob({
+      jobId: job.job_id,
+      profile: context?.profile || null,
+      thenSimulate: Boolean(context?.thenSimulate),
+      createdAt: new Date().toISOString(),
+    });
+  }
+  return job;
+}
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let assessment = null;
+async function waitForAssessmentJob(jobId, onStage) {
+  let lastStage = "";
+  let networkRetrying = false;
   for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      let event;
-      try { event = JSON.parse(line); } catch { continue; }
-      if (event.type === "stage") onStage(event);
-      else if (event.type === "assessment") assessment = event.assessment;
-      else if (event.type === "error") throw new Error(event.message || "Assessment failed");
-      else if (event.type === "heartbeat") continue;
+    let response;
+    try {
+      response = await fetchWithTimeout(
+        `${window.LOCUS_API_BASE}/api/v1/assessment-jobs/${encodeURIComponent(jobId)}`,
+        { cache: "no-store" },
+        30000,
+      );
+    } catch (error) {
+      if (!networkRetrying) {
+        networkRetrying = true;
+        showAgentNotice(
+          L(
+            "Connection interrupted. The assessment is still running on the server; reconnecting automatically.",
+            "连接暂时中断，分析仍会在服务器后台继续；系统将自动重连。",
+          ),
+          "warn",
+        );
+      }
+      await waitForAssessmentPoll(5000);
+      continue;
     }
+
+    if (response.status === 404) {
+      clearActiveAssessmentJob();
+      throw new Error(
+        L(
+          "The background assessment was not found after a server restart. Please run it again.",
+          "服务器重启后找不到这条后台分析记录，请重新运行一次分析。",
+        )
+      );
+    }
+    if (!response.ok) {
+      if (response.status >= 500) {
+        await waitForAssessmentPoll(5000);
+        continue;
+      }
+      throw assessmentJobError(response, await describeApiError(response));
+    }
+
+    networkRetrying = false;
+    showAgentNotice(
+      L(
+        "Analysis is running in the background. You can switch tabs; this page will reconnect automatically.",
+        "分析正在服务器后台运行，可以切换到其他标签页；返回本页后会自动恢复。",
+      )
+    );
+    const job = await response.json();
+    const stageKey = `${job.stage_agent || ""}:${job.stage_status || ""}`;
+    if (job.stage_agent && stageKey !== lastStage) {
+      lastStage = stageKey;
+      onStage({
+        type: "stage",
+        agent: job.stage_agent,
+        status: job.stage_status || "started",
+      });
+    }
+    if (job.status === "completed") {
+      if (!job.assessment_id) {
+        throw new Error("Assessment job completed without an assessment id");
+      }
+      let resultResponse;
+      try {
+        resultResponse = await fetchWithTimeout(
+          `${window.LOCUS_API_BASE}/api/v1/assessments/${encodeURIComponent(job.assessment_id)}`,
+          { cache: "no-store" },
+          60000,
+        );
+      } catch {
+        await waitForAssessmentPoll(3000);
+        continue;
+      }
+      if (resultResponse.status === 404) {
+        await waitForAssessmentPoll(1500);
+        continue;
+      }
+      if (!resultResponse.ok) {
+        throw assessmentJobError(
+          resultResponse,
+          await describeApiError(resultResponse),
+        );
+      }
+      clearActiveAssessmentJob();
+      showAgentNotice("");
+      return resultResponse.json();
+    }
+    if (job.status === "failed") {
+      clearActiveAssessmentJob();
+      throw new Error(job.error || "Assessment failed");
+    }
+    await waitForAssessmentPoll(3000);
   }
-  if (!assessment) throw new Error("Assessment service returned no result");
-  return assessment;
+}
+
+async function streamAssessment(payload, onStage, context = {}) {
+  const stored = context.persist === false ? null : readActiveAssessmentJob();
+  const job = stored
+    ? { job_id: stored.jobId }
+    : await requestAssessmentJob(payload, context);
+  return waitForAssessmentJob(job.job_id, onStage);
+}
+
+async function resumeStoredAssessmentJob() {
+  if (assessmentJobResumeRunning || runInFlight) return false;
+  const pending = readActiveAssessmentJob();
+  if (!pending?.jobId || !pending.profile) return false;
+  assessmentJobResumeRunning = true;
+  runInFlight = true;
+  showScreen("analysis");
+  resetStages();
+  try {
+    const api = await waitForAssessmentJob(pending.jobId, handleStageEvent);
+    finishRun(
+      mapApiAssessment(api, pending.profile),
+      pending.profile,
+      Boolean(pending.thenSimulate),
+    );
+    return true;
+  } catch (error) {
+    clearActiveAssessmentJob();
+    runInFlight = false;
+    showToast(L(
+      `Background analysis could not be resumed: ${error.message}`,
+      `后台分析恢复失败：${error.message}`,
+    ));
+    showScreen("consultation");
+    return false;
+  } finally {
+    assessmentJobResumeRunning = false;
+  }
 }
 
 function dailyAssessmentLimitMessage(error) {
@@ -940,7 +1127,11 @@ async function runAnalysis(profile, thenSimulate = false) {
 
   if (configured && payload && !issues.length) {
     try {
-      const api = await streamAssessment(payload, handleStageEvent);
+      const api = await streamAssessment(payload, handleStageEvent, {
+        profile,
+        thenSimulate,
+        persist: true,
+      });
       if (runId !== analysisRunId) return;
       showAgentNotice("");
       finishRun(mapApiAssessment(api, profile), profile, thenSimulate);
@@ -956,15 +1147,30 @@ async function runAnalysis(profile, thenSimulate = false) {
         showToast(message);
         return;
       }
+      runInFlight = false;
+      clearActiveAssessmentJob();
+      if (submitButton) submitButton.disabled = false;
       showAgentNotice(
-        `Live agent unavailable (${error.message}). Showing the local preview for this run.`,
+        L(
+          `Live analysis failed: ${error.message}. No local mock result was substituted. Please retry when the connection is available.`,
+          `真实分析失败：${error.message}。系统没有自动切换到 mock；请在连接恢复后重试。`,
+        ),
         "warn"
       );
-      showToast("Live agent unavailable — showing the local preview.");
+      showToast(L(
+        "Live analysis did not complete. Your inputs are preserved.",
+        "真实分析未完成，你填写的内容已经保留。",
+      ));
+      showScreen("consultation");
+      return;
     }
   } else if (configured && issues.length) {
-    showAgentNotice(`${issues[0]} Showing the local preview instead.`, "warn");
-    showToast(`${issues[0]} Showing the local preview instead.`);
+    runInFlight = false;
+    if (submitButton) submitButton.disabled = false;
+    showAgentNotice(`${issues[0]}`, "warn");
+    showToast(issues[0]);
+    showScreen("consultation");
+    return;
   } else if (!configured) {
     showAgentNotice(
       "No analysis service is configured for this page, so results are generated locally and are indicative only.",
@@ -2186,7 +2392,14 @@ function scheduleAgentRetry() {
 // never survives a switch back to the page.
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) return;
+  wakeAssessmentJobPolling();
+  resumeStoredAssessmentJob();
   if ($("#agent-status")?.dataset.state === "unreachable") checkAgentConnection();
+});
+
+window.addEventListener("online", () => {
+  wakeAssessmentJobPolling();
+  resumeStoredAssessmentJob();
 });
 
 /* -------------------------------------------------------------- chat page */
@@ -2661,7 +2874,11 @@ async function rerunAssessmentForChat() {
   profile.notes = [profile.notes, ...additions.map(item => `Additional input: ${item}`)].filter(Boolean).join("\n");
   const { issues, payload } = buildBackendPayload(profile);
   if (issues.length) throw new Error(issues[0]);
-  const api = await streamAssessment(payload, () => {});
+  const api = await streamAssessment(payload, () => {}, {
+    profile,
+    thenSimulate: false,
+    persist: false,
+  });
   return mapApiAssessment(api, profile);
 }
 
@@ -4164,6 +4381,7 @@ updateFormProgress();
 i18nObserver.observe(document.body, { childList: true, subtree: true });
 applyLanguage(storedLanguage());
 checkAgentConnection();
+resumeStoredAssessmentJob();
 /* Which build this tab is actually running — the cache key in index.html and
    this stamp move together, so a stale page is visible at a glance. */
 const buildStamp = $("#build-stamp");

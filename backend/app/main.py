@@ -5,7 +5,9 @@ import html
 import json
 import mimetypes
 import os
+import uuid
 from collections import OrderedDict
+from dataclasses import asdict
 from pathlib import Path
 from threading import Lock
 
@@ -25,6 +27,7 @@ from .company_research import CompanyResearchTool
 from .config import DEFAULT_CORS_ORIGIN_REGEX, PROJECT_ROOT, Settings
 from .daily_limit import DailyAssessmentLimiter
 from .knowledge import KnowledgeRepository
+from .jobs import AssessmentJobStore
 from .llm import DeepSeekLLM, MockLLM
 from .pdf_report import build_assessment_pdf
 from .repository import AssessmentRepository
@@ -33,6 +36,7 @@ from .runtime_guard import SlidingWindowLimiter
 from .retrieval_optimizer import build_optimizer_from_env
 from .schemas import (
     Assessment,
+    AssessmentJobResponse,
     AssessmentRequest,
     ChatRequest,
     ChatOpeningRequest,
@@ -52,6 +56,8 @@ daily_assessment_limiter = DailyAssessmentLimiter(
     settings.database_path,
     settings.assessment_rate_limit_per_day,
 )
+assessment_job_store = AssessmentJobStore(settings.database_path)
+assessment_job_store.mark_interrupted()
 # Task 4 optimisation layer (metadata filtering / query enhancement /
 # authority ranking).  Off by default; enable with RETRIEVAL_OPTIMIZER=1
 # once the product-side review signs off on the Task 4 evaluation.
@@ -109,6 +115,7 @@ app.add_middleware(
 )
 _request_limiter = SlidingWindowLimiter()
 _assessment_limiter = SlidingWindowLimiter()
+_background_assessment_tasks: set[asyncio.Task[None]] = set()
 
 
 @app.middleware("http")
@@ -128,7 +135,11 @@ async def public_demo_rate_limit(request, call_next):
     is_assessment_run = (
         request.method == "POST"
         and request.url.path
-        in {"/api/v1/assessments", "/api/v1/assessments/stream"}
+        in {
+            "/api/v1/assessments",
+            "/api/v1/assessments/stream",
+            "/api/v1/assessment-jobs",
+        }
     )
     if not _request_limiter.allow(client_key, per_minute, 60):
         return JSONResponse(
@@ -481,6 +492,89 @@ def delete_context_update(
     updated = assessment.model_copy(update={"context_updates": remaining})
     repository.save(updated)
     return updated
+
+
+def _job_response(job) -> AssessmentJobResponse:
+    return AssessmentJobResponse(**asdict(job))
+
+
+async def _run_assessment_job(
+    job_id: str,
+    request: AssessmentRequest,
+) -> None:
+    def event_callback(event: dict) -> None:
+        if event.get("type") not in {"stage", "status"}:
+            return
+        assessment_job_store.update(
+            job_id,
+            status="running",
+            stage_agent=str(event.get("agent", "")),
+            stage_status=str(event.get("status", "")),
+            message=str(event.get("message", "")),
+        )
+
+    assessment_job_store.update(
+        job_id,
+        status="running",
+        stage_agent="Runtime",
+        stage_status="started",
+        message="Assessment worker started.",
+    )
+    try:
+        assessment = await asyncio.to_thread(
+            agent.run,
+            request.company,
+            request.api_key,
+            request.llm_model,
+            event_callback,
+            request.language,
+        )
+        repository.save(assessment)
+        assessment_job_store.update(
+            job_id,
+            status="completed",
+            stage_agent="VerificationAgent",
+            stage_status="completed",
+            message="Assessment completed.",
+            assessment_id=assessment.assessment_id,
+            error="",
+        )
+    except Exception as exc:  # noqa: BLE001
+        assessment_job_store.update(
+            job_id,
+            status="failed",
+            stage_status="failed",
+            message="Assessment failed.",
+            error=f"{type(exc).__name__}: {exc}"[:1200],
+        )
+
+
+@app.post(
+    "/api/v1/assessment-jobs",
+    response_model=AssessmentJobResponse,
+    status_code=202,
+)
+async def create_assessment_job(
+    request: AssessmentRequest,
+) -> AssessmentJobResponse:
+    """Start an assessment independently of the browser connection."""
+    job_id = f"JOB-{uuid.uuid4().hex[:12].upper()}"
+    job = assessment_job_store.create(job_id)
+    task = asyncio.create_task(_run_assessment_job(job_id, request))
+    _background_assessment_tasks.add(task)
+    task.add_done_callback(_background_assessment_tasks.discard)
+    return _job_response(job)
+
+
+@app.get(
+    "/api/v1/assessment-jobs/{job_id}",
+    response_model=AssessmentJobResponse,
+)
+def get_assessment_job(job_id: str) -> AssessmentJobResponse:
+    job = assessment_job_store.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="assessment job not found")
+    return _job_response(job)
 
 
 @app.post("/api/v1/assessments", response_model=Assessment)

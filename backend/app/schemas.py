@@ -553,6 +553,18 @@ class AssessmentRequest(StrictModel):
     language: Language = "en"
 
 
+class AssessmentJobResponse(StrictModel):
+    job_id: str
+    status: Literal["queued", "running", "completed", "failed"]
+    stage_agent: str = ""
+    stage_status: str = ""
+    message: str = ""
+    assessment_id: str = ""
+    error: str = ""
+    created_at: str
+    updated_at: str
+
+
 class ChatAnalysis(StrictModel):
     """Structured outcome of one consultation turn (UI.md chat page §19)."""
 

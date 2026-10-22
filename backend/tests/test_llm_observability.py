@@ -12,6 +12,13 @@ from app.llm import DeepSeekLLM
 
 
 class LLMObservabilityTest(unittest.TestCase):
+    def test_json_parser_accepts_unescaped_control_characters_in_strings(self) -> None:
+        content = '{"answer": "first line\nsecond line"}'
+
+        result = DeepSeekLLM._parse_json_content(content)
+
+        self.assertEqual(result["answer"], "first line\nsecond line")
+
     def test_failed_call_is_explicitly_marked(self) -> None:
         llm = DeepSeekLLM(
             api_key="sk-test-invalid-key",
