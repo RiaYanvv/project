@@ -32,6 +32,6 @@ services:
       - key: ASSESSMENT_RATE_LIMIT_PER_HOUR
         value: "12"
       - key: ASSESSMENT_RATE_LIMIT_PER_DAY
-        value: "10"
+        value: "25"
       - key: CORS_ORIGINS
         value: https://georisk-locus.netlify.app

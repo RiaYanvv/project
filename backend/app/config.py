@@ -95,6 +95,6 @@ class Settings:
                 "CORS_ORIGIN_REGEX", DEFAULT_CORS_ORIGIN_REGEX
             ),
             assessment_rate_limit_per_day=int(
-                os.getenv("ASSESSMENT_RATE_LIMIT_PER_DAY", "10")
+                os.getenv("ASSESSMENT_RATE_LIMIT_PER_DAY", "25")
             ),
         )
