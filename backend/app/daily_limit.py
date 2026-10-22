@@ -49,6 +49,8 @@ class DailyAssessmentLimiter:
     def _initialize(self) -> None:
         with closing(self._connect()) as connection:
             with connection:
+                connection.execute("PRAGMA journal_mode = WAL")
+                connection.execute("PRAGMA synchronous = NORMAL")
                 connection.execute(
                     """
                     CREATE TABLE IF NOT EXISTS daily_assessment_usage (
