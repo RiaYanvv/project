@@ -55,11 +55,18 @@ secret value of `DEEPSEEK_API_KEY` in the Render dashboard; never commit it.
 
 ## Deploy the frontend
 
-The frontend is a static folder. When deploying manually, make sure
-`runtime-config.js` contains the current Render URL:
+The frontend is a static folder. `runtime-config.js` is included in the
+repository and points production traffic at the Render service. The browser key
+is a placeholder because the real model credential remains on Render:
 
 ```js
 window.LOCUS_API_BASE = "https://georisk-agent.onrender.com";
+window.LOCUS_API_KEY = "server-managed";
+window.LOCUS_MODEL = "deepseek-flash";
 ```
 
 Then deploy the `frontend/` directory to Netlify.
+
+The page automatically retries a sleeping Render instance for up to 90 seconds
+before reporting the Agent as unavailable. A scheduled GitHub Action also calls
+`/health` every ten minutes to keep the free instance warm.

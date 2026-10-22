@@ -23,6 +23,12 @@ const projectsKey = "locus-decision-projects";
 // Shown on the home screen and used as the asset cache key (index.html).
 const APP_BUILD = (document.querySelector('meta[name="locus-build"]') || {}).content || "dev";
 
+/* The backend owns the model credential. A browser-side key is optional, so
+   only the API base is required for live mode. */
+function hasLiveAgentConfiguration() {
+  return Boolean(window.LOCUS_API_BASE);
+}
+
 /* Browsers can block localStorage (private mode, security software, full quota).
    Every storage call is guarded so the consultation still works without it. */
 function storageAvailable() {
@@ -463,7 +469,7 @@ async function waitForAgentService(timeoutMs = 90000) {
         { cache: "no-store" },
         Math.min(20000, remaining)
       );
-      if (response.ok) return;
+      if (response.ok) return await response.json().catch(() => ({}));
       lastError = new Error(`health check returned ${response.status}`);
     } catch (error) {
       lastError = error;
@@ -923,7 +929,7 @@ async function runAnalysis(profile, thenSimulate = false) {
   if (submitButton) submitButton.disabled = true;
   showScreen("analysis");
   resetStages();
-  const configured = Boolean(window.LOCUS_API_BASE && window.LOCUS_API_KEY);
+  const configured = hasLiveAgentConfiguration();
   let request = { issues: [], payload: null };
   try {
     request = buildBackendPayload(profile);
@@ -2123,7 +2129,7 @@ function showAgentNotice(message, tone, options) {
 
 async function checkAgentConnection(announce = false) {
   const chip = $("#agent-status");
-  if (!window.LOCUS_API_BASE || !window.LOCUS_API_KEY) {
+  if (!hasLiveAgentConfiguration()) {
     setAgentStatus(
       "preview mode",
       "No analysis service is configured for this page, so results are generated locally and are indicative only."
@@ -2131,11 +2137,13 @@ async function checkAgentConnection(announce = false) {
     if (announce) showToast("Preview mode: the page has no Agent API settings.");
     return;
   }
-  if (chip) chip.textContent = "Agent: checking…";
+  if (chip) {
+    chip.dataset.state = "checking…";
+    chip.textContent = "Agent: checking…";
+    chip.title = "Waking the analysis service. The first visit can take about a minute.";
+  }
   try {
-    const response = await fetch(`${window.LOCUS_API_BASE}/health`, { cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const payload = await response.json().catch(() => ({}));
+    const payload = await waitForAgentService(90000);
     setAgentStatus("online", `Analysis service online (${payload.status || "ok"}).`, { silent: true });
     // Clear a warning strip left behind by an earlier failed connection check.
     // Warnings that belong to a specific run are tagged differently and stay.
@@ -2523,7 +2531,7 @@ function previewReply(question) {
 
 async function sendChatMessage(text) {
   const assessment = state.assessment;
-  const live = Boolean(assessment?.meta?.assessment_id && window.LOCUS_API_BASE && window.LOCUS_API_KEY);
+  const live = Boolean(assessment?.meta?.assessment_id && hasLiveAgentConfiguration());
   appendChatMessage({ role: "user", content: text });
   markReportOutdated();
   if (!live) {
@@ -2792,7 +2800,7 @@ async function runScenarioUpdate() {
     if (position < steps.length) { setStageIn("chat-update-steps", position, "working"); position += 1; }
     else clearInterval(timer);
   }, 600);
-  const live = Boolean(assessment.meta?.assessment_id && window.LOCUS_API_BASE && window.LOCUS_API_KEY);
+  const live = Boolean(assessment.meta?.assessment_id && hasLiveAgentConfiguration());
   let rerun = null;
   let rerunFailed = false;
   if (live) {
@@ -3708,7 +3716,7 @@ async function openProjectById(id) {
   // content only; refresh them instead of showing stale results.
   const profile = project.company_profile || project.assessment?.company_profile;
   const storedPreview = !(project.assessment?.meta?.assessment_id);
-  if (storedPreview && profile && window.LOCUS_API_BASE && window.LOCUS_API_KEY) {
+  if (storedPreview && profile && hasLiveAgentConfiguration()) {
     showToast("Refreshing this decision with the analysis service…");
     runAnalysis(profile, stage === "SCENARIO_SIMULATION");
     return;

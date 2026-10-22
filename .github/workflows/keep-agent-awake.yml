@@ -1,0 +1,36 @@
+name: Keep LOCUS Agent reachable
+
+on:
+  schedule:
+    # Render's free web service sleeps after inactivity. A ten-minute health
+    # check keeps the container warm without storing any permanent secret.
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Wake and verify the Render service
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if curl \
+              --fail \
+              --silent \
+              --show-error \
+              --max-time 90 \
+              https://georisk-agent.onrender.com/health \
+              | grep -q '"status":"ok"'; then
+              echo "LOCUS Agent is online."
+              exit 0
+            fi
+            echo "Wake attempt ${attempt} failed; retrying."
+            sleep 20
+          done
+          echo "LOCUS Agent did not respond to repeated health checks."
+          exit 1
