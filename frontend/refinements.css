@@ -412,7 +412,60 @@ input.field-invalid,select.field-invalid,textarea.field-invalid{border-color:#d8
 .agent-notice{position:sticky;top:0;z-index:30;padding:11px 20px;font:600 12.5px/1.5 var(--sans);border-bottom:1px solid transparent}
 .agent-notice[data-tone="warn"]{background:#fff9ed;border-bottom-color:#e5d0a6;color:#8a5a12}
 .agent-notice[data-tone="ok"]{background:#f2f9f5;border-bottom-color:#b9d8ca;color:#337047}
+.analysis-dock{
+  position:fixed;
+  right:clamp(16px,3vw,34px);
+  bottom:24px;
+  z-index:55;
+  width:min(380px,calc(100vw - 32px));
+  display:grid;
+  grid-template-columns:32px minmax(0,1fr) 20px;
+  align-items:center;
+  gap:12px;
+  padding:13px 15px;
+  border:1px solid #315a76;
+  border-radius:5px;
+  background:var(--ink);
+  color:#fff;
+  box-shadow:0 16px 36px #10284033;
+  text-align:left;
+  cursor:pointer;
+  transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease;
+}
+.analysis-dock:hover{transform:translateY(-2px);border-color:#72aeca;box-shadow:0 19px 42px #10284042}
+.analysis-dock:focus-visible{outline:3px solid #8fc6df;outline-offset:3px}
+.analysis-dock-icon{
+  position:relative;
+  display:grid;
+  place-items:center;
+  width:30px;
+  height:30px;
+  border:1px solid #47718b;
+  border-radius:50%;
+  color:#fff;
+  font:700 15px var(--sans);
+}
+.analysis-dock[data-state="running"] .analysis-dock-icon:after{
+  content:"";
+  width:13px;
+  height:13px;
+  border:1.5px solid #7db9d3;
+  border-top-color:transparent;
+  border-radius:50%;
+  animation:analysis-dock-spin .9s linear infinite;
+}
+.analysis-dock[data-state="complete"] .analysis-dock-icon{border-color:#69a883;background:#2f7951}
+.analysis-dock-copy{display:grid;gap:3px;min-width:0}
+.analysis-dock-copy strong{color:#fff;font:700 12.5px/1.35 var(--sans);letter-spacing:0}
+.analysis-dock-copy small{overflow:hidden;color:#b5cbd9;font:500 10.5px/1.45 var(--sans);text-overflow:ellipsis;white-space:nowrap}
+.analysis-dock-arrow{color:#8fc6df;font:600 18px var(--sans);transition:transform .2s ease}
+.analysis-dock:hover .analysis-dock-arrow{transform:translateX(3px)}
+@keyframes analysis-dock-spin{to{transform:rotate(360deg)}}
 @media(max-width:800px){.nav-link.lang-toggle{display:inline-block}}
+@media(max-width:560px){
+  .analysis-dock{left:14px;right:14px;bottom:14px;width:auto}
+  .analysis-dock-copy small{white-space:normal}
+}
 
 .intel-block{margin-top:22px}
 .intel-label{margin:0 0 10px;color:#345267;font-size:13px;font-weight:700}

@@ -24,6 +24,7 @@ const activeAssessmentJobKey = "locus-active-assessment-job";
 let activeAssessmentJob = null;
 let assessmentJobWake = null;
 let assessmentJobResumeRunning = false;
+let completedBackgroundAnalysis = null;
 // Shown on the home screen and used as the asset cache key (index.html).
 const APP_BUILD = (document.querySelector('meta[name="locus-build"]') || {}).content || "dev";
 
@@ -170,7 +171,6 @@ function ensureScreenContent(id) {
 
 function showScreen(id) {
   const current = document.querySelector(".screen.active")?.id;
-  if (current === "analysis" && id !== "analysis") cancelAnalysisRun();
   const curtain = id === "consultation" && current !== "consultation";
   window.scrollTo({ top: 0, behavior: "auto" });
 
@@ -183,6 +183,7 @@ function showScreen(id) {
     primaryNav.classList.toggle("nav-cta", isHome);
     window.scrollTo({ top: 0, behavior: "auto" });
     try { ensureScreenContent(id); } catch (error) { console.error("screen render failed", error); }
+    renderAnalysisDock();
   };
 
   if (!curtain) return activate();
@@ -652,12 +653,6 @@ async function waitForAssessmentJob(jobId, onStage) {
     }
 
     networkRetrying = false;
-    showAgentNotice(
-      L(
-        "Analysis is running in the background. You can switch tabs; this page will reconnect automatically.",
-        "分析正在服务器后台运行，可以切换到其他标签页；返回本页后会自动恢复。",
-      )
-    );
     const job = await response.json();
     const stageKey = `${job.stage_agent || ""}:${job.stage_status || ""}`;
     if (job.stage_agent && stageKey !== lastStage) {
@@ -723,8 +718,8 @@ async function resumeStoredAssessmentJob() {
   resetStages();
   try {
     const api = await waitForAssessmentJob(pending.jobId, handleStageEvent);
-    finishRun(
-      mapApiAssessment(api, pending.profile),
+    completeAssessmentRun(
+      api,
       pending.profile,
       Boolean(pending.thenSimulate),
     );
@@ -1074,6 +1069,7 @@ function finishRun(assessment, profile, thenSimulate = false) {
   state.scenarioComparison = null;
   state.versionPreview = null;
   state.scenarioVersion = Number(assessment.meta?.scenario_version) || 1;
+  completedBackgroundAnalysis = null;
   runInFlight = false;
   const submitButton = $("#decision-form button[type='submit']");
   if (submitButton) submitButton.disabled = false;
@@ -1081,9 +1077,78 @@ function finishRun(assessment, profile, thenSimulate = false) {
   try { renderAssessment(assessment); } catch (error) { showToast(`Some assessment sections could not be rendered: ${error.message}`); }
   try { saveProject(assessment, profile || assessment.company_profile || {}); } catch { /* project history is optional */ }
   try { resetDecisionForm(); } catch { /* the form can be cleared manually */ }
+  renderAnalysisDock();
   // Always move the user forward, whatever happened above.
   if (thenSimulate) setTimeout(() => runScenarioSimulation(), 420);
   else setTimeout(() => showScreen("assessment"), 320);
+}
+
+function currentScreenId() {
+  return document.querySelector(".screen.active")?.id || "";
+}
+
+function renderAnalysisDock() {
+  const dock = $("#analysis-dock");
+  if (!dock) return;
+  const screen = currentScreenId();
+  const completed = Boolean(completedBackgroundAnalysis);
+  const running = runInFlight && !completed;
+  if (screen === "analysis" || (!running && !completed)) {
+    dock.hidden = true;
+    return;
+  }
+
+  dock.hidden = false;
+  dock.dataset.state = completed ? "complete" : "running";
+  dock.setAttribute("aria-label", completed
+    ? L("Analysis complete. Open the assessment.", "分析已完成，点击查看评估结果。")
+    : L("Analysis is running in the background. Return to the analysis screen.", "分析正在后台运行，点击回到分析界面。"));
+  const icon = $("#analysis-dock-icon");
+  if (icon) icon.textContent = completed ? "✓" : "";
+  const title = $("#analysis-dock-title");
+  if (title) {
+    title.textContent = completed
+      ? L("Analysis complete", "分析已完成")
+      : L("Analysis is running in the background", "分析正在后台运行");
+  }
+  const detail = $("#analysis-dock-detail");
+  if (detail) {
+    detail.textContent = completed
+      ? L("Click to open the completed assessment.", "点击查看已完成的评估结果。")
+      : L("Click this button to return to the analysis screen.", "点击这个按钮回到分析界面。");
+  }
+}
+
+function completeAssessmentRun(api, profile, thenSimulate = false) {
+  const assessment = mapApiAssessment(api, profile);
+  if (currentScreenId() !== "analysis") {
+    completedBackgroundAnalysis = { assessment, profile, thenSimulate };
+    runInFlight = false;
+    const submitButton = $("#decision-form button[type='submit']");
+    if (submitButton) submitButton.disabled = false;
+    renderAnalysisDock();
+    showToast(L(
+      "The background analysis is complete. Open it from the task button.",
+      "后台分析已完成，可点击任务按钮查看结果。",
+    ));
+    return;
+  }
+  finishRun(assessment, profile, thenSimulate);
+}
+
+async function openBackgroundAnalysisDock() {
+  if (completedBackgroundAnalysis) {
+    const completed = completedBackgroundAnalysis;
+    completedBackgroundAnalysis = null;
+    finishRun(completed.assessment, completed.profile, completed.thenSimulate);
+    return;
+  }
+  if (!runInFlight) {
+    const resumed = await resumeStoredAssessmentJob();
+    if (!resumed) renderAnalysisDock();
+    return;
+  }
+  showScreen("analysis");
 }
 
 function cancelAnalysisRun() {
@@ -1111,6 +1176,7 @@ function runPreviewTimeline(profile, thenSimulate = false, runId = analysisRunId
 async function runAnalysis(profile, thenSimulate = false) {
   if (runInFlight) return;
   const runId = ++analysisRunId;
+  completedBackgroundAnalysis = null;
   runInFlight = true;
   const submitButton = $("#decision-form button[type='submit']");
   if (submitButton) submitButton.disabled = true;
@@ -1134,13 +1200,15 @@ async function runAnalysis(profile, thenSimulate = false) {
       });
       if (runId !== analysisRunId) return;
       showAgentNotice("");
-      finishRun(mapApiAssessment(api, profile), profile, thenSimulate);
+      completeAssessmentRun(api, profile, thenSimulate);
       return;
     } catch (error) {
       if (runId !== analysisRunId) return;
       if (error.code === "daily_assessment_limit_reached") {
         runInFlight = false;
+        completedBackgroundAnalysis = null;
         if (submitButton) submitButton.disabled = false;
+        renderAnalysisDock();
         showScreen("consultation");
         const message = dailyAssessmentLimitMessage(error);
         showAgentNotice(message, "warn");
@@ -1149,6 +1217,7 @@ async function runAnalysis(profile, thenSimulate = false) {
       }
       runInFlight = false;
       clearActiveAssessmentJob();
+      completedBackgroundAnalysis = null;
       if (submitButton) submitButton.disabled = false;
       showAgentNotice(
         L(
@@ -1161,12 +1230,15 @@ async function runAnalysis(profile, thenSimulate = false) {
         "Live analysis did not complete. Your inputs are preserved.",
         "真实分析未完成，你填写的内容已经保留。",
       ));
+      renderAnalysisDock();
       showScreen("consultation");
       return;
     }
   } else if (configured && issues.length) {
     runInFlight = false;
+    completedBackgroundAnalysis = null;
     if (submitButton) submitButton.disabled = false;
+    renderAnalysisDock();
     showAgentNotice(`${issues[0]}`, "warn");
     showToast(issues[0]);
     showScreen("consultation");
@@ -4113,6 +4185,10 @@ function restoreDraft() {
 /* --------------------------------------------------------------- bindings */
 
 document.addEventListener("click", async event => {
+  if (event.target.closest("#analysis-dock")) {
+    await openBackgroundAnalysisDock();
+    return;
+  }
   const target = event.target.closest("[data-screen-target]");
   if (target && !(await confirmProjectNameBeforeLeaving(target.dataset.screenTarget))) return;
   if (target && target.dataset.screenTarget === "consultation" && !(await prepareNewDecisionForm())) return;
@@ -4129,6 +4205,7 @@ document.addEventListener("click", async event => {
   if (event.target.closest("#lang-toggle")) {
     toggleLanguage();
     announceContentLanguage();
+    renderAnalysisDock();
   }
   if (event.target.closest("#agent-status")) checkAgentConnection(true);
   if (event.target.closest("#chat-update") || event.target.closest("[data-chat-update]")) runScenarioUpdate();
